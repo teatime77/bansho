@@ -38,8 +38,12 @@ export class Action{
         ActionId++;
     }
 
-    init(){
+    init(){}
+
+    *play(){
+        yield;
     }
+
 
     *restore():any{}
 
@@ -83,10 +87,14 @@ export class Action{
     summary() : string {
         return this.getTypeName();
     }
-
-
 }    
 
+
+export class EmptyAction extends Action {
+    summary() : string {
+        return "空";
+    }
+}
 
 export class SelectionAction extends Action {
     blockId: number;
@@ -571,29 +579,28 @@ function updateTextMath(){
             if(prevTextValue == ""){
                 // 新たにテキストを入力した場合
 
-                if(selActions.selectedIndex == selActions.options.length - 1){
-                    // 最後の場合
+                let selIdx = selActions.selectedIndex;
+                if(actions[selIdx] instanceof EmptyAction){
+                    // 空のアクションの場合
 
-                    let selIdx = selActions.selectedIndex;
                     if(speechInput){
 
                         const act = new SpeechAction(textMath.value.trim());
-                        addAction(act);    
+                        setAction(act);    
                     }
                     else{
 
                         const act = new TextBlockAction(textMath.value);
                         act.init();                    
                         
-                        addAction(act);                    
+                        setAction(act);                    
                     }
                 }
                 else{
-                    // 最後でない場合
+                    // 空のアクションでない場合
 
                     updateFocusedTextBlock();
                 }
-    
             }
             else{
 
@@ -628,7 +635,7 @@ function monitorTextMath(){
                 runGenerator( act.play() );
             }
 
-            setTextMathValue("");
+            addEmptyAction();
 
             ev.stopPropagation();
             ev.preventDefault();
@@ -651,7 +658,16 @@ function currentAction() : Action | undefined {
 
 }
 
-function addAction(act: Action){
+function setAction(act: Action){
+    let selIdx = selActions.selectedIndex;
+
+    console.assert(actions[selIdx] instanceof EmptyAction);
+    actions[selIdx] = act;
+    selActions.options[selIdx].textContent = act.summary();
+}
+
+function addEmptyAction(){
+    const act = new EmptyAction();
     let selIdx = selActions.selectedIndex;
 
     actions.splice(selIdx + 1, 0, act);
@@ -669,6 +685,23 @@ function addAction(act: Action){
     }
 
     selActions.selectedIndex = selIdx + 1;
+
+    setTextMathValue("");
+    textMath.focus();
+}
+
+
+function resetAction(){
+    let selIdx = selActions.selectedIndex;
+
+    const act = actions[selIdx] as TextBlockAction;
+    if(act instanceof TextBlockAction){
+
+        divMath.removeChild(act.div);
+    }
+
+    actions[selIdx] = new EmptyAction();
+    selActions.options[selIdx].textContent = actions[selIdx].summary();
 }
 
 
@@ -705,6 +738,12 @@ function removeAction(){
 
 function selActionsChange(ev: Event){
     msg(`changed`);
+    while(actions.some(x => x instanceof EmptyAction)){
+        let idx = actions.findIndex(x => x instanceof EmptyAction);
+        actions.splice(idx, 1);
+        selActions.remove(idx);
+    }
+
     const act = actions[selActions.selectedIndex];
     if(act instanceof TextBlockAction || act instanceof SpeechAction){
 
@@ -722,7 +761,7 @@ export function addSelection(){
 
     tmpSelection.isTmp = false;
     tmpSelection.enable();
-    addAction(tmpSelection);
+    setAction(tmpSelection);
 
     tmpSelection = null;
 }
@@ -766,22 +805,12 @@ export function initTekesan(in_editor: boolean){
     selActions.addEventListener("change", selActionsChange);
     selActions.addEventListener("dblclick", (ev: MouseEvent)=>{
         msg("dblclick");
-        let act : Action;
-        if(speechInput){
-
-            act = new SpeechAction("");
-        }
-        else{
-
-            act = new TextBlockAction("");
-        }
-        addAction(act);
-        setTextMathValue("");
-        textMath.focus();
-
+        addEmptyAction();
     });
  
     monitorTextMath();
+
+    addEmptyAction();
 }
 
 
