@@ -564,13 +564,16 @@ function updateTextMath(){
     if(prevTextValue != textMath.value && prevTextValue != textMath.value.trim()){
 
         let trimValue = textMath.value.trim();
+        let selIdx = selActions.selectedIndex;
+        const act = actions[selIdx];
+
         if(trimValue == ""){
             // テキストが削除された場合
 
-            if(selActions.selectedIndex == selActions.options.length - 1){
-                // 最後の場合
+            if(!(act instanceof EmptyAction)){
+                // 空のアクションでない場合
 
-                removeAction();
+                resetAction();
             }
         }
         else{
@@ -579,21 +582,20 @@ function updateTextMath(){
             if(prevTextValue == ""){
                 // 新たにテキストを入力した場合
 
-                let selIdx = selActions.selectedIndex;
-                if(actions[selIdx] instanceof EmptyAction){
+                if(act instanceof EmptyAction){
                     // 空のアクションの場合
 
                     if(speechInput){
 
-                        const act = new SpeechAction(textMath.value.trim());
-                        setAction(act);    
+                        const newAct = new SpeechAction(textMath.value.trim());
+                        setAction(newAct);    
                     }
                     else{
 
-                        const act = new TextBlockAction(textMath.value);
-                        act.init();                    
+                        const newAct = new TextBlockAction(textMath.value);
+                        newAct.init();                    
                         
-                        setAction(act);                    
+                        setAction(newAct);                    
                     }
                 }
                 else{
