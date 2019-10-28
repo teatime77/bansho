@@ -6,14 +6,17 @@ const IDX = 0;
 const NODE_NAME = 1;
 
 export let divMath : HTMLDivElement;
+let selActions : HTMLSelectElement;
 
 export let actions : Action[];
-export let allActions : Action[];
 export let ActionId;
 export let inEditor : boolean;
 
 let tmpSelection : SelectionAction | null;
 export let selections : SelectionAction[];
+
+let speechInput : boolean;
+let prevTextValue: string = "";
 
 class JaxNode {
     CHTMLnodeID: number;
@@ -33,8 +36,6 @@ export class Action{
     constructor(){
         this.id = ActionId;
         ActionId++;
-
-        allActions.push(this);
     }
 
     init(){
@@ -83,83 +84,6 @@ export class Action{
         return this.getTypeName();
     }
 
-    summaryDom() : HTMLSpanElement {
-        const span = document.createElement("span");
-        span.dataset.id = "" + this.id;
-        span.textContent = this.summary();
-        span.tabIndex = 0;
-        span.style.whiteSpace = "nowrap";
-        
-        span.addEventListener("keydown", (ev:KeyboardEvent)=>{
-            if([ "ArrowDown", "ArrowUp", "Delete" ].includes(ev.key)){
-                console.log(`key down:${ev.key}`);
-
-                const spans = Array.from(divActions.childNodes) as HTMLSpanElement[];
-                const idx = spans.indexOf(ev.srcElement as HTMLSpanElement);
-                console.assert(idx != -1);
-
-                if(ev.key == "ArrowDown" || ev.key == "ArrowUp"){
-
-                    ev.stopPropagation();
-                    ev.preventDefault();
-
-                    if(ev.key == "ArrowDown"){
-
-                        if(idx + 1 < spans.length){
-                            spans[idx + 1].focus();
-                        }
-                    }
-                    else{
-                        if(0 < idx){
-                            spans[idx - 1].focus();
-                        }
-                    }
-                }
-                else if(ev.key == "Delete"){
-                    this.clear();
-                    const idx = actions.indexOf(this);
-                    console.assert(idx != -1);
-                    actions.splice(idx, 1);
-                    
-                    divActions.removeChild(ev.srcElement as Node);
-                }
-            }
-        });
-
-        span.addEventListener("focus", function(ev:FocusEvent){
-            msg("focus");
-            const spans = Array.from(divActions.childNodes) as HTMLSpanElement[];
-            const idx = spans.indexOf(this);
-            console.assert(idx != -1);
-    
-            if(focusedActionIdx == -1){
-                for(let [i, act] of actions.entries()){
-                    act.setEnable(i <= idx);
-                }
-            }
-            else{
-                const minIdx = Math.min(idx, focusedActionIdx);
-                const maxIdx = Math.max(idx, focusedActionIdx);
-                for(let i = minIdx; i <= maxIdx; i++){
-                    actions[i].setEnable(i <= idx);
-                }
-            }
-
-            divMath.scrollTop = divMath.scrollHeight;
-    
-            focusedActionIdx = idx;
-
-            const act = actions[focusedActionIdx];
-            if(act.constructor == TextBlockAction){
-                textMath.value = (act as TextBlockAction).text;
-            }
-            else{
-                textMath.value = "";
-            }
-        });
-    
-        return span;
-    }
 
 }    
 
@@ -270,6 +194,33 @@ export class SelectionAction extends Action {
     }
 }
 
+export class SpeechAction extends Action {
+    text: string;
+
+    constructor(text: string){
+        super();
+        this.text = text;
+    }
+
+    makeObj(obj){
+        Object.assign(obj, { text: this.text });
+    }
+
+    *play(){
+        yield* speak(this.text);
+    }
+
+    summary() : string {
+        return `音声 ${this.text}`;
+    }
+}
+
+function setTextMathValue(text: string){
+    textMath.value = text;
+    prevTextValue = text;
+
+}
+
 export function getBlockId(blockId: number) : string {
     return `manebu-id-${blockId}`;
 }
@@ -326,7 +277,8 @@ function getDomAncestors(node: Node) : HTMLElement[] {
 
 
 function reprocessMathJax(html: string){
-    if(html.split('\n').some(x => x.trim() == "$$")){
+
+    if(html.includes("$")){
         MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
     }
 }
@@ -504,9 +456,9 @@ class DivAction extends Action {
 
     makeTextDiv(text: string) : HTMLDivElement {
         let nextEle = null;
-        if(focusedActionIdx != -1){
+        if(selActions.selectedIndex != -1){
 
-            for(let act of actions.slice(focusedActionIdx + 1)){
+            for(let act of actions.slice(selActions.selectedIndex + 1)){
                 if(act instanceof DivAction){
                     nextEle = act.div;
                     break;
@@ -536,16 +488,11 @@ class DivAction extends Action {
     }
 }
 
-
 export class TextBlockAction extends DivAction {
-    constructor(){
+    constructor(text: string){
         super();
-    }
 
-    make(data:any):Action{
-        const obj = data as TextBlockAction;
-
-        this.text = obj.text;
+        this.text = text;
         //---------- 
         msg(`append text block[${this.text}]`);
     
@@ -572,115 +519,201 @@ export class TextBlockAction extends DivAction {
 
 export function newDocument(){
     ActionId = 0;
-    focusedActionIdx = -1;
-    allActions = [];
     actions = [];
     selections = [];
     tmpSelection = null;
 
     divActions.innerHTML = "";
     divMath.innerHTML = "";
-    textMath.value = "";
+    setTextMathValue("");
     divMsg.textContent = "";
 }
 
 
 function updateFocusedTextBlock(){
-    const act = actions[focusedActionIdx] as TextBlockAction;
+    const text = textMath.value.trim();
+    const act = currentAction();
 
-    const html = makeHtmlLines(textMath.value);
-    act.div.innerHTML = html;
-    act.text = textMath.value;
+    if(act instanceof TextBlockAction){
 
-    divActions.children[focusedActionIdx].textContent = act.summary();
+        const html = makeHtmlLines(text);
+        act.div.innerHTML = html;
+        act.text = text;
 
-    reprocessMathJax(html);
+        //++ divActions.children[focusedActionIdx].textContent = act.summary();
+
+        reprocessMathJax(html);
+    }
+    else if(act instanceof SpeechAction){
+
+        act.text = text;
+    }
+
+    selActions.selectedOptions[0].textContent = act.summary();
+}
+
+function updateTextMath(){
+    if(prevTextValue != textMath.value && prevTextValue != textMath.value.trim()){
+
+        let trimValue = textMath.value.trim();
+        if(trimValue == ""){
+            // テキストが削除された場合
+
+            if(selActions.selectedIndex == selActions.options.length - 1){
+                // 最後の場合
+
+                removeAction();
+            }
+        }
+        else{
+            // テキストが変更された場合
+
+            if(prevTextValue == ""){
+                // 新たにテキストを入力した場合
+
+                if(selActions.selectedIndex == selActions.options.length - 1){
+                    // 最後の場合
+
+                    let selIdx = selActions.selectedIndex;
+                    if(speechInput){
+
+                        const act = new SpeechAction(textMath.value.trim());
+                        addAction(act);    
+                    }
+                    else{
+
+                        const act = new TextBlockAction(textMath.value);
+                        act.init();                    
+                        
+                        addAction(act);                    
+                    }
+                }
+                else{
+                    // 最後でない場合
+
+                    updateFocusedTextBlock();
+                }
+    
+            }
+            else{
+
+                updateFocusedTextBlock();
+            }
+        }
+
+        prevTextValue = textMath.value.trim();
+    }
 }
 
 function monitorTextMath(){
-    let timerId = -1;
+    setInterval(updateTextMath, 500);
 
-    textMath.addEventListener("focus", function(){
-        if(focusedActionIdx == -1){
-            return;
-        }
-        console.assert(0 <= focusedActionIdx && focusedActionIdx < actions.length && actions[focusedActionIdx].constructor == TextBlockAction);
-        const act1 = actions[focusedActionIdx] as TextBlockAction;
+    textMath.addEventListener("keydown", (ev: KeyboardEvent)=>{
+        msg(`key down ${ev.key}`);
+        if(ev.key == "Insert"){
+            if(ev.ctrlKey){
 
-        textMath.value = act1.text;
-        let prevValue = textMath.value;
-        timerId = setInterval(function(){
-            if(prevValue == textMath.value){
-                return;
+                textMath.value = "$$\n\\frac{1}{2 \\pi \\sigma^2} \\int_{-\\infty}^\\infty \\exp^{ - \\frac{{(x - \\mu)}^2}{2 \\sigma^2}  } dx\n$$";
             }
-
-            prevValue = textMath.value;
-
-            updateFocusedTextBlock();
-        }, 100);
-    });
-
-    textMath.addEventListener("blur", function(){
-        clearInterval(timerId);
-
-        if(textMath.value.trim() == ""){
-            const act = actions[focusedActionIdx] as TextBlockAction;
-
-            actions.splice(focusedActionIdx, 1);
-            divMath.removeChild(act.div);
-            divActions.removeChild(divActions.children[focusedActionIdx]);
-            
-            if(focusedActionIdx == ActionId - 1){
-                ActionId--;
-            }
-            focusedActionIdx = -1;
         }
-        else{
-
-            updateFocusedTextBlock();
-        }
-    });
+    })
 
     textMath.addEventListener("keypress", function(ev:KeyboardEvent){
         msg(`key press ${ev.ctrlKey} ${ev.key}`);
-        console.assert(focusedActionIdx != -1);
-        if(ev.code == "Enter"){
+        if(ev.ctrlKey && ev.code == "Enter"){
+            updateTextMath();
 
-            if(ev.ctrlKey){
-
-                updateFocusedTextBlock();
-
-                textMath.value = "";
-
-                const act = new TextBlockAction().make({text:""});
-                addAction(act);
-            
-                act.init();        
-
-                focusedActionIdx++;
+            let act = currentAction();
+            if(act instanceof SpeechAction){
+                runGenerator( act.play() );
             }
-            else if(ev.shiftKey){
 
-                runGenerator( speak(textMath.value.trim()) );
-            }
+            setTextMathValue("");
+
+            ev.stopPropagation();
+            ev.preventDefault();
         }
+    });
+
+    textMath.addEventListener("blur", (ev: FocusEvent)=>{
+        msg("blur");
+        updateFocusedTextBlock();
     });
 }
 
-function addAction(act: Action){
-    actions.splice(focusedActionIdx + 1, 0, act);
-            
-    const nextEle = divActions.children[focusedActionIdx].nextElementSibling;
-    if(nextEle == null){
+function currentAction() : Action | undefined {
+    if(selActions.selectedIndex != -1){
+        return actions[selActions.selectedIndex];
+    }
+    else{
+        return undefined;
+    }
 
-        divActions.appendChild(act.summaryDom());
+}
+
+function addAction(act: Action){
+    let selIdx = selActions.selectedIndex;
+
+    actions.splice(selIdx + 1, 0, act);
+
+    let opt = document.createElement("option");
+    opt.textContent = act.summary();
+
+    if(selIdx != -1 && selIdx + 1 < selActions.options.length){
+
+        selActions.options.add(opt, selActions.options[selIdx + 1]);
     }
     else{
 
-        divActions.insertBefore(act.summaryDom(), nextEle);
+        selActions.options.add(opt);
+    }
+
+    selActions.selectedIndex = selIdx + 1;
+}
+
+
+function removeAction(){
+    let selIdx = selActions.selectedIndex;
+
+    const act = actions[selIdx] as TextBlockAction;
+
+    actions.splice(selIdx, 1);
+    //++ divActions.removeChild(divActions.children[focusedActionIdx]);
+
+    if(act instanceof TextBlockAction){
+
+        divMath.removeChild(act.div);
+    }
+
+    selActions.remove(selIdx);
+    if(selIdx == 0){
+
+        if(selActions.options.length == 0){
+
+            selActions.selectedIndex = - 1;
+        }
+        else{
+
+            selActions.selectedIndex = 0;
+        }
+    }
+    else{
+
+        selActions.selectedIndex = selIdx - 1;
     }
 }
 
+function selActionsChange(ev: Event){
+    msg(`changed`);
+    const act = actions[selActions.selectedIndex];
+    if(act instanceof TextBlockAction || act instanceof SpeechAction){
+
+        setTextMathValue(act.text);
+    }
+    else{
+        setTextMathValue("");
+    }
+}
 
 export function addSelection(){
     if(tmpSelection == null){
@@ -700,27 +733,54 @@ export function initTekesan(in_editor: boolean){
     divMath = document.getElementById("div-math") as HTMLDivElement;
     divActions = document.getElementById("div-actions") as HTMLDivElement;
     textMath = document.getElementById("txt-math") as HTMLTextAreaElement;
+    selActions = document.getElementById("sel-actions") as HTMLSelectElement;
+    let selIdx = selActions.selectedIndex;
 
     msg("body loaded");
 
     initSpeech();
 
-    let testText = textMath.value;
+    speechInput = false;
+    textMath.style.backgroundColor = "white";
     newDocument();
 
     if(! inEditor){
         return;
     }
 
-    textMath.disabled = false;
+    document.body.addEventListener("keydown", (ev: KeyboardEvent)=>{
+        if(ev.key == "Insert" && ! ev.ctrlKey && ! ev.shiftKey){
+            speechInput = ! speechInput;
+            const inputMode = document.getElementById("input-mode") as HTMLSpanElement;
+            inputMode.textContent = (speechInput ? "音声" : "テキスト");
+            if(speechInput){
+                textMath.style.backgroundColor = "ivory";
+            }
+            else{
 
-    const act = new TextBlockAction().make({text:testText});
-    actions.push(act);
-    divActions.appendChild(act.summaryDom());
+                textMath.style.backgroundColor = "white";
+            }
+        }
+    })
 
-    focusedActionIdx = 0;
-    act.init();
+    selActions.addEventListener("change", selActionsChange);
+    selActions.addEventListener("dblclick", (ev: MouseEvent)=>{
+        msg("dblclick");
+        let act : Action;
+        if(speechInput){
 
+            act = new SpeechAction("");
+        }
+        else{
+
+            act = new TextBlockAction("");
+        }
+        addAction(act);
+        setTextMathValue("");
+        textMath.focus();
+
+    });
+ 
     monitorTextMath();
 }
 

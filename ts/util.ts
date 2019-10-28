@@ -7,7 +7,6 @@ let pendingRefs : any[];
 let stopPlaying: boolean = false;
 let classes : any[];
 export let divMsg : HTMLDivElement = null;
-export let focusedActionIdx : number;
 export let divActions : HTMLDivElement;
 export let textMath : HTMLTextAreaElement;
 
@@ -234,7 +233,7 @@ export function fromObj(parent:any, key:any, obj: any){
 }
 
 export function serializeActions() : string {
-    for(let [i,x] of allActions.entries()){
+    for(let [i,x] of actions.entries()){
         x.id = i;
     }
     actionMap = new Map<number, Action>();
@@ -310,17 +309,16 @@ export function openActionData(actionText: string){
 
     if(actions.length == 0){
         ActionId = 0;
-        actions.push(new TextBlockAction().make({text:""}));
+        actions.push(new TextBlockAction(""));
     }
 
     ActionId = Math.max(... actions.map(x => x.id)) + 1;
-    focusedActionIdx = 0;
 
     function* fnc(){
         for(let act of actions){
             act.init();
             yield* act.restore();
-            divActions.appendChild(act.summaryDom());
+            //++ divActions.appendChild(act.summaryDom());
         }
 
         yield* waitActions(); 
