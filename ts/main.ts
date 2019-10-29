@@ -543,10 +543,8 @@ export function newDocument(){
     actions = [];
     tmpSelection = null;
 
-    divActions.innerHTML = "";
     divMath.innerHTML = "";
     setTextMathValue("");
-    divMsg.textContent = "";
 }
 
 
@@ -559,8 +557,6 @@ function updateFocusedTextBlock(){
         const html = makeHtmlLines(text);
         act.div.innerHTML = html;
         act.text = text;
-
-        //++ divActions.children[focusedActionIdx].textContent = act.summary();
 
         reprocessMathJax(html);
     }
@@ -725,7 +721,6 @@ function removeAction(){
     const act = actions[selIdx] as TextBlockAction;
 
     actions.splice(selIdx, 1);
-    //++ divActions.removeChild(divActions.children[focusedActionIdx]);
 
     if(act instanceof TextBlockAction){
 
@@ -785,9 +780,7 @@ export function addSelection(){
 
 export function initTekesan(in_editor: boolean){
     inEditor = in_editor;
-    divMsg = document.getElementById("div-msg") as HTMLDivElement;
     divMath = document.getElementById("div-math") as HTMLDivElement;
-    divActions = document.getElementById("div-actions") as HTMLDivElement;
     textMath = document.getElementById("txt-math") as HTMLTextAreaElement;
     selActions = document.getElementById("sel-actions") as HTMLSelectElement;
     let selIdx = selActions.selectedIndex;

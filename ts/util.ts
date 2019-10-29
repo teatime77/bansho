@@ -3,8 +3,7 @@ declare let MathJax:any;
 export const padding = 10;
 const endMark = "😀";
 let stopPlaying: boolean = false;
-export let divMsg : HTMLDivElement = null;
-export let divActions : HTMLDivElement;
+let divMsg : HTMLDivElement = null;
 export let textMath : HTMLTextAreaElement;
 
 export function msg(text: string){
@@ -205,12 +204,39 @@ export function backup(){
         msg("copy NG");
     });
 
+
+    var url = `${window.location.origin}/`;
+    var data = {username: 'example'};
+    
+    fetch(url, {
+        method: "POST", // or 'PUT'
+        body: JSON.stringify(text),
+        headers:{
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(res => res.json())
+    .then(response => {
+        console.log('Success:', JSON.stringify(response))
+    })
+    .catch(error => {
+        console.error('Error:', error)
+    });
 }
 
-function fetchText(path:string, fnc:(text: string)=>void){
-    let k = window.location.href.lastIndexOf("/");
+export function fetchText(path:string, fnc:(text: string)=>void){
+    let url: string;
 
-    const url = `${window.location.href.substring(0, k)}/${path}`;
+    if(path.startsWith("http")){
+
+        url = path;
+    }
+    else{
+
+        let k = window.location.href.lastIndexOf("/");
+
+        url = `${window.location.href.substring(0, k)}/${path}`;
+    }
     const url2 = encodeURI(url);
     msg(`fetch-json:${url} ${url2}`);
     fetch(url2)
@@ -275,7 +301,6 @@ export function openActionData(actionText: string){
         for(let act of actions){
             act.init();
             yield* act.restore();
-            //++ divActions.appendChild(act.summaryDom());
         }
 
         yield* waitActions(); 
