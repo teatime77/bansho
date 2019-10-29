@@ -52,9 +52,10 @@ li {
 <body onload="bodyOnload()">
 <div style="display: grid; grid-template-rows:50px 1fr 150px 30px 100px; grid-template-columns:150px 1fr 100px; width: 100%; height: 100%;">
     <div style="grid-row: 1; grid-column: 1/span 3; background-color: cornsilk; ">
+        <button onclick="tekesan.openDoc()">開く</button>
         <button onclick="manebu.playActions()">再生</button>
         <button onclick="manebu.stop()">停止</button>
-        <button onclick="manebu.backup()">バックアップ</button>
+        <button onclick="tekesan.backup()">バックアップ</button>
         <input type="radio" name="tool-type" value="select" />選択
         <span id="input-mode"></span>
     </div>

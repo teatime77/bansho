@@ -6,14 +6,14 @@ const IDX = 0;
 const NODE_NAME = 1;
 
 export let divMath : HTMLDivElement;
-let selActions : HTMLSelectElement;
+export let selActions : HTMLSelectElement;
 
+export let title : string = "タイトル";
 export let actions : Action[];
 export let ActionId;
 export let inEditor : boolean;
 
 let tmpSelection : SelectionAction | null;
-export let selections : SelectionAction[];
 
 let speechInput : boolean;
 let prevTextValue: string = "";
@@ -31,11 +31,18 @@ class ElementJax {
 }
 
 export class Action{
+    typeName: string;
     id: number;
 
     constructor(){
+        this.typeName = this.getTypeName();
         this.id = ActionId;
         ActionId++;
+    }
+
+    copyBase(act: Action){
+        this.typeName = act.typeName;
+        this.id = act.id;
     }
 
     init(){}
@@ -51,20 +58,13 @@ export class Action{
         return this.constructor.name;
     }
 
-    toObj(){
-        if(actionMap.has(this.id)){
-            return { ref: this.id };
-        }
-        actionMap.set(this.id, this);
-        
-        const obj = { typeName: this.getTypeName(), id: this.id };
-
-        this.makeObj(obj);
-
-        return obj;
+    toStrBase() : string {
+        return `"type": "${this.getTypeName()}", "id": ${this.id}`;
     }
 
-    makeObj(obj){
+    toStr() : string {
+        console.assert(false);
+        return "";
     }
 
     clear(){}
@@ -99,14 +99,44 @@ export class EmptyAction extends Action {
 export class SelectionAction extends Action {
     blockId: number;
     domType: string;
-    startPath:any[];
-    endPath:any[] | null;
+    startPath: [number, string][] | null;
+    endPath: [number, string][] | null;
     selectedDoms : HTMLElement[];
     isTmp: boolean = false;
+
+    static fromObj(obj: SelectionAction) : SelectionAction {
+        const act = new SelectionAction();
+
+        act.copyBase(obj);
+        act.blockId = obj.blockId;
+        act.domType = obj.domType;
+        act.startPath = obj.startPath;
+        act.endPath   = obj.endPath;
+
+        return act;
+    }
 
     constructor(){
         super();
     }
+
+    toStr() : string {
+        const start = this.getJaxPathStr(this.startPath);
+        const end   = this.getJaxPathStr(this.endPath);
+
+        return `{ ${this.toStrBase()}, "blockId": ${this.blockId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end} }`;
+    }
+
+    getJaxPathStr(path : [number, string][] | null){
+        if(path == null){
+            return "null";
+        }
+        else{
+
+            return "[" + path.map(x => `[${x[0]}, "${x[1]}"]`).join(", ") + "]";
+        }
+    }
+    
 
     make(data:any):Action{
         const obj = data as SelectionAction;
@@ -117,19 +147,6 @@ export class SelectionAction extends Action {
         this.endPath   = obj.endPath;
 
         return this;
-    }
-
-    makeObj(obj){
-        Object.assign(obj, {
-            blockId: this.blockId ,
-            domType: this.domType ,
-            startPath: this.startPath,
-            endPath: this.endPath 
-        });
-    }
-
-    init(){
-        selections.push(this);
     }
 
     enable(){
@@ -210,8 +227,8 @@ export class SpeechAction extends Action {
         this.text = text;
     }
 
-    makeObj(obj){
-        Object.assign(obj, { text: this.text });
+    toStr() : string {
+        return `{ ${this.toStrBase()}, "text":${tostr(this.text)} }`;
     }
 
     *play(){
@@ -292,7 +309,7 @@ function reprocessMathJax(html: string){
 }
 
 function getJaxPath(jaxIdx: number, jaxList:JaxNode[], maxNest: number) : any[]{
-    const path : any[] = [];
+    const path : [number, string][] = [];
 
     let parent = jaxList[0];
 
@@ -438,9 +455,7 @@ export function onclickBlock(div: HTMLDivElement, ev:MouseEvent){
 
         if(tmpSelection != null){
             tmpSelection.isTmp = true;
-            tmpSelection.setSelectedDoms();
             tmpSelection.enable();
-
 
             addSelection();
         }
@@ -512,12 +527,10 @@ export class TextBlockAction extends DivAction {
         this.div.addEventListener('keydown', (event) => {
             msg(`key down ${event.key} ${event.ctrlKey}`);
         }, false);
-
-        return this;
     }
 
-    makeObj(obj){
-        Object.assign(obj, { text: this.text });
+    toStr() : string {
+        return `{ ${this.toStrBase()}, "text":${tostr(this.text)} }`;
     }
 
     summary() : string {
@@ -528,7 +541,6 @@ export class TextBlockAction extends DivAction {
 export function newDocument(){
     ActionId = 0;
     actions = [];
-    selections = [];
     tmpSelection = null;
 
     divActions.innerHTML = "";
@@ -767,6 +779,9 @@ export function addSelection(){
 
     tmpSelection = null;
 }
+
+
+
 
 export function initTekesan(in_editor: boolean){
     inEditor = in_editor;

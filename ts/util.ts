@@ -2,10 +2,7 @@ namespace tekesan {
 declare let MathJax:any;
 export const padding = 10;
 const endMark = "😀";
-export let actionMap : Map<number, Action>;
-let pendingRefs : any[];
 let stopPlaying: boolean = false;
-let classes : any[];
 export let divMsg : HTMLDivElement = null;
 export let divActions : HTMLDivElement;
 export let textMath : HTMLTextAreaElement;
@@ -24,27 +21,12 @@ export function range(n: number) : number[]{
     return [...Array(n).keys()];
 }
 
-function ltrim(stringToTrim) {
-	return stringToTrim.replace(/^\s+/,"");
-}
-
 export function last<T>(v:Array<T>) : T{
     console.assert(v.length != 0);
 
     return v[v.length - 1];
 }
 
-export function arrayLast<T>(arr:T[]) : T{
-    console.assert(arr.length != 0);
-    return arr[arr.length - 1];
-}
-
-export function arrayRemove<T>(arr:T[], x:T) {
-    const index = arr.indexOf(x);
-    if (index != -1) {
-        arr.splice(index, 1);
-    }
-}
 
 function getIndent(line: string) : [number, string]{
     let indent = 0;
@@ -142,105 +124,57 @@ export function tostr(text: string){
     }
 }
 
-function objToStr(obj: any, nest: number){
-    const t1 = " ".repeat(4 * nest);
-    const t2 = " ".repeat(4 * (nest + 1));
+export function serializeDoc() : string {
+    return `{
+  "title": "${title}",
+  "actions": [
+${actions.filter(x => !(x instanceof EmptyAction)) .map(x => "    " + x.toStr()).join(",\n")}
+  ]
+}`
+}
 
-    if(Array.isArray(obj)){
-        return `${t1}[\n` + (obj as any[]).map(x => objToStr(x, nest + 1)).join(`,\n`) + `\n${t1}]`;
-    }
+export function deserializeDoc(text: string){
+    selActions.innerHTML = "";
 
-    if(typeof obj == "object"){
+    const doc = JSON.parse(reviseJson(text));
 
-        if(obj.ref != undefined){
-            
-            return `${t1}{ "ref": ${obj.ref} }`;
-        }
+    actions = [];
+    for(let obj of doc.actions){
+        let act: Action;
 
-
-
-        if(obj.typeName == "TextBox"){
-            msg(``);
-        }
-
-        let lines = [];
-        for (let [key, value] of Object.entries(obj)){
-            lines.push(`${t2}"${key}": ${ltrim(objToStr(value, nest + 1))}`)
-        }
+        switch(obj.type){
+        case TextBlockAction.prototype.constructor.name:
+            act = new TextBlockAction((obj as TextBlockAction).text);
+            break;
         
-        return `${t1}{\n` + lines.join(`,\n`) + `\n${t1}}`;
-    }
+        case SpeechAction.prototype.constructor.name:
+            act = new SpeechAction((obj as SpeechAction).text);
+            break;
 
-    if(typeof obj == "string"){
-        if(obj.includes('\n')){
-            return `${endMark}${obj}${endMark}`;
-        }
-    }
+        case SelectionAction.prototype.constructor.name:
+            act = SelectionAction.fromObj(obj as SelectionAction);
+            break;
 
-    return JSON.stringify(obj);
-}
-
-
-export function fromObj(parent:any, key:any, obj: any){
-    if(Array.isArray(obj)){
-
-        let v = [];
-        for(let [i, x] of (obj as any[]).entries()){
-            v.push( fromObj(v, i, x) );
+        default:
+            console.assert(false);
+            break;
         }
 
-        return v;
+        actions.push(act);
+
+        let opt = document.createElement("option");
+        opt.textContent = act.summary();
+        selActions.options.add(opt);
     }
 
-    if(typeof obj == "object"){
-
-        let act;
-
-        if(obj.ref != undefined){
-            
-            if(actionMap.has(obj.ref)){
-                return actionMap.get(obj.ref);
-            }
-            else{
-                
-                pendingRefs.push({ parent:parent, key:key, ref: obj.ref });
-                return obj;
-            }
+    MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
+    MathJax.Hub.Queue([function(){
+        for(let act of actions){
+            act.enable();
         }
-
-        if(classes == undefined){
-            classes = Object.entries(tekesan).map(([key, val]) => val as any ).filter(x => x.name != undefined && x.prototype != undefined && x.prototype.constructor != undefined);
-        }
-        const cls = classes.find(x => x.name == obj["typeName"]);
-        console.assert(cls != undefined);
-
-        act = new (cls as any).prototype.constructor();
-        act.make(obj);
+    }]);
 
 
-    
-        for (let [key, value] of Object.entries(obj)){
-            act[key] = fromObj(obj, key, value);
-        }
-
-        console.assert(!actionMap.has(act.id));
-        actionMap.set(act.id, act);
-
-        return act;
-    }
-
-    return obj;
-}
-
-export function serializeActions() : string {
-    for(let [i,x] of actions.entries()){
-        x.id = i;
-    }
-    actionMap = new Map<number, Action>();
-
-    const actionObjs = actions.map(x => x.toObj());
-
-    return objToStr(actionObjs, 0);
 }
 
 export function reviseJson(text:string){
@@ -261,20 +195,43 @@ export function reviseJson(text:string){
     }
 }
 
-export function deserializeActions(text: string){
-    const obj = JSON.parse(reviseJson(text));
+export function backup(){
+    const text = serializeDoc();
+    msg(`[${text}]`);
 
-    actionMap = new Map<number, Action>();
-    pendingRefs = [];
-    actions = fromObj(null,null, obj);
+    navigator.clipboard.writeText(text).then(function() {
+        msg("copy OK");
+    }, function() {
+        msg("copy NG");
+    });
 
-    for(let pending of pendingRefs){
-        console.assert(actionMap.has(pending.ref));
-
-        let act = actionMap.get(pending.ref);
-        pending.parent[pending.key] = act;
-    }
 }
+
+function fetchText(path:string, fnc:(text: string)=>void){
+    let k = window.location.href.lastIndexOf("/");
+
+    const url = `${window.location.href.substring(0, k)}/${path}`;
+    const url2 = encodeURI(url);
+    msg(`fetch-json:${url} ${url2}`);
+    fetch(url2)
+    .then((res: Response) => {
+        return res.text();
+    })
+    .then(text => {
+        fnc(text);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+export function openDoc(){
+    fetchText("json/1.json", (text: string)=>{
+        msg(`[${text}]`);
+        deserializeDoc(text);
+    });
+}
+
 
 
 function* waitActions(){
@@ -305,7 +262,7 @@ export function runGenerator(gen: IterableIterator<any>){
 }
 
 export function openActionData(actionText: string){
-    deserializeActions(actionText);
+    deserializeDoc(actionText);
 
     if(actions.length == 0){
         ActionId = 0;
