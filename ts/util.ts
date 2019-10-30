@@ -222,15 +222,12 @@ export function backup(){
         msg("copy NG");
     });
 
-    return;
-
-
     var url = `${window.location.origin}/`;
     var data = {username: 'example'};
     
     fetch(url, {
         method: "POST", // or 'PUT'
-        body: JSON.stringify(text),
+        body: text,
         headers:{
             'Content-Type': 'application/json'
         }

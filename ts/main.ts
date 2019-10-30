@@ -44,10 +44,6 @@ export class Action{
 
     init(){}
 
-    *play(){
-        yield;
-    }
-
 
     *restore():any{}
 
@@ -66,6 +62,11 @@ export class Action{
     }
 
     disable(){
+    }
+
+    *play(){
+        this.enable();
+        yield;
     }
 
     summary() : string {
@@ -215,6 +216,7 @@ export class SpeechAction extends Action {
     }
 
     *play(){
+        this.enable();
         yield* speak(this.text);
     }
 
@@ -772,6 +774,19 @@ export function addSelection(){
     setAction(tmpSelection);
 
     tmpSelection = null;
+}
+
+export function playActions(){
+    updateTimePos(-1);
+
+    function* fnc(){
+        for(let [pos, act] of actions.entries()){
+            yield* act.play();
+            updateTimePos(pos);
+        }
+    }
+    
+    runGenerator( fnc() );
 }
 
 export function initTekesan(in_editor: boolean){

@@ -42,10 +42,6 @@ export function* speak(text: string){
         setVoice();
     }
 
-    while(isSpeaking){
-        yield;
-    }
-
     const uttr = new SpeechSynthesisUtterance(text);
 
     if(jpVoice != null){
@@ -64,6 +60,10 @@ export function* speak(text: string){
     };
 
     speechSynthesis.speak(uttr);
+
+    while(isSpeaking){
+        yield;
+    }
 }
 
 }
