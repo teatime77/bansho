@@ -362,15 +362,41 @@ function makeDomJaxMap(jaxes: JaxNode[]) : [Map<HTMLElement, JaxNode>, Map<JaxNo
     return [dom2jax, jax2dom];
 }
 
-export function onclickBlock(div: HTMLDivElement, ev:MouseEvent){
+export function findSelectedDoms(div: HTMLDivElement, ev:MouseEvent) : boolean{
+    const selActs = actions.filter(x => x instanceof SelectionAction) as SelectionAction[];
+
+    for(let ele = ev.srcElement as HTMLElement; ; ele = ele.parentElement){
+        if(ele == divMath || !(ele instanceof HTMLElement)){
+
+            return false;
+        }
+
+        let sels = selActs.filter(x => x.selectedDoms.includes(ele) );
+        if(sels.length != 0){
+            msg("選択無効");
+            
+            const hideAct = new DisableAction(sels[0].id);
+            addAction(hideAct);
+            return true;
+        }
+    }
+}
+
+export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
     msg("clicked");
+
+    ev.stopPropagation();
+
+    const found = findSelectedDoms(div, ev);
+    if(found){
+        return;
+    }
 
     if(tmpSelection != null){
         tmpSelection.disable();
         tmpSelection = null;
     }
 
-    ev.stopPropagation();
 
     let mjxMath = null;
     for(let ele = ev.srcElement as HTMLElement;; ele = ele.parentNode as HTMLElement){
@@ -530,7 +556,7 @@ export class TextBlockAction extends DivAction {
     
         this.div = this.makeTextDiv(this.text);
         this.div.addEventListener("click", function(ev:MouseEvent){
-            onclickBlock(this, ev);
+            onClickBlock(this, ev);
         });
     
         this.div.addEventListener('keydown', (event) => {
@@ -652,7 +678,7 @@ function monitorTextMath(){
                 runGenerator( act.play() );
             }
 
-            addAction(new EmptyAction());
+            addEmptyAction();
 
             ev.stopPropagation();
             ev.preventDefault();
@@ -724,6 +750,10 @@ export function addAction(act: Action){
 
     setTextMathValue("");
     textMath.focus();
+}
+
+export function addEmptyAction(){
+    addAction(new EmptyAction());
 }
 
 
@@ -853,7 +883,7 @@ export function initTekesan(in_editor: boolean){
  
     monitorTextMath();
 
-    addAction(new EmptyAction());
+    addEmptyAction();
 }
 
 
