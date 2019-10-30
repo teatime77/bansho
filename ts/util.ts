@@ -133,24 +133,25 @@ ${actions.filter(x => !(x instanceof EmptyAction)) .map(x => "    " + x.toStr())
 }
 
 export function deserializeDoc(text: string){
+    ActionId = 0;
     selActions.innerHTML = "";
 
     const doc = JSON.parse(reviseJson(text));
 
     actions = [];
-    for(let obj of doc.actions){
+    for(let [id, obj] of doc.actions.entries()){
         let act: Action;
 
         switch(obj.type){
-        case TextBlockAction.prototype.constructor.name:
+        case "text":
             act = new TextBlockAction((obj as TextBlockAction).text);
             break;
         
-        case SpeechAction.prototype.constructor.name:
+        case "speech":
             act = new SpeechAction((obj as SpeechAction).text);
             break;
 
-        case SelectionAction.prototype.constructor.name:
+        case "select":
             act = SelectionAction.fromObj(obj as SelectionAction);
             break;
 
@@ -158,6 +159,7 @@ export function deserializeDoc(text: string){
             console.assert(false);
             break;
         }
+        console.assert(act.id == id && id + 1 == ActionId);
 
         actions.push(act);
 
@@ -165,6 +167,7 @@ export function deserializeDoc(text: string){
         opt.textContent = act.summary();
         selActions.options.add(opt);
     }
+    selActions.selectedIndex = selActions.options.length - 1;
 
     MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
     MathJax.Hub.Queue([function(){
@@ -194,7 +197,29 @@ export function reviseJson(text:string){
     }
 }
 
+function renumId(){
+    for(let [id, act] of actions.entries()){
+        if(act instanceof TextBlockAction){
+            act.div.id = getBlockId(id);
+        }
+        else if(act instanceof SelectionAction){
+            const block = actions.find(x => x.id == (act as SelectionAction).blockId);
+            console.assert(block != undefined);
+
+            act.blockId = actions.indexOf(block);
+            console.assert(act.blockId != -1);
+        }
+    }
+
+    for(let [id, act] of actions.entries()){
+        act.id = id;
+    }
+
+    ActionId = actions.length;
+}
+
 export function backup(){
+    renumId();
     const text = serializeDoc();
     msg(`[${text}]`);
 
@@ -203,6 +228,8 @@ export function backup(){
     }, function() {
         msg("copy NG");
     });
+
+    return;
 
 
     var url = `${window.location.origin}/`;

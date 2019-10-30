@@ -40,11 +40,6 @@ export class Action{
         ActionId++;
     }
 
-    copyBase(act: Action){
-        this.typeName = act.typeName;
-        this.id = act.id;
-    }
-
     init(){}
 
     *play(){
@@ -58,10 +53,6 @@ export class Action{
         return this.constructor.name;
     }
 
-    toStrBase() : string {
-        return `"type": "${this.getTypeName()}", "id": ${this.id}`;
-    }
-
     toStr() : string {
         console.assert(false);
         return "";
@@ -73,15 +64,6 @@ export class Action{
     }
 
     disable(){
-    }
-
-    setEnable(enable: boolean){
-        if(enable){
-            this.enable();
-        }
-        else{
-            this.disable();
-        }
     }
 
     summary() : string {
@@ -107,7 +89,6 @@ export class SelectionAction extends Action {
     static fromObj(obj: SelectionAction) : SelectionAction {
         const act = new SelectionAction();
 
-        act.copyBase(obj);
         act.blockId = obj.blockId;
         act.domType = obj.domType;
         act.startPath = obj.startPath;
@@ -124,7 +105,7 @@ export class SelectionAction extends Action {
         const start = this.getJaxPathStr(this.startPath);
         const end   = this.getJaxPathStr(this.endPath);
 
-        return `{ ${this.toStrBase()}, "blockId": ${this.blockId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end} }`;
+        return `{ "type": "select", "blockId": ${this.blockId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end} }`;
     }
 
     getJaxPathStr(path : [number, string][] | null){
@@ -228,7 +209,7 @@ export class SpeechAction extends Action {
     }
 
     toStr() : string {
-        return `{ ${this.toStrBase()}, "text":${tostr(this.text)} }`;
+        return `{ "type": "speech", "text":${tostr(this.text)} }`;
     }
 
     *play(){
@@ -243,7 +224,6 @@ export class SpeechAction extends Action {
 function setTextMathValue(text: string){
     textMath.value = text;
     prevTextValue = text;
-
 }
 
 export function getBlockId(blockId: number) : string {
@@ -492,7 +472,6 @@ class DivAction extends Action {
         div.className = "manebu-text-block";
     
         div.id = getBlockId(this.id);
-        div.title = div.id
     
         divMath.insertBefore(div, nextEle);
     
@@ -530,7 +509,7 @@ export class TextBlockAction extends DivAction {
     }
 
     toStr() : string {
-        return `{ ${this.toStrBase()}, "text":${tostr(this.text)} }`;
+        return `{ "type": "text", "text":${tostr(this.text)} }`;
     }
 
     summary() : string {
