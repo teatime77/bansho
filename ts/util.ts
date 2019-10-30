@@ -134,7 +134,6 @@ ${actions.filter(x => !(x instanceof EmptyAction)) .map(x => "    " + x.toStr())
 
 export function deserializeDoc(text: string){
     ActionId = 0;
-    selActions.innerHTML = "";
 
     const doc = JSON.parse(reviseJson(text));
 
@@ -162,21 +161,15 @@ export function deserializeDoc(text: string){
         console.assert(act.id == id && id + 1 == ActionId);
 
         actions.push(act);
-
-        let opt = document.createElement("option");
-        opt.textContent = act.summary();
-        selActions.options.add(opt);
     }
-    selActions.selectedIndex = selActions.options.length - 1;
+
+    txtSummary.textContent = last(actions).summary();
 
     MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
     MathJax.Hub.Queue([function(){
-        for(let act of actions){
-            act.enable();
-        }
+        rngTimeline.max = `${actions.length - 1}`;
+        updateTimePos( actions.length - 1);
     }]);
-
-
 }
 
 export function reviseJson(text:string){
