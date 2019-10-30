@@ -10,7 +10,6 @@ export let txtSummary : HTMLSpanElement;
 export let rngTimeline : HTMLInputElement;
 let prevTimePos : number;
 
-export let title : string = "タイトル";
 export let actions : Action[];
 export let ActionId;
 export let inEditor : boolean;
@@ -42,11 +41,6 @@ export class Action{
         ActionId++;
     }
 
-    init(){}
-
-
-    *restore():any{}
-
     getTypeName(){
         return this.constructor.name;
     }
@@ -55,8 +49,6 @@ export class Action{
         console.assert(false);
         return "";
     }
-
-    clear(){}
 
     enable(){
     }
@@ -203,6 +195,34 @@ export class SelectionAction extends Action {
     }
 }
 
+export class DisableAction extends Action {
+    disableId: number;
+    disableAct: Action;
+
+    constructor(disableId: number){
+        super();
+        this.disableId = disableId;
+        this.disableAct = actions.find(x => x.id == disableId);
+        console.assert(this.disableAct != undefined);
+    }
+
+    toStr() : string {
+        return `{ "type": "disable", "disableId": ${this.disableId} }`;
+    }
+
+    enable(){
+        this.disableAct.disable();
+    }
+
+    disable(){
+        this.disableAct.enable();
+    }
+
+    summary() : string {
+        return "無効";
+    }
+}
+
 export class SpeechAction extends Action {
     text: string;
 
@@ -231,12 +251,12 @@ function setTextMathValue(text: string){
 }
 
 export function getBlockId(blockId: number) : string {
-    return `manebu-id-${blockId}`;
+    return `tekesan-id-${blockId}`;
 }
 
 
 export function getActionId(id: string) : number {
-    console.assert(id.startsWith("manebu-id-"));
+    console.assert(id.startsWith("tekesan-id-"));
     return parseInt(id.substring(10));
 }
 
@@ -473,7 +493,6 @@ class DivAction extends Action {
             }
         }
         const div = document.createElement("div");
-        div.className = "manebu-text-block";
     
         div.id = getBlockId(this.id);
     
@@ -485,11 +504,19 @@ class DivAction extends Action {
         div.innerHTML = html;
         reprocessMathJax(html);
 
-        return div;
-    }
+        div.addEventListener("keydown", (ev: KeyboardEvent)=>{
+            if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
+                ev.stopPropagation();
+                ev.preventDefault();
 
-    clear(){
-        divMath.removeChild(this.div);
+                let ele = ev.srcElement as HTMLElement;
+                msg(`del ${ele.tagName} ${ele.id}`);
+                const hideAct = new DisableAction(this.id);
+                addAction(hideAct);
+            }
+        })
+    
+        return div;
     }
 }
 
@@ -582,7 +609,6 @@ function updateTextMath(){
                     else{
 
                         const newAct = new TextBlockAction(textMath.value);
-                        newAct.init();                    
                         
                         setAction(newAct);                    
                     }
@@ -626,7 +652,7 @@ function monitorTextMath(){
                 runGenerator( act.play() );
             }
 
-            addEmptyAction();
+            addAction(new EmptyAction());
 
             ev.stopPropagation();
             ev.preventDefault();
@@ -677,8 +703,7 @@ function setAction(act: Action){
     txtSummary.textContent = act.summary();
 }
 
-export function addEmptyAction(){
-    const act = new EmptyAction();
+export function addAction(act: Action){
     txtSummary.textContent = act.summary();
 
     let selIdx: number;
@@ -828,7 +853,7 @@ export function initTekesan(in_editor: boolean){
  
     monitorTextMath();
 
-    addEmptyAction();
+    addAction(new EmptyAction());
 }
 
 

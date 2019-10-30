@@ -123,7 +123,7 @@ export function tostr(text: string){
     }
 }
 
-export function serializeDoc() : string {
+export function serializeDoc(title: string) : string {
     return `{
   "title": "${title}",
   "actions": [
@@ -152,6 +152,10 @@ export function deserializeDoc(text: string){
 
         case "select":
             act = SelectionAction.fromObj(obj as SelectionAction);
+            break;
+
+        case "disable":
+            act = new DisableAction((obj as DisableAction).disableId);
             break;
 
         default:
@@ -202,6 +206,11 @@ function renumId(){
             act.blockId = actions.indexOf(block);
             console.assert(act.blockId != -1);
         }
+        else if(act instanceof DisableAction){
+
+            act.disableId = actions.indexOf(act.disableAct);
+            console.assert(act.disableId != -1);
+        }
     }
 
     for(let [id, act] of actions.entries()){
@@ -211,9 +220,9 @@ function renumId(){
     ActionId = actions.length;
 }
 
-export function backup(){
+export function backup(path: string, title: string){
     renumId();
-    const text = serializeDoc();
+    const text = serializeDoc(title);
     msg(`[${text}]`);
 
     navigator.clipboard.writeText(text).then(function() {
@@ -223,11 +232,14 @@ export function backup(){
     });
 
     var url = `${window.location.origin}/`;
-    var data = {username: 'example'};
+    var data = {
+        "path": path,
+        "text": text,
+    };
     
     fetch(url, {
         method: "POST", // or 'PUT'
-        body: text,
+        body: JSON.stringify(data),
         headers:{
             'Content-Type': 'application/json'
         }
@@ -304,30 +316,5 @@ export function runGenerator(gen: IterableIterator<any>){
     },100);
 }
 
-export function openActionData(actionText: string){
-    deserializeDoc(actionText);
-
-    if(actions.length == 0){
-        ActionId = 0;
-        actions.push(new TextBlockAction(""));
-    }
-
-    ActionId = Math.max(... actions.map(x => x.id)) + 1;
-
-    function* fnc(){
-        for(let act of actions){
-            act.init();
-            yield* act.restore();
-        }
-
-        yield* waitActions(); 
-
-        for(let act of actions.filter(x => x.constructor.name == "SelectionAction")){
-            (act as SelectionAction).setSelectedDoms();
-        }
-    }
-
-    runGenerator(fnc());
-}
 
 }
