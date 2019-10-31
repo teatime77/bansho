@@ -152,11 +152,11 @@ export function deserializeDoc(text: string){
 
         case "select":
             let sel = obj as SelectionAction;
-            act = new SelectionAction(sel.blockId, sel.domType, sel.startPath, sel.endPath, sel.color);
+            act = new SelectionAction(sel.refId, sel.domType, sel.startPath, sel.endPath, sel.color);
             break;
 
         case "disable":
-            act = new DisableAction((obj as DisableAction).disableId);
+            act = new DisableAction((obj as DisableAction).refId);
             break;
 
         default:
@@ -201,16 +201,16 @@ function renumId(){
             act.div.id = getBlockId(id);
         }
         else if(act instanceof SelectionAction){
-            const block = actions.find(x => x.id == (act as SelectionAction).blockId);
+            const block = actions.find(x => x.id == (act as SelectionAction).refId);
             console.assert(block != undefined);
 
-            act.blockId = actions.indexOf(block);
-            console.assert(act.blockId != -1);
+            act.refId = actions.indexOf(block);
+            console.assert(act.refId != -1);
         }
         else if(act instanceof DisableAction){
 
-            act.disableId = actions.indexOf(act.disableAct);
-            console.assert(act.disableId != -1);
+            act.refId = actions.indexOf(act.disableAct);
+            console.assert(act.refId != -1);
         }
     }
 

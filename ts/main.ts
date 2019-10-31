@@ -67,6 +67,10 @@ export class Action{
     summary() : string {
         return this.getTypeName();
     }
+}
+
+export class RefAction extends Action {
+    refId: number;
 }    
 
 
@@ -76,8 +80,7 @@ export class EmptyAction extends Action {
     }
 }
 
-export class SelectionAction extends Action {
-    blockId: number;
+export class SelectionAction extends RefAction {
     domType: string;
     startPath: [number, string][] | null;
     endPath: [number, string][] | null;
@@ -85,10 +88,10 @@ export class SelectionAction extends Action {
     color: number;
     border: HTMLDivElement | null = null;
 
-    constructor(blockId: number, domType: string, startPath: [number, string][] | null, endPath: [number, string][] | null, color: number){
+    constructor(refId: number, domType: string, startPath: [number, string][] | null, endPath: [number, string][] | null, color: number){
         super();
 
-        this.blockId   = blockId;
+        this.refId   = refId;
         this.domType   = domType;
         this.startPath = startPath;
         this.endPath   = endPath;
@@ -99,7 +102,7 @@ export class SelectionAction extends Action {
         const start = this.getJaxPathStr(this.startPath);
         const end   = this.getJaxPathStr(this.endPath);
 
-        return `{ "type": "select", "blockId": ${this.blockId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end}, "color": ${this.color} }`;
+        return `{ "type": "select", "refId": ${this.refId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end}, "color": ${this.color} }`;
     }
 
     getJaxPathStr(path : [number, string][] | null){
@@ -119,7 +122,7 @@ export class SelectionAction extends Action {
         let maxX = 0, maxY = 0;
 
         if(this.border == null){
-            const div = document.getElementById(getBlockId(this.blockId)) as HTMLDivElement;
+            const div = document.getElementById(getBlockId(this.refId)) as HTMLDivElement;
             let rc0 = div.getBoundingClientRect();
 
             for(let dom of this.selectedDoms){
@@ -167,7 +170,7 @@ export class SelectionAction extends Action {
 
         this.selectedDoms = [];
     
-        const div = document.getElementById(getBlockId(this.blockId)) as HTMLDivElement;
+        const div = document.getElementById(getBlockId(this.refId)) as HTMLDivElement;
         const jaxes = getJaxesInBlock(div);
     
         const startJax = getJaxFromPath(jaxes, this.startPath);
@@ -202,19 +205,18 @@ export class SelectionAction extends Action {
     }
 }
 
-export class DisableAction extends Action {
-    disableId: number;
+export class DisableAction extends RefAction {
     disableAct: Action;
 
-    constructor(disableId: number){
+    constructor(refId: number){
         super();
-        this.disableId = disableId;
-        this.disableAct = actions.find(x => x.id == disableId);
+        this.refId = refId;
+        this.disableAct = actions.find(x => x.id == refId);
         console.assert(this.disableAct != undefined);
     }
 
     toStr() : string {
-        return `{ "type": "disable", "disableId": ${this.disableId} }`;
+        return `{ "type": "disable", "refId": ${this.refId} }`;
     }
 
     enable(){
@@ -262,8 +264,8 @@ function setTextMathValue(text: string){
     prevTextValue = text;
 }
 
-export function getBlockId(blockId: number) : string {
-    return `${idPrefix}${blockId}`;
+export function getBlockId(refId: number) : string {
+    return `${idPrefix}${refId}`;
 }
 
 export function getActionId(id: string) : number {
