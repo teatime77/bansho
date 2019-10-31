@@ -4,6 +4,9 @@ declare let MathJax:any;
 
 const IDX = 0;
 const NODE_NAME = 1;
+const idPrefix = "tekesan-id-";
+
+let colors : string[];
 
 export let divMath : HTMLDivElement;
 export let txtSummary : HTMLSpanElement;
@@ -17,7 +20,7 @@ export let inEditor : boolean;
 let speechInput : boolean;
 let prevTextValue: string = "";
 
-let selectColor : string;
+let selectColor : number;
 
 class JaxNode {
     CHTMLnodeID: number;
@@ -79,9 +82,10 @@ export class SelectionAction extends Action {
     startPath: [number, string][] | null;
     endPath: [number, string][] | null;
     selectedDoms : HTMLElement[];
-    color: string;
+    color: number;
+    border: HTMLDivElement | null = null;
 
-    constructor(blockId: number, domType: string, startPath: [number, string][] | null, endPath: [number, string][] | null, color: string){
+    constructor(blockId: number, domType: string, startPath: [number, string][] | null, endPath: [number, string][] | null, color: number){
         super();
 
         this.blockId   = blockId;
@@ -95,7 +99,7 @@ export class SelectionAction extends Action {
         const start = this.getJaxPathStr(this.startPath);
         const end   = this.getJaxPathStr(this.endPath);
 
-        return `{ "type": "select", "blockId": ${this.blockId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end}, "color": "${this.color}" }`;
+        return `{ "type": "select", "blockId": ${this.blockId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end}, "color": ${this.color} }`;
     }
 
     getJaxPathStr(path : [number, string][] | null){
@@ -110,9 +114,38 @@ export class SelectionAction extends Action {
     
     enable(){
         this.setSelectedDoms();
-        for(let dom of this.selectedDoms){
-            dom.style.color = this.color;
+
+        let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE;
+        let maxX = 0, maxY = 0;
+
+        if(this.border == null){
+            const div = document.getElementById(getBlockId(this.blockId)) as HTMLDivElement;
+            let rc0 = div.getBoundingClientRect();
+
+            for(let dom of this.selectedDoms){
+                let rc = dom.getBoundingClientRect();
+                minX = Math.min(minX, rc.left);
+                minY = Math.min(minY, rc.top);
+                maxX = Math.max(maxX, rc.right);
+                maxY = Math.max(maxY, rc.bottom);    
+            }
+
+            let bw = 2;
+            this.border = document.createElement("div");
+            this.border.style.position = "absolute";
+            this.border.style.zIndex = "-1";
+            this.border.style.margin = "0px";
+            this.border.style.left   = `${minX - bw - rc0.left}px`;
+            this.border.style.top    = `${minY - bw - rc0.top}px`;
+            this.border.style.width  = `${maxX - minX + 2*bw}px`;
+            this.border.style.height = `${maxY - minY + 2*bw}px`;
+            this.border.style.backgroundColor = "transparent";
+            this.border.style.borderStyle = "solid";
+            this.border.style.borderWidth = `${bw}px`;
+            div.appendChild(this.border);
         }
+        this.border.style.borderColor = colors[this.color];
+        this.border.style.display = "block";
     }
 
     disable(){
@@ -121,6 +154,8 @@ export class SelectionAction extends Action {
             dom.style.color = "unset";
             dom.style.backgroundColor = "unset";
         }    
+
+        this.border.style.display = "none";
     }
 
     summary() : string {
@@ -213,7 +248,7 @@ export class SpeechAction extends Action {
     }
 
     summary() : string {
-        return `音声 ${this.text}`;
+        return "音声";
     }
 }
 
@@ -228,13 +263,12 @@ function setTextMathValue(text: string){
 }
 
 export function getBlockId(blockId: number) : string {
-    return `tekesan-id-${blockId}`;
+    return `${idPrefix}${blockId}`;
 }
 
-
 export function getActionId(id: string) : number {
-    console.assert(id.startsWith("tekesan-id-"));
-    return parseInt(id.substring(10));
+    console.assert(id.startsWith(idPrefix));
+    return parseInt(id.substring(idPrefix.length));
 }
 
 
@@ -495,6 +529,7 @@ class DivAction extends Action {
         const div = document.createElement("div");
     
         div.id = getBlockId(this.id);
+        div.style.position = "relative";
     
         divMath.insertBefore(div, nextEle);
     
@@ -543,7 +578,7 @@ export class TextBlockAction extends DivAction {
     }
 
     summary() : string {
-        return `t ${this.id} ${this.text.split('\n').filter(x => x.trim() != "$$").join(' ').substring(0, 10)}`;
+        return "文字";
     }
 }
 
@@ -839,10 +874,13 @@ export function initTekesan(in_editor: boolean){
         }
     });
 
-    selectColor = getRaioValue("sel-color");
+    colors = (Array.from(document.getElementsByName("sel-color")) as HTMLInputElement[])
+        .map(x => x.value);
+
+    selectColor = colors.indexOf(getRaioValue("sel-color"));
     (Array.from(document.getElementsByName("sel-color")) as HTMLInputElement[]).forEach(inp =>{
         inp.addEventListener("click", (ev: MouseEvent)=>{
-            selectColor = getRaioValue("sel-color");
+            selectColor = colors.indexOf(getRaioValue("sel-color"));
 
             let act = currentAction();
             if(act instanceof SelectionAction){

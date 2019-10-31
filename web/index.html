@@ -74,18 +74,19 @@ input[type="radio"]:checked + label {
 <button onclick="manebu.stop()">停止</button>
 <button onclick="putData()">バックアップ</button>
 <span id="input-mode"></span>
-<input type="radio" name="sel-color" value="red"   id="red" checked /><label for="red" style="background-color: red; color: transparent;" >□</label>
-<input type="radio" name="sel-color" value="blue"  id="blue"  /><label for="blue" style="background-color: blue; color: transparent; " >□</label>
-<input type="radio" name="sel-color" value="green" id="green" /><label for="green" style="background-color: green; color: transparent;" >□</label>
+<input type="radio" name="sel-color" value="magenta" id="color-0" checked /><label for="color-0" style="background-color: magenta; color: transparent;" >□</label>
+<input type="radio" name="sel-color" value="blue"    id="color-1"  /><label for="color-1" style="background-color: blue; color: transparent; " >□</label>
+<input type="radio" name="sel-color" value="limegreen"   id="color-2" /><label for="color-2" style="background-color: limegreen; color: transparent;" >□</label>
 <br/>
 path:<input id="txt-path" type="text" size="20" />
 タイトル<input id="txt-title" type="text" size="20" />
-    <div id="div-math" style="width: 100%; height: 40%; overflow: scroll; border-style:inset; border-width: 3px;" ></div>
+    <div id="div-math" style="height: 40%; overflow: scroll; border-style:inset; border-width: 3px;" ></div>
 
-    <button onclick="tekesan.addEmptyAction()" style="width: 4ex;">➕</button>
-    <button onclick="tekesan.playActions()" style="width: 4ex;" >▶️</button>
+    <button onclick="tekesan.addEmptyAction()" style="font-family: Segoe UI Emoji;">➕</button>
+    <button onclick="tekesan.playActions()" style="font-family: Segoe UI Emoji;" >▶️</button>
     <span id="spn-summary" style="width: 4ex;" >要約</span>
-    <input id="rng-timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 80%; " />
+    <br/>
+    <input id="rng-timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%; " />
 
     <textarea id="txt-math" style="width: 100%; height: 40%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk;" spellcheck="false" ></textarea>
 
