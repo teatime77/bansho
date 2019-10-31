@@ -14,10 +14,10 @@ export let actions : Action[];
 export let ActionId;
 export let inEditor : boolean;
 
-let tmpSelection : SelectionAction | null;
-
 let speechInput : boolean;
 let prevTextValue: string = "";
+
+let selectColor : string;
 
 class JaxNode {
     CHTMLnodeID: number;
@@ -79,28 +79,23 @@ export class SelectionAction extends Action {
     startPath: [number, string][] | null;
     endPath: [number, string][] | null;
     selectedDoms : HTMLElement[];
-    isTmp: boolean = false;
+    color: string;
 
-    static fromObj(obj: SelectionAction) : SelectionAction {
-        const act = new SelectionAction();
-
-        act.blockId = obj.blockId;
-        act.domType = obj.domType;
-        act.startPath = obj.startPath;
-        act.endPath   = obj.endPath;
-
-        return act;
-    }
-
-    constructor(){
+    constructor(blockId: number, domType: string, startPath: [number, string][] | null, endPath: [number, string][] | null, color: string){
         super();
+
+        this.blockId   = blockId;
+        this.domType   = domType;
+        this.startPath = startPath;
+        this.endPath   = endPath;
+        this.color     = color;
     }
 
     toStr() : string {
         const start = this.getJaxPathStr(this.startPath);
         const end   = this.getJaxPathStr(this.endPath);
 
-        return `{ "type": "select", "blockId": ${this.blockId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end} }`;
+        return `{ "type": "select", "blockId": ${this.blockId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end}, "color": "${this.color}" }`;
     }
 
     getJaxPathStr(path : [number, string][] | null){
@@ -113,33 +108,10 @@ export class SelectionAction extends Action {
         }
     }
     
-
-    make(data:any):Action{
-        const obj = data as SelectionAction;
-
-        this.blockId   = obj.blockId;
-        this.domType   = obj.domType;
-        this.startPath = obj.startPath;
-        this.endPath   = obj.endPath;
-
-        return this;
-    }
-
     enable(){
         this.setSelectedDoms();
         for(let dom of this.selectedDoms){
-
-            if(this.isTmp){
-
-                // node.style.color = "#00CC00";
-                dom.style.color = "#8080FF";
-                // node.style.textDecoration = "wavy underline red"
-                dom.style.backgroundColor = "#C0C0C0";
-            }
-            else{
-    
-                dom.style.color = "red";
-            }
+            dom.style.color = this.color;
         }
     }
 
@@ -243,6 +215,11 @@ export class SpeechAction extends Action {
     summary() : string {
         return `音声 ${this.text}`;
     }
+}
+
+function getRaioValue(name: string) : string {
+    return (Array.from(document.getElementsByName(name)) as HTMLInputElement[])
+        .find(x => x.checked).value;
 }
 
 function setTextMathValue(text: string){
@@ -392,12 +369,6 @@ export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
         return;
     }
 
-    if(tmpSelection != null){
-        tmpSelection.disable();
-        tmpSelection = null;
-    }
-
-
     let mjxMath = null;
     for(let ele = ev.srcElement as HTMLElement;; ele = ele.parentNode as HTMLElement){
 
@@ -426,6 +397,8 @@ export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
     
     if(sel.rangeCount == 1){
 
+        let selAct : SelectionAction | null = null;
+
         const rng = sel.getRangeAt(0);
 
         msg(`start:${rng.startContainer.textContent} end:${rng.endContainer.textContent}`);
@@ -447,7 +420,7 @@ export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
                 const startPath = getJaxPath(jaxIdx, stAncs, stAncs.length - 1);
                 checkPath("path", startPath, last(stAncs));
 
-                tmpSelection = new SelectionAction().make({blockId:getActionId(div.id), domType:"math", startPath:startPath, endPath:null}) as SelectionAction;
+                selAct = new SelectionAction(getActionId(div.id), "math", startPath, null, selectColor);
             }
         }
         else{
@@ -466,7 +439,7 @@ export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
                         let startPath = getJaxPath(jaxIdx, stAncs, nest - 1);
                         checkPath("path", startPath, parentJax);
 
-                        tmpSelection = new SelectionAction().make({blockId:getActionId(div.id), domType:"math", startPath:startPath, endPath:null}) as SelectionAction;
+                        selAct = new SelectionAction(getActionId(div.id), "math", startPath, null, selectColor);
                     }
                     else{
 
@@ -476,18 +449,19 @@ export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
                         checkPath("path1", startPath, stAncs[nest]);
                         checkPath("path2", endPath  , edAncs[nest]);
 
-                        tmpSelection = new SelectionAction().make({blockId:getActionId(div.id), domType:"math", startPath:startPath, endPath:endPath}) as SelectionAction;
+                        selAct = new SelectionAction(getActionId(div.id), "math", startPath, endPath, selectColor);
                     }
                     break;
                 }
             }
         }
 
-        if(tmpSelection != null){
-            tmpSelection.isTmp = true;
-            tmpSelection.enable();
+        if(selAct != null){
+            selAct.enable();
 
-            addSelection();
+
+            selAct.enable();
+            setAction(selAct);
         }
     }
 
@@ -576,7 +550,6 @@ export class TextBlockAction extends DivAction {
 export function newDocument(){
     ActionId = 0;
     actions = [];
-    tmpSelection = null;
 
     divMath.innerHTML = "";
     setTextMathValue("");
@@ -819,18 +792,6 @@ function selActionsChange(ev: Event){
 
 }
 
-export function addSelection(){
-    if(tmpSelection == null){
-        return;
-    }
-
-    tmpSelection.isTmp = false;
-    tmpSelection.enable();
-    setAction(tmpSelection);
-
-    tmpSelection = null;
-}
-
 export function playActions(){
     updateTimePos(-1);
 
@@ -876,7 +837,20 @@ export function initTekesan(in_editor: boolean){
                 textMath.style.backgroundColor = "white";
             }
         }
-    })
+    });
+
+    selectColor = getRaioValue("sel-color");
+    (Array.from(document.getElementsByName("sel-color")) as HTMLInputElement[]).forEach(inp =>{
+        inp.addEventListener("click", (ev: MouseEvent)=>{
+            selectColor = getRaioValue("sel-color");
+
+            let act = currentAction();
+            if(act instanceof SelectionAction){
+                act.color = selectColor;
+                act.enable();
+            }
+        })
+    });
 
     prevTimePos = -1;
     rngTimeline.addEventListener("change", selActionsChange);

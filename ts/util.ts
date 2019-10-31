@@ -151,7 +151,8 @@ export function deserializeDoc(text: string){
             break;
 
         case "select":
-            act = SelectionAction.fromObj(obj as SelectionAction);
+            let sel = obj as SelectionAction;
+            act = new SelectionAction(sel.blockId, sel.domType, sel.startPath, sel.endPath, sel.color);
             break;
 
         case "disable":

@@ -52,31 +52,55 @@ li {
     margin-top: 10px;
     margin-bottom: 10px;
 }
+
+
+input[type=radio] {
+    display: none; /* ラジオボタンを非表示にする */
+}
+input[type="radio"]:not(:checked) + label  {
+    border-style: solid;
+    border-width: 2px;
+}
+input[type="radio"]:checked + label {
+    border-style: ridge;
+    border-width: 2px;
+}
 </style>
 </head>
 
 <body onload="bodyOnload()">
-<div style="display: grid; grid-template-rows:60px 1fr 20px 150px; grid-template-columns:100px 1fr; width: 100%; height: 100%;">
+<button onclick="tekesan.openDoc()">開く</button>
+
+<button onclick="manebu.stop()">停止</button>
+<button onclick="putData()">バックアップ</button>
+<span id="input-mode"></span>
+<input type="radio" name="sel-color" value="red"   id="red" checked /><label for="red" style="background-color: red; color: transparent;" >□</label>
+<input type="radio" name="sel-color" value="blue"  id="blue"  /><label for="blue" style="background-color: blue; color: transparent; " >□</label>
+<input type="radio" name="sel-color" value="green" id="green" /><label for="green" style="background-color: green; color: transparent;" >□</label>
+<br/>
+path:<input id="txt-path" type="text" size="20" />
+タイトル<input id="txt-title" type="text" size="20" />
+    <div id="div-math" style="width: 100%; height: 40%; overflow: scroll; border-style:inset; border-width: 3px;" ></div>
+
+    <button onclick="tekesan.addEmptyAction()" style="width: 4ex;">➕</button>
+    <button onclick="tekesan.playActions()" style="width: 4ex;" >▶️</button>
+    <span id="spn-summary" style="width: 4ex;" >要約</span>
+    <input id="rng-timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 80%; " />
+
+    <textarea id="txt-math" style="width: 100%; height: 40%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk;" spellcheck="false" ></textarea>
+
+
+<!-- <div style="display: grid; grid-template-rows:60px 1fr 20px 150px; grid-template-columns:100px 1fr; width: 100%; height: 100%;">
     <div style="grid-row: 1; grid-column: 1/span 2; background-color: cornsilk; ">
-        <button onclick="tekesan.openDoc()">開く</button>
-        
-        <button onclick="manebu.stop()">停止</button>
-        <button onclick="putData()">バックアップ</button>
-        <span id="input-mode"></span>
-        <br/>
-        path:<input id="txt-path" type="text" size="20" />
-        タイトル<input id="txt-title" type="text" size="20" />
     </div>
     <div id="div-math" style="grid-row: 2; grid-column: 1/span 2; overflow: scroll; border-style:inset; border-width: 3px;" ></div>
-
     <div style="grid-row: 3; grid-column: 1; background-color: cornsilk; " >
         <button onclick="tekesan.addEmptyAction()" style="width: 4ex;">➕</button>
         <button onclick="tekesan.playActions()" style="width: 4ex;" >▶️</button>
         <span id="spn-summary" style="width: 4ex;" >要約</span>
     </div>
     <input id="rng-timeline" type="range" min="-1" max="-1" value="-1" step="1" style="grid-row: 3; grid-column: 2;" />
-
     <textarea id="txt-math" style="grid-row: 4; grid-column: 1/span 2; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk;" spellcheck="false" ></textarea>
-</div>
+</div> -->
 </body>
 </html>
