@@ -9,6 +9,7 @@ const idPrefix = "tekesan-id-";
 let colors : string[];
 
 export let divMath : HTMLDivElement;
+export let textMath : HTMLTextAreaElement;
 export let txtSummary : HTMLSpanElement;
 export let rngTimeline : HTMLInputElement;
 let prevTimePos : number;
@@ -232,8 +233,12 @@ export class DisableAction extends RefAction {
     }
 }
 
-export class SpeechAction extends Action {
+
+class TextAction extends Action {
     text: string;
+}
+
+export class SpeechAction extends TextAction {
 
     constructor(text: string){
         super();
@@ -251,6 +256,82 @@ export class SpeechAction extends Action {
 
     summary() : string {
         return "音声";
+    }
+}
+
+export class TextBlockAction extends TextAction {
+    div: HTMLDivElement;
+
+    constructor(text: string){
+        super();
+
+        this.text = text;
+        //---------- 
+        msg(`append text block[${this.text}]`);
+    
+        this.div = this.makeTextDiv(this.text);
+        this.div.addEventListener("click", function(ev:MouseEvent){
+            onClickBlock(this, ev);
+        });
+    
+        this.div.addEventListener('keydown', (event) => {
+            msg(`key down ${event.key} ${event.ctrlKey}`);
+        }, false);
+    }
+
+    enable(){
+        this.div.style.display = "block";
+    }
+
+    disable(){
+        this.div.style.display = "none";
+    }
+
+    toStr() : string {
+        return `{ "type": "text", "text":${tostr(this.text)} }`;
+    }
+
+    summary() : string {
+        return "文字";
+    }
+
+    makeTextDiv(text: string) : HTMLDivElement {
+        let nextEle = null;
+        if(rngTimeline.valueAsNumber != -1){
+
+            for(let act of actions.slice(rngTimeline.valueAsNumber + 1)){
+                if(act instanceof TextBlockAction){
+                    nextEle = act.div;
+                    break;
+                }
+            }
+        }
+        const div = document.createElement("div");
+    
+        div.id = getBlockId(this.id);
+        div.style.position = "relative";
+    
+        divMath.insertBefore(div, nextEle);
+    
+        div.tabIndex = 0;
+    
+        const html = makeHtmlLines(text);
+        div.innerHTML = html;
+        reprocessMathJax(html);
+
+        div.addEventListener("keydown", (ev: KeyboardEvent)=>{
+            if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
+                ev.stopPropagation();
+                ev.preventDefault();
+
+                let ele = ev.srcElement as HTMLElement;
+                msg(`del ${ele.tagName} ${ele.id}`);
+                const hideAct = new DisableAction(this.id);
+                addAction(hideAct);
+            }
+        })
+    
+        return div;
     }
 }
 
@@ -504,86 +585,6 @@ export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
     window.getSelection().removeAllRanges();
 }
 
-
-class DivAction extends Action {
-    text: string;
-    div: HTMLDivElement;
-
-    enable(){
-        this.div.style.display = "block";
-    }
-
-    disable(){
-        this.div.style.display = "none";
-    }
-
-    makeTextDiv(text: string) : HTMLDivElement {
-        let nextEle = null;
-        if(rngTimeline.valueAsNumber != -1){
-
-            for(let act of actions.slice(rngTimeline.valueAsNumber + 1)){
-                if(act instanceof DivAction){
-                    nextEle = act.div;
-                    break;
-                }
-            }
-        }
-        const div = document.createElement("div");
-    
-        div.id = getBlockId(this.id);
-        div.style.position = "relative";
-    
-        divMath.insertBefore(div, nextEle);
-    
-        div.tabIndex = 0;
-    
-        const html = makeHtmlLines(text);
-        div.innerHTML = html;
-        reprocessMathJax(html);
-
-        div.addEventListener("keydown", (ev: KeyboardEvent)=>{
-            if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
-                ev.stopPropagation();
-                ev.preventDefault();
-
-                let ele = ev.srcElement as HTMLElement;
-                msg(`del ${ele.tagName} ${ele.id}`);
-                const hideAct = new DisableAction(this.id);
-                addAction(hideAct);
-            }
-        })
-    
-        return div;
-    }
-}
-
-export class TextBlockAction extends DivAction {
-    constructor(text: string){
-        super();
-
-        this.text = text;
-        //---------- 
-        msg(`append text block[${this.text}]`);
-    
-        this.div = this.makeTextDiv(this.text);
-        this.div.addEventListener("click", function(ev:MouseEvent){
-            onClickBlock(this, ev);
-        });
-    
-        this.div.addEventListener('keydown', (event) => {
-            msg(`key down ${event.key} ${event.ctrlKey}`);
-        }, false);
-    }
-
-    toStr() : string {
-        return `{ "type": "text", "text":${tostr(this.text)} }`;
-    }
-
-    summary() : string {
-        return "文字";
-    }
-}
-
 export function newDocument(){
     ActionId = 0;
     actions = [];
@@ -718,7 +719,7 @@ export function updateTimePos(pos: number){
         }
     }
     else if(pos < prevTimePos){
-        for(let i = pos + 1; i <= prevTimePos; i++){
+        for(let i = prevTimePos; pos < i; i--){
             actions[i].disable();
         }
     }
@@ -729,6 +730,29 @@ export function updateTimePos(pos: number){
     }
 
     prevTimePos = pos;
+
+    updateSummaryTextArea();
+}
+
+export function updateSummaryTextArea(){
+    if(rngTimeline.valueAsNumber == -1){
+
+        setTextMathValue("");
+        txtSummary.textContent = "";
+    }
+    else{
+
+        const act = actions[rngTimeline.valueAsNumber];
+        if(act instanceof TextAction){
+
+            setTextMathValue(act.text);
+        }
+        else{
+            setTextMathValue("");
+        }
+
+        txtSummary.textContent = act.summary();
+    }
 }
 
 function setAction(act: Action){
@@ -758,12 +782,42 @@ export function addAction(act: Action){
     rngTimeline.max = `${actions.length - 1}`;
     updateTimePos(selIdx);
 
-    setTextMathValue("");
     textMath.focus();
 }
 
 export function addEmptyAction(){
     addAction(new EmptyAction());
+}
+
+
+export function deleteAction(){
+    if(rngTimeline.valueAsNumber == -1){
+        return;
+    }
+
+    function fnc(act: Action){
+
+        const refActs = actions.filter(x => x instanceof RefAction && x.refId == act.id) as RefAction[];
+
+        refActs.forEach(x => fnc(x));
+
+        act.disable();
+        if(act instanceof TextBlockAction){
+
+            divMath.removeChild(act.div);
+        }
+    
+        let idx = actions.indexOf(act);
+        console.assert(idx != -1);
+        actions.splice(idx, 1);
+    }
+
+    fnc(actions[rngTimeline.valueAsNumber]);
+
+    let selIdx = rngTimeline.valueAsNumber;
+    rngTimeline.max = `${actions.length - 1}`;
+
+    updateTimePos( Math.min(selIdx, actions.length - 1) );
 }
 
 
@@ -780,24 +834,7 @@ function resetAction(){
     txtSummary.textContent = actions[selIdx].summary();
 }
 
-
-function removeAction(){
-    let selIdx = rngTimeline.valueAsNumber;
-
-    const act = actions[selIdx] as TextBlockAction;
-
-    actions.splice(selIdx, 1);
-
-    if(act instanceof TextBlockAction){
-
-        divMath.removeChild(act.div);
-    }
-
-    rngTimeline.max = `${actions.length - 1}`;
-    updateTimePos( Math.min(selIdx, actions.length - 1) );
-}
-
-function selActionsChange(ev: Event){
+function rngTimelineChange(ev: Event){
     msg(`changed`);
     while(actions.some(x => x instanceof EmptyAction)){
         let idx = actions.findIndex(x => x instanceof EmptyAction);
@@ -807,26 +844,6 @@ function selActionsChange(ev: Event){
     prevTimePos = Math.min(prevTimePos, actions.length - 1);
     rngTimeline.max = `${actions.length - 1}`;
     updateTimePos(rngTimeline.valueAsNumber);
-
-    if(rngTimeline.valueAsNumber == -1){
-
-        setTextMathValue("");
-        txtSummary.textContent = "";
-    }
-    else{
-
-        const act = actions[rngTimeline.valueAsNumber];
-        if(act instanceof TextBlockAction || act instanceof SpeechAction){
-
-            setTextMathValue(act.text);
-        }
-        else{
-            setTextMathValue("");
-        }
-
-        txtSummary.textContent = act.summary();
-    }
-
 }
 
 export function playActions(){
@@ -893,7 +910,7 @@ export function initTekesan(in_editor: boolean){
     });
 
     prevTimePos = -1;
-    rngTimeline.addEventListener("change", selActionsChange);
+    rngTimeline.addEventListener("change", rngTimelineChange);
  
     monitorTextMath();
 

@@ -4,7 +4,6 @@ export const padding = 10;
 const endMark = "😀";
 let stopPlaying: boolean = false;
 let divMsg : HTMLDivElement = null;
-export let textMath : HTMLTextAreaElement;
 
 export function msg(text: string){
     console.log(text);

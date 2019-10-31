@@ -71,7 +71,7 @@ input[type="radio"]:checked + label {
 <body onload="bodyOnload()">
 <button onclick="tekesan.openDoc()">開く</button>
 
-<button onclick="manebu.stop()">停止</button>
+<button onclick="tekesan.deleteAction()">削除</button>
 <button onclick="putData()">バックアップ</button>
 <span id="input-mode"></span>
 <input type="radio" name="sel-color" value="magenta" id="color-0" checked /><label for="color-0" style="background-color: magenta; color: transparent;" >□</label>
@@ -83,6 +83,7 @@ path:<input id="txt-path" type="text" size="20" />
     <div id="div-math" style="height: 40%; overflow: scroll; border-style:inset; border-width: 3px;" ></div>
 
     <button onclick="tekesan.addEmptyAction()" style="font-family: Segoe UI Emoji;">➕</button>
+    <button onclick="tekesan.updateTimePos(-1)" style="font-family: Segoe UI Emoji;" >⏮</button>
     <button onclick="tekesan.playActions()" style="font-family: Segoe UI Emoji;" >▶️</button>
     <span id="spn-summary" style="width: 4ex;" >要約</span>
     <br/>
