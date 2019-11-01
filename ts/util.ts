@@ -3,15 +3,14 @@ declare let MathJax:any;
 export const padding = 10;
 const endMark = "😀";
 let stopPlaying: boolean = false;
-let divMsg : HTMLDivElement = null;
 
 export function msg(text: string){
     console.log(text);
 
-    if(divMsg != null){
+    if(ui.msg != undefined){
 
-        divMsg.textContent = divMsg.textContent + "\n" + text;
-        divMsg.scrollTop = divMsg.scrollHeight;
+        ui.msg.textContent = ui.msg.textContent + "\n" + text;
+        ui.msg.scrollTop = ui.msg.scrollHeight;
     }
 }
 
@@ -136,7 +135,7 @@ export function deserializeDoc(text: string){
 
     const doc = JSON.parse(reviseJson(text));
 
-    txtTitle.value = doc.title;
+    ui.title.value = doc.title;
 
     actions = [];
     suppressMathJax = true;
@@ -169,18 +168,18 @@ export function deserializeDoc(text: string){
 
         actions.push(act);
 
-        rngTimeline.max = `${actions.length - 1}`;
-        rngTimeline.valueAsNumber = actions.length - 1;
+        ui.timeline.max = `${actions.length - 1}`;
+        ui.timeline.valueAsNumber = actions.length - 1;
 
         msg(`deserialize doc:${id}`);
     }
     suppressMathJax = false;
 
-    txtSummary.textContent = last(actions).summary();
+    ui.summary.textContent = last(actions).summary();
 
     MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
     MathJax.Hub.Queue([function(){
-        rngTimeline.max = `${actions.length - 1}`;
+        ui.timeline.max = `${actions.length - 1}`;
         updateTimePos( actions.length - 1);
     }]);
 }

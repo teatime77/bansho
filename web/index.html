@@ -26,7 +26,16 @@ var exports = {};
 
 function bodyOnload(){
     console.log("body load");
-    tekesan.initTekesan(true);
+
+    let ui = {};
+
+    ui.title    = document.getElementById("txt-title");
+    ui.board    = document.getElementById("div-math");
+    ui.textArea = document.getElementById("txt-math");
+    ui.summary  = document.getElementById("spn-summary");
+    ui.timeline = document.getElementById("rng-timeline");
+
+    tekesan.initTekesan(true, ui);
 }
 
 function getData(){

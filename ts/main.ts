@@ -8,11 +8,6 @@ const idPrefix = "tekesan-id-";
 
 let colors : string[];
 
-export let txtTitle : HTMLInputElement;
-export let divMath : HTMLDivElement;
-export let textMath : HTMLTextAreaElement;
-export let txtSummary : HTMLSpanElement;
-export let rngTimeline : HTMLInputElement;
 let prevTimePos : number;
 
 export let actions : Action[];
@@ -24,6 +19,17 @@ let speechInput : boolean;
 let prevTextValue: string = "";
 
 let selectColor : number;
+export let ui: UI;
+
+class UI {
+    msg : HTMLDivElement = null;
+    title : HTMLInputElement;
+    board : HTMLDivElement;
+    summary : HTMLSpanElement;
+    timeline : HTMLInputElement;
+    textArea : HTMLTextAreaElement;
+    caption: HTMLSpanElement;
+}
 
 class JaxNode {
     CHTMLnodeID: number;
@@ -300,9 +306,9 @@ export class TextBlockAction extends TextAction {
     makeTextDiv(text: string) : HTMLDivElement {
         let nextEle = null;
 
-        if(rngTimeline.valueAsNumber != -1){
+        if(ui.timeline.valueAsNumber != -1){
 
-            for(let act of actions.slice(rngTimeline.valueAsNumber + 1)){
+            for(let act of actions.slice(ui.timeline.valueAsNumber + 1)){
                 if(act instanceof TextBlockAction){
                     nextEle = act.div;
                     break;
@@ -314,7 +320,7 @@ export class TextBlockAction extends TextAction {
         div.id = getBlockId(this.id);
         div.style.position = "relative";
     
-        divMath.insertBefore(div, nextEle);
+        ui.board.insertBefore(div, nextEle);
     
         div.tabIndex = 0;
     
@@ -344,7 +350,7 @@ function getRaioValue(name: string) : string {
 }
 
 function setTextMathValue(text: string){
-    textMath.value = text;
+    ui.textArea.value = text;
     prevTextValue = text;
 }
 
@@ -463,7 +469,7 @@ export function findSelectedDoms(div: HTMLDivElement, ev:MouseEvent) : boolean{
     const selActs = actions.filter(x => x instanceof SelectionAction) as SelectionAction[];
 
     for(let ele = ev.srcElement as HTMLElement; ; ele = ele.parentElement){
-        if(ele == divMath || !(ele instanceof HTMLElement)){
+        if(ele == ui.board || !(ele instanceof HTMLElement)){
 
             return false;
         }
@@ -590,12 +596,12 @@ export function newDocument(){
     ActionId = 0;
     actions = [];
 
-    divMath.innerHTML = "";
+    ui.board.innerHTML = "";
     setTextMathValue("");
 }
 
 function updateFocusedTextBlock(){
-    const text = textMath.value.trim();
+    const text = ui.textArea.value.trim();
     const act = currentAction();
 
     if(act instanceof TextBlockAction){
@@ -611,14 +617,14 @@ function updateFocusedTextBlock(){
         act.text = text;
     }
 
-    txtSummary.textContent = act.summary();
+    ui.summary.textContent = act.summary();
 }
 
 function updateTextMath(){
-    if(prevTextValue != textMath.value && prevTextValue != textMath.value.trim()){
+    if(prevTextValue != ui.textArea.value && prevTextValue != ui.textArea.value.trim()){
 
-        let trimValue = textMath.value.trim();
-        let selIdx = rngTimeline.valueAsNumber;
+        let trimValue = ui.textArea.value.trim();
+        let selIdx = ui.timeline.valueAsNumber;
         const act = actions[selIdx];
 
         if(trimValue == ""){
@@ -641,12 +647,12 @@ function updateTextMath(){
 
                     if(speechInput){
 
-                        const newAct = new SpeechAction(textMath.value.trim());
+                        const newAct = new SpeechAction(ui.textArea.value.trim());
                         setAction(newAct);    
                     }
                     else{
 
-                        const newAct = new TextBlockAction(textMath.value);
+                        const newAct = new TextBlockAction(ui.textArea.value);
                         
                         setAction(newAct);                    
                     }
@@ -663,24 +669,24 @@ function updateTextMath(){
             }
         }
 
-        prevTextValue = textMath.value.trim();
+        prevTextValue = ui.textArea.value.trim();
     }
 }
 
 function monitorTextMath(){
     setInterval(updateTextMath, 500);
 
-    textMath.addEventListener("keydown", (ev: KeyboardEvent)=>{
+    ui.textArea.addEventListener("keydown", (ev: KeyboardEvent)=>{
         msg(`key down ${ev.key}`);
         if(ev.key == "Insert"){
             if(ev.ctrlKey){
 
-                textMath.value = "$$\n\\frac{1}{2 \\pi \\sigma^2} \\int_{-\\infty}^\\infty \\exp^{ - \\frac{{(x - \\mu)}^2}{2 \\sigma^2}  } dx\n$$";
+                ui.textArea.value = "$$\n\\frac{1}{2 \\pi \\sigma^2} \\int_{-\\infty}^\\infty \\exp^{ - \\frac{{(x - \\mu)}^2}{2 \\sigma^2}  } dx\n$$";
             }
         }
     })
 
-    textMath.addEventListener("keypress", function(ev:KeyboardEvent){
+    ui.textArea.addEventListener("keypress", function(ev:KeyboardEvent){
         msg(`key press ${ev.ctrlKey} ${ev.key}`);
         if(ev.ctrlKey && ev.code == "Enter"){
             updateTextMath();
@@ -697,15 +703,15 @@ function monitorTextMath(){
         }
     });
 
-    textMath.addEventListener("blur", (ev: FocusEvent)=>{
+    ui.textArea.addEventListener("blur", (ev: FocusEvent)=>{
         msg("blur");
         updateFocusedTextBlock();
     });
 }
 
 function currentAction() : Action | undefined {
-    if(rngTimeline.valueAsNumber != -1){
-        return actions[rngTimeline.valueAsNumber];
+    if(ui.timeline.valueAsNumber != -1){
+        return actions[ui.timeline.valueAsNumber];
     }
     else{
         return undefined;
@@ -724,11 +730,11 @@ export function updateTimePos(pos: number){
             actions[i].disable();
         }
     }
-    divMath.scrollTop = divMath.scrollHeight;
+    ui.board.scrollTop = ui.board.scrollHeight;
 
-    if(rngTimeline.valueAsNumber != pos){
+    if(ui.timeline.valueAsNumber != pos){
 
-        rngTimeline.valueAsNumber = pos;
+        ui.timeline.valueAsNumber = pos;
     }
 
     prevTimePos = pos;
@@ -737,14 +743,14 @@ export function updateTimePos(pos: number){
 }
 
 export function updateSummaryTextArea(){
-    if(rngTimeline.valueAsNumber == -1){
+    if(ui.timeline.valueAsNumber == -1){
 
         setTextMathValue("");
-        txtSummary.textContent = "";
+        ui.summary.textContent = "";
     }
     else{
 
-        const act = actions[rngTimeline.valueAsNumber];
+        const act = actions[ui.timeline.valueAsNumber];
         if(act instanceof TextAction){
 
             setTextMathValue(act.text);
@@ -753,27 +759,27 @@ export function updateSummaryTextArea(){
             setTextMathValue("");
         }
 
-        txtSummary.textContent = act.summary();
+        ui.summary.textContent = act.summary();
     }
 }
 
 function setAction(act: Action){
-    let selIdx = rngTimeline.valueAsNumber;
+    let selIdx = ui.timeline.valueAsNumber;
 
     console.assert(actions[selIdx] instanceof EmptyAction);
     actions[selIdx] = act;
-    txtSummary.textContent = act.summary();
+    ui.summary.textContent = act.summary();
 }
 
 export function addAction(act: Action){
-    let selIdx = rngTimeline.valueAsNumber + 1;
+    let selIdx = ui.timeline.valueAsNumber + 1;
 
     actions.splice(selIdx, 0, act);
 
-    rngTimeline.max = `${actions.length - 1}`;
+    ui.timeline.max = `${actions.length - 1}`;
     updateTimePos(selIdx);
 
-    textMath.focus();
+    ui.textArea.focus();
 }
 
 export function addEmptyAction(){
@@ -782,7 +788,7 @@ export function addEmptyAction(){
 
 
 export function deleteAction(){
-    if(rngTimeline.valueAsNumber == -1){
+    if(ui.timeline.valueAsNumber == -1){
         return;
     }
 
@@ -795,7 +801,7 @@ export function deleteAction(){
         act.disable();
         if(act instanceof TextBlockAction){
 
-            divMath.removeChild(act.div);
+            ui.board.removeChild(act.div);
         }
     
         let idx = actions.indexOf(act);
@@ -803,10 +809,10 @@ export function deleteAction(){
         actions.splice(idx, 1);
     }
 
-    fnc(actions[rngTimeline.valueAsNumber]);
+    fnc(actions[ui.timeline.valueAsNumber]);
 
-    let selIdx = rngTimeline.valueAsNumber;
-    rngTimeline.max = `${actions.length - 1}`;
+    let selIdx = ui.timeline.valueAsNumber;
+    ui.timeline.max = `${actions.length - 1}`;
 
     if(selIdx < actions.length){
         actions[selIdx].enable();
@@ -817,16 +823,16 @@ export function deleteAction(){
 
 
 function resetAction(){
-    let selIdx = rngTimeline.valueAsNumber;
+    let selIdx = ui.timeline.valueAsNumber;
 
     const act = actions[selIdx] as TextBlockAction;
     if(act instanceof TextBlockAction){
 
-        divMath.removeChild(act.div);
+        ui.board.removeChild(act.div);
     }
 
     actions[selIdx] = new EmptyAction();
-    txtSummary.textContent = actions[selIdx].summary();
+    ui.summary.textContent = actions[selIdx].summary();
 }
 
 function rngTimelineChange(ev: Event){
@@ -837,8 +843,8 @@ function rngTimelineChange(ev: Event){
     }
 
     prevTimePos = Math.min(prevTimePos, actions.length - 1);
-    rngTimeline.max = `${actions.length - 1}`;
-    updateTimePos(rngTimeline.valueAsNumber);
+    ui.timeline.max = `${actions.length - 1}`;
+    updateTimePos(ui.timeline.valueAsNumber);
 }
 
 export function playActions(){
@@ -854,21 +860,17 @@ export function playActions(){
     runGenerator( fnc() );
 }
 
-export function initTekesan(in_editor: boolean){
+export function initTekesan(in_editor: boolean, ui1: UI){
+    ui = ui1;
     inEditor = in_editor;
     suppressMathJax = false;
-    txtTitle = document.getElementById("txt-title") as HTMLInputElement;
-    divMath = document.getElementById("div-math") as HTMLDivElement;
-    textMath = document.getElementById("txt-math") as HTMLTextAreaElement;
-    txtSummary = document.getElementById("spn-summary") as HTMLSpanElement;
-    rngTimeline = document.getElementById("rng-timeline") as HTMLInputElement;
 
     msg("body loaded");
 
     initSpeech();
 
     speechInput = false;
-    textMath.style.backgroundColor = "white";
+    ui.textArea.style.backgroundColor = "white";
     newDocument();
 
     if(! inEditor){
@@ -881,11 +883,11 @@ export function initTekesan(in_editor: boolean){
             const inputMode = document.getElementById("input-mode") as HTMLSpanElement;
             inputMode.textContent = (speechInput ? "音声" : "テキスト");
             if(speechInput){
-                textMath.style.backgroundColor = "ivory";
+                ui.textArea.style.backgroundColor = "ivory";
             }
             else{
 
-                textMath.style.backgroundColor = "white";
+                ui.textArea.style.backgroundColor = "white";
             }
         }
     });
@@ -907,7 +909,7 @@ export function initTekesan(in_editor: boolean){
     });
 
     prevTimePos = -1;
-    rngTimeline.addEventListener("change", rngTimelineChange);
+    ui.timeline.addEventListener("change", rngTimelineChange);
  
     monitorTextMath();
 
