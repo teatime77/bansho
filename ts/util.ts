@@ -136,7 +136,10 @@ export function deserializeDoc(text: string){
 
     const doc = JSON.parse(reviseJson(text));
 
+    txtTitle.value = doc.title;
+
     actions = [];
+    suppressMathJax = true;
     for(let [id, obj] of doc.actions.entries()){
         let act: Action;
 
@@ -165,7 +168,13 @@ export function deserializeDoc(text: string){
         console.assert(act.id == id && id + 1 == ActionId);
 
         actions.push(act);
+
+        rngTimeline.max = `${actions.length - 1}`;
+        rngTimeline.valueAsNumber = actions.length - 1;
+
+        msg(`deserialize doc:${id}`);
     }
+    suppressMathJax = false;
 
     txtSummary.textContent = last(actions).summary();
 
@@ -280,27 +289,11 @@ export function fetchText(path:string, fnc:(text: string)=>void){
     });
 }
 
-export function openDoc(){
-    fetchText("json/1.json", (text: string)=>{
+export function openDoc(path: string){
+    fetchText(`json/${path}.json`, (text: string)=>{
         msg(`[${text}]`);
         deserializeDoc(text);
     });
-}
-
-
-
-function* waitActions(){
-    let typesetDone = false;
-    MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
-    MathJax.Hub.Queue([function(){
-        typesetDone = true;
-    }]);
-
-    while(! typesetDone){
-        yield;
-    }
-
-    divMath.scrollTop = divMath.scrollHeight;
 }
 
 export function runGenerator(gen: IterableIterator<any>){
@@ -313,7 +306,7 @@ export function runGenerator(gen: IterableIterator<any>){
             clearInterval(id);
             msg("停止しました。");
         }
-    },100);
+    },10);
 }
 
 

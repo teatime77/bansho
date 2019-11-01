@@ -8,6 +8,7 @@ const idPrefix = "tekesan-id-";
 
 let colors : string[];
 
+export let txtTitle : HTMLInputElement;
 export let divMath : HTMLDivElement;
 export let textMath : HTMLTextAreaElement;
 export let txtSummary : HTMLSpanElement;
@@ -17,6 +18,7 @@ let prevTimePos : number;
 export let actions : Action[];
 export let ActionId;
 export let inEditor : boolean;
+export let suppressMathJax: boolean;
 
 let speechInput : boolean;
 let prevTextValue: string = "";
@@ -297,6 +299,7 @@ export class TextBlockAction extends TextAction {
 
     makeTextDiv(text: string) : HTMLDivElement {
         let nextEle = null;
+
         if(rngTimeline.valueAsNumber != -1){
 
             for(let act of actions.slice(rngTimeline.valueAsNumber + 1)){
@@ -401,7 +404,7 @@ function getDomAncestors(node: Node) : HTMLElement[] {
 
 function reprocessMathJax(html: string){
 
-    if(html.includes("$")){
+    if(!suppressMathJax && html.includes("$")){
         MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
     }
 }
@@ -576,9 +579,7 @@ export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
         if(selAct != null){
             selAct.enable();
 
-
-            selAct.enable();
-            setAction(selAct);
+            addAction(selAct);
         }
     }
 
@@ -719,10 +720,11 @@ export function updateTimePos(pos: number){
         }
     }
     else if(pos < prevTimePos){
-        for(let i = prevTimePos; pos < i; i--){
+        for(let i = Math.min(prevTimePos, actions.length - 1); pos < i; i--){
             actions[i].disable();
         }
     }
+    divMath.scrollTop = divMath.scrollHeight;
 
     if(rngTimeline.valueAsNumber != pos){
 
@@ -764,20 +766,9 @@ function setAction(act: Action){
 }
 
 export function addAction(act: Action){
-    txtSummary.textContent = act.summary();
-
-    let selIdx: number;
-    if(actions.length == 0){
-
-        selIdx = 0;
-    }
-    else{
-
-        selIdx = rngTimeline.valueAsNumber + 1;
-    }
+    let selIdx = rngTimeline.valueAsNumber + 1;
 
     actions.splice(selIdx, 0, act);
-
 
     rngTimeline.max = `${actions.length - 1}`;
     updateTimePos(selIdx);
@@ -816,6 +807,10 @@ export function deleteAction(){
 
     let selIdx = rngTimeline.valueAsNumber;
     rngTimeline.max = `${actions.length - 1}`;
+
+    if(selIdx < actions.length){
+        actions[selIdx].enable();
+    }
 
     updateTimePos( Math.min(selIdx, actions.length - 1) );
 }
@@ -861,6 +856,8 @@ export function playActions(){
 
 export function initTekesan(in_editor: boolean){
     inEditor = in_editor;
+    suppressMathJax = false;
+    txtTitle = document.getElementById("txt-title") as HTMLInputElement;
     divMath = document.getElementById("div-math") as HTMLDivElement;
     textMath = document.getElementById("txt-math") as HTMLTextAreaElement;
     txtSummary = document.getElementById("spn-summary") as HTMLSpanElement;
