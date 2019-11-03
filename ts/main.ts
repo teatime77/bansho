@@ -12,7 +12,6 @@ let prevTimePos : number;
 let pauseFlag : boolean;
 
 export let actions : Action[];
-export let ActionId;
 export let suppressMathJax: boolean;
 
 let speechInput : boolean;
@@ -50,8 +49,12 @@ export class Action{
 
     constructor(){
         this.typeName = this.getTypeName();
-        this.id = ActionId;
-        ActionId++;
+        if(actions.length == 0){
+            this.id = 0;
+        }
+        else{
+            this.id = Math.max(... actions.map(x => x.id)) + 1;
+        }
     }
 
     getTypeName(){
@@ -590,7 +593,6 @@ export function onClickBlock(div: HTMLDivElement, ev:MouseEvent){
 }
 
 export function newDocument(){
-    ActionId = 0;
     actions = [];
 
     ui.board.innerHTML = "";

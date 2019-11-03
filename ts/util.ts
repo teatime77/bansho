@@ -1,7 +1,7 @@
 namespace tekesan {
 declare let MathJax:any;
 export const padding = 10;
-const endMark = "😀";
+const endMark = "⛩";
 let stopPlaying: boolean = false;
 
 export function msg(text: string){
@@ -131,7 +131,6 @@ ${actions.filter(x => !(x instanceof EmptyAction)) .map(x => "    " + x.toStr())
 }
 
 export function deserializeDoc(text: string, oncomplete:()=>void){
-    ActionId = 0;
     actions = [];
 
     ui.board.innerHTML = "";
@@ -168,7 +167,7 @@ export function deserializeDoc(text: string, oncomplete:()=>void){
             console.assert(false);
             break;
         }
-        console.assert(act.id == id && id + 1 == ActionId);
+        console.assert(act.id == id);
 
         actions.push(act);
 
@@ -234,8 +233,6 @@ function renumId(){
     for(let [id, act] of actions.entries()){
         act.id = id;
     }
-
-    ActionId = actions.length;
 }
 
 export function backup(path: string, title: string){
