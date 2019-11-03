@@ -130,14 +130,18 @@ ${actions.filter(x => !(x instanceof EmptyAction)) .map(x => "    " + x.toStr())
 }`
 }
 
-export function deserializeDoc(text: string){
+export function deserializeDoc(text: string, oncomplete:()=>void){
     ActionId = 0;
+    actions = [];
+
+    ui.board.innerHTML = "";
 
     const doc = JSON.parse(reviseJson(text));
 
-    ui.title.value = doc.title;
+    const h1 = document.createElement("h1");
+    h1.innerHTML = doc.title;
+    ui.board.appendChild(h1);
 
-    actions = [];
     suppressMathJax = true;
     for(let [id, obj] of doc.actions.entries()){
         let act: Action;
@@ -170,17 +174,23 @@ export function deserializeDoc(text: string){
 
         ui.timeline.max = `${actions.length - 1}`;
         ui.timeline.valueAsNumber = actions.length - 1;
-
-        msg(`deserialize doc:${id}`);
     }
     suppressMathJax = false;
 
-    ui.summary.textContent = last(actions).summary();
+    if(ui.summary != undefined){
+
+        ui.summary.textContent = last(actions).summary();
+    }
 
     MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
     MathJax.Hub.Queue([function(){
         ui.timeline.max = `${actions.length - 1}`;
-        updateTimePos( actions.length - 1);
+        updateTimePos(actions.length - 1);
+        updateTimePos(-1);
+
+        if(oncomplete != undefined){
+            oncomplete();
+        }
     }]);
 }
 
@@ -288,10 +298,9 @@ export function fetchText(path:string, fnc:(text: string)=>void){
     });
 }
 
-export function openDoc(path: string){
+export function openDoc(path: string, oncomplete:()=>void){
     fetchText(`json/${path}.json`, (text: string)=>{
-        msg(`[${text}]`);
-        deserializeDoc(text);
+        deserializeDoc(text, oncomplete);
     });
 }
 

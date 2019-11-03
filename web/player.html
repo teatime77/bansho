@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta charset="utf-8" />
+<title>手計算</title>
+<script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+    tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+    }
+});
+</script>
+<script type="text/javascript" src="js/util.js?ver=1" ></script>
+<script type="text/javascript" src="js/main.js?ver=1" ></script>
+<script type="text/javascript" src="js/speech.js?ver=1" ></script>
+
+<script type="text/javascript">
+let isPlaying = false;
+let btnPlayPause;
+
+function bodyOnload(){
+    btnPlayPause = document.getElementById("btn-play-pause");
+
+    let ui = {};
+
+    ui.caption  = document.getElementById("caption");
+    ui.board    = document.getElementById("div-math");
+    ui.timeline = document.getElementById("rng-timeline");
+    if(window.location.search.includes("debug=1")){
+
+        ui.msg      = document.getElementById("txt-msg");
+        ui.msg.style.display = "block";
+    }
+
+    tekesan.initTekesan(ui, ()=>{
+
+        btnPlayPause.disabled = false;
+        btnPlayPause.innerHTML = "▶️";
+    });
+}
+
+function clickPlayPause(){
+    if(isPlaying){
+
+        btnPlayPause.disabled = true;
+        tekesan.pauseAction(()=>{
+            btnPlayPause.disabled = false;
+            btnPlayPause.innerHTML = "▶️";
+        });
+    }
+    else{
+
+        btnPlayPause.innerHTML = "⏸";
+        tekesan.playActions(()=>{
+
+            btnPlayPause.innerHTML = "▶️";
+            isPlaying = false;
+        });
+    }
+    isPlaying = ! isPlaying;
+    // document.getElementById("btn-play").style.display="none";
+}
+</script>
+<!-- 
+<style type="text/css">
+.play {
+	width: 120px;
+	height: 120px;
+	
+	position: absolute;
+	top:0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+  	
+	margin: auto;
+    padding: 0;
+    border-width: 0px;
+    background-color: transparent;
+}
+</style>
+-->
+</head>
+
+<body onload="bodyOnload()">
+<button id="btn-play-pause" disabled onclick="clickPlayPause()" style="font-family: Segoe UI Emoji; font-size: 40px; " >⏹</button>
+<input id="rng-timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%; " />
+<div id="div-math" style="overflow: scroll; border-style:inset; border-width: 3px;" ></div>
+<h3 id="caption" style="text-align: center;"></h3>
+<textarea id="txt-msg" rows="15" style="display: none; width: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; " spellcheck="false" ></textarea>
+
+<!-- <button class="play" id="btn-play1" onclick="clickPlay()" style="font-family: Segoe UI Emoji; font-size: 100px; " >▶️</button> -->
+</body>
+</html>

@@ -9,10 +9,10 @@ const idPrefix = "tekesan-id-";
 let colors : string[];
 
 let prevTimePos : number;
+let pauseFlag : boolean;
 
 export let actions : Action[];
 export let ActionId;
-export let inEditor : boolean;
 export let suppressMathJax: boolean;
 
 let speechInput : boolean;
@@ -22,13 +22,14 @@ let selectColor : number;
 export let ui: UI;
 
 class UI {
-    msg : HTMLDivElement = null;
-    title : HTMLInputElement;
     board : HTMLDivElement;
-    summary : HTMLSpanElement;
     timeline : HTMLInputElement;
+    summary : HTMLSpanElement;
     textArea : HTMLTextAreaElement;
     caption: HTMLSpanElement;
+    selColors: HTMLInputElement[];
+    msg : HTMLDivElement;
+    edit : true;
 }
 
 class JaxNode {
@@ -273,18 +274,19 @@ export class TextBlockAction extends TextAction {
     constructor(text: string){
         super();
 
-        this.text = text;
-        //---------- 
-        msg(`append text block[${this.text}]`);
-    
+        this.text = text;    
         this.div = this.makeTextDiv(this.text);
-        this.div.addEventListener("click", function(ev:MouseEvent){
-            onClickBlock(this, ev);
-        });
-    
-        this.div.addEventListener('keydown', (event) => {
-            msg(`key down ${event.key} ${event.ctrlKey}`);
-        }, false);
+
+        if(ui.edit){
+
+            this.div.addEventListener("click", function(ev:MouseEvent){
+                onClickBlock(this, ev);
+            });
+        
+            this.div.addEventListener('keydown', (event) => {
+                msg(`key down ${event.key} ${event.ctrlKey}`);
+            }, false);
+        }
     }
 
     enable(){
@@ -342,11 +344,6 @@ export class TextBlockAction extends TextAction {
     
         return div;
     }
-}
-
-function getRaioValue(name: string) : string {
-    return (Array.from(document.getElementsByName(name)) as HTMLInputElement[])
-        .find(x => x.checked).value;
 }
 
 function setTextMathValue(text: string){
@@ -597,7 +594,10 @@ export function newDocument(){
     actions = [];
 
     ui.board.innerHTML = "";
-    setTextMathValue("");
+    if(ui.edit){
+
+        setTextMathValue("");
+    }
 }
 
 function updateFocusedTextBlock(){
@@ -730,7 +730,9 @@ export function updateTimePos(pos: number){
             actions[i].disable();
         }
     }
+
     ui.board.scrollTop = ui.board.scrollHeight;
+    window.scrollTo(0,document.body.scrollHeight);
 
     if(ui.timeline.valueAsNumber != pos){
 
@@ -739,7 +741,10 @@ export function updateTimePos(pos: number){
 
     prevTimePos = pos;
 
-    updateSummaryTextArea();
+    if(ui.edit){
+
+        updateSummaryTextArea();
+    }
 }
 
 export function updateSummaryTextArea(){
@@ -847,22 +852,103 @@ function rngTimelineChange(ev: Event){
     updateTimePos(ui.timeline.valueAsNumber);
 }
 
-export function playActions(){
-    updateTimePos(-1);
-
+export function playActions(oncomplete:()=>void){
     function* fnc(){
-        for(let [pos, act] of actions.entries()){
+        let startPos = Math.max(0, ui.timeline.valueAsNumber);
+
+        for(let pos = startPos; pos < actions.length; pos++){
+            let act = actions[pos];
             yield* act.play();
             updateTimePos(pos);
+
+            if(pauseFlag){
+                break;
+            }
+        }
+
+        if(pauseFlag){
+
+            pauseFlag = false;
+        }
+        else{
+
+            if(oncomplete != undefined){
+
+                oncomplete();
+            }
         }
     }
     
     runGenerator( fnc() );
 }
 
-export function initTekesan(in_editor: boolean, ui1: UI){
+export function pauseAction(fnc:()=>void){
+    pauseFlag = true;
+    cancelSpeech();
+
+    const id = setInterval(function(){
+        if(! pauseFlag && ! isSpeaking){
+
+            clearInterval(id);
+            msg("停止しました。");
+            fnc();
+        }
+    },10);
+}
+
+function initUI(){
+    console.assert(ui.board != undefined && ui.timeline != undefined);
+
+    if(ui.selColors == undefined){
+
+        colors = [ "magenta", "blue", "limegreen" ];
+    }
+    else{
+
+        colors = ui.selColors.map(x => x.value);
+
+        function getSelectColor(){
+            return colors.indexOf( ui.selColors.find(x => x.checked).value );
+        }
+        selectColor = getSelectColor();
+        ui.selColors.forEach(inp =>{
+            inp.addEventListener("click", (ev: MouseEvent)=>{
+                selectColor = getSelectColor();
+
+                let act = currentAction();
+                if(act instanceof SelectionAction){
+                    act.color = selectColor;
+                    act.enable();
+                }
+            })
+        });
+    }
+
+    if(ui.textArea != undefined){
+        ui.textArea.style.backgroundColor = "white";
+
+        document.body.addEventListener("keydown", (ev: KeyboardEvent)=>{
+            if(ev.key == "Insert" && ! ev.ctrlKey && ! ev.shiftKey){
+                speechInput = ! speechInput;
+                if(speechInput){
+                    ui.textArea.style.backgroundColor = "ivory";
+                }
+                else{
+
+                    ui.textArea.style.backgroundColor = "white";
+                }
+            }
+        });
+
+        monitorTextMath();
+    }
+}
+
+export function initTekesan(ui1: UI, oncomplete:()=>void){
+    pauseFlag = false;
     ui = ui1;
-    inEditor = in_editor;
+    initUI();
+
     suppressMathJax = false;
 
     msg("body loaded");
@@ -870,50 +956,25 @@ export function initTekesan(in_editor: boolean, ui1: UI){
     initSpeech();
 
     speechInput = false;
-    ui.textArea.style.backgroundColor = "white";
     newDocument();
-
-    if(! inEditor){
-        return;
-    }
-
-    document.body.addEventListener("keydown", (ev: KeyboardEvent)=>{
-        if(ev.key == "Insert" && ! ev.ctrlKey && ! ev.shiftKey){
-            speechInput = ! speechInput;
-            const inputMode = document.getElementById("input-mode") as HTMLSpanElement;
-            inputMode.textContent = (speechInput ? "音声" : "テキスト");
-            if(speechInput){
-                ui.textArea.style.backgroundColor = "ivory";
-            }
-            else{
-
-                ui.textArea.style.backgroundColor = "white";
-            }
-        }
-    });
-
-    colors = (Array.from(document.getElementsByName("sel-color")) as HTMLInputElement[])
-        .map(x => x.value);
-
-    selectColor = colors.indexOf(getRaioValue("sel-color"));
-    (Array.from(document.getElementsByName("sel-color")) as HTMLInputElement[]).forEach(inp =>{
-        inp.addEventListener("click", (ev: MouseEvent)=>{
-            selectColor = colors.indexOf(getRaioValue("sel-color"));
-
-            let act = currentAction();
-            if(act instanceof SelectionAction){
-                act.color = selectColor;
-                act.enable();
-            }
-        })
-    });
 
     prevTimePos = -1;
     ui.timeline.addEventListener("change", rngTimelineChange);
- 
-    monitorTextMath();
 
-    addEmptyAction();
+    if(ui.edit == true){
+        addEmptyAction();
+    }
+
+    if(window.location.search != ""){
+        console.assert(window.location.search[0] == '?');
+        
+        for(let item of window.location.search.substring(1).split('&')){
+            let [key, value] = item.split("=");
+            if(key == "path"){
+                openDoc(value, oncomplete);
+            }
+        }
+    }
 }
 
 
