@@ -1,16 +1,16 @@
 namespace tekesan {
-declare let MathJax:any;
 export const padding = 10;
 const endMark = "⛩";
 let stopPlaying: boolean = false;
+export let textMsg : HTMLDivElement;
 
 export function msg(text: string){
     console.log(text);
 
-    if(ui.msg != undefined){
+    if(textMsg != undefined){
 
-        ui.msg.textContent = ui.msg.textContent + "\n" + text;
-        ui.msg.scrollTop = ui.msg.scrollHeight;
+        textMsg.textContent = textMsg.textContent + "\n" + text;
+        textMsg.scrollTop = textMsg.scrollHeight;
     }
 }
 
@@ -121,78 +121,6 @@ export function tostr(text: string){
     }
 }
 
-export function serializeDoc(title: string) : string {
-    return `{
-  "title": "${title}",
-  "actions": [
-${actions.filter(x => !(x instanceof EmptyAction)) .map(x => "    " + x.toStr()).join(",\n")}
-  ]
-}`
-}
-
-export function deserializeDoc(text: string, oncomplete:()=>void){
-    actions = [];
-
-    ui.board.innerHTML = "";
-
-    const doc = JSON.parse(reviseJson(text));
-
-    const h1 = document.createElement("h1");
-    h1.innerHTML = doc.title;
-    ui.board.appendChild(h1);
-
-    suppressMathJax = true;
-    for(let [id, obj] of doc.actions.entries()){
-        let act: Action;
-
-        switch(obj.type){
-        case "text":
-            act = new TextBlockAction((obj as TextBlockAction).text);
-            break;
-        
-        case "speech":
-            act = new SpeechAction((obj as SpeechAction).text);
-            break;
-
-        case "select":
-            let sel = obj as SelectionAction;
-            act = new SelectionAction(sel.refId, sel.domType, sel.startPath, sel.endPath, sel.color);
-            break;
-
-        case "disable":
-            act = new DisableAction((obj as DisableAction).refId);
-            break;
-
-        default:
-            console.assert(false);
-            break;
-        }
-        console.assert(act.id == id);
-
-        actions.push(act);
-
-        ui.timeline.max = `${actions.length - 1}`;
-        ui.timeline.valueAsNumber = actions.length - 1;
-    }
-    suppressMathJax = false;
-
-    if(ui.summary != undefined){
-
-        ui.summary.textContent = last(actions).summary();
-    }
-
-    MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
-    MathJax.Hub.Queue([function(){
-        ui.timeline.max = `${actions.length - 1}`;
-        updateTimePos(actions.length - 1);
-        updateTimePos(-1);
-
-        if(oncomplete != undefined){
-            oncomplete();
-        }
-    }]);
-}
-
 export function reviseJson(text:string){
     let ret = "";
 
@@ -209,63 +137,6 @@ export function reviseJson(text:string){
         ret += text.substring(0, k1) + JSON.stringify(text.substring(k1 + el, k2));
         text = text.substring(k2 + el);
     }
-}
-
-function renumId(){
-    for(let [id, act] of actions.entries()){
-        if(act instanceof TextBlockAction){
-            act.div.id = getBlockId(id);
-        }
-        else if(act instanceof SelectionAction){
-            const block = actions.find(x => x.id == (act as SelectionAction).refId);
-            console.assert(block != undefined);
-
-            act.refId = actions.indexOf(block);
-            console.assert(act.refId != -1);
-        }
-        else if(act instanceof DisableAction){
-
-            act.refId = actions.indexOf(act.disableAct);
-            console.assert(act.refId != -1);
-        }
-    }
-
-    for(let [id, act] of actions.entries()){
-        act.id = id;
-    }
-}
-
-export function backup(path: string, title: string){
-    renumId();
-    const text = serializeDoc(title);
-    msg(`[${text}]`);
-
-    navigator.clipboard.writeText(text).then(function() {
-        msg("copy OK");
-    }, function() {
-        msg("copy NG");
-    });
-
-    var url = `${window.location.origin}/`;
-    var data = {
-        "path": path,
-        "text": text,
-    };
-    
-    fetch(url, {
-        method: "POST", // or 'PUT'
-        body: JSON.stringify(data),
-        headers:{
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(res => res.json())
-    .then(response => {
-        console.log('Success:', JSON.stringify(response))
-    })
-    .catch(error => {
-        console.error('Error:', error)
-    });
 }
 
 export function fetchText(path:string, fnc:(text: string)=>void){
@@ -292,12 +163,6 @@ export function fetchText(path:string, fnc:(text: string)=>void){
     })
     .catch(error => {
         console.error('Error:', error);
-    });
-}
-
-export function openDoc(path: string, oncomplete:()=>void){
-    fetchText(`json/${path}.json`, (text: string)=>{
-        deserializeDoc(text, oncomplete);
     });
 }
 

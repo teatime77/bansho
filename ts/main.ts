@@ -1,38 +1,268 @@
 namespace tekesan {
+declare let MathJax:any;
 
 export const idPrefix = "tekesan-id-";
 
-export let colors : string[];
+export let colors : string[] = [ "magenta", "blue", "limegreen" ];
 
-let prevTimePos : number;
-let pauseFlag : boolean;
+export class UI {
+    actions : Action[] = [];
+    prevTimePos : number;
+    pauseFlag : boolean;
+    suppressMathJax: boolean;
 
-export let actions : Action[];
-export let suppressMathJax: boolean;
-export let ui: UI;
-
-class UI {
+    btnPlayPause: HTMLButtonElement;
     board : HTMLDivElement;
     timeline : HTMLInputElement;
-    summary : HTMLSpanElement;
-    textArea : HTMLTextAreaElement;
     caption: HTMLSpanElement;
-    selColors: HTMLInputElement[];
-    msg : HTMLDivElement;
-    edit : true;
+
+    isPlaying = false;
+
+    constructor(div: HTMLDivElement){
+        this.prevTimePos = -1;
+        this.pauseFlag = false;
+        this.suppressMathJax = false;
+
+        this.btnPlayPause = document.createElement("button");
+        this.btnPlayPause.disabled = true;
+        this.btnPlayPause.style.fontFamily = "Segoe UI Emoji";
+        this.btnPlayPause.style.fontSize = "40px";
+        this.btnPlayPause.innerHTML = "⏹";
+        this.btnPlayPause.onclick = this.clickPlayPause.bind(this);
+        div.appendChild(this.btnPlayPause);
+
+        this.timeline = document.createElement("input");
+        this.timeline.type = "range";
+        this.timeline.min ="-1";
+        this.timeline.max = "-1";
+        this.timeline.value = "-1";
+        this.timeline.step = "1";
+        this.timeline.style.width = "100%";
+        this.timeline.onchange = this.rngTimelineChange.bind(this);
+        div.appendChild(this.timeline);
+
+        this.board    = document.createElement("div");
+        this.board.style.overflow = "scroll";
+        this.board.style.borderStyle = "inset";
+        this.board.style.borderWidth = "3px";
+        div.appendChild(this.board);
+
+        this.caption  = document.createElement("h3");
+        this.caption.style.textAlign = "center";
+        div.appendChild(this.caption);
+
+        let path = div.getAttribute("data-path");
+        if(path != null){
+
+            this.openDoc(path);
+        }
+    }
+        
+    onOpenDocComplete = ()=>{
+        this.btnPlayPause.disabled = false;
+        this.btnPlayPause.innerHTML = "▶️";
+    }  
+
+    clickPlayPause(){
+        if(this.isPlaying){
+    
+            this.btnPlayPause.disabled = true;
+            tekesan.pauseAction(this, ()=>{
+                this.btnPlayPause.disabled = false;
+                this.btnPlayPause.innerHTML = "▶️";
+            });
+        }
+        else{
+    
+            this.btnPlayPause.innerHTML = "⏸";
+            this.playActions(()=>{
+    
+                this.btnPlayPause.innerHTML = "▶️";
+                this.isPlaying = false;
+            });
+        }
+        this.isPlaying = ! this.isPlaying;
+        // document.getElementById("btn-play").style.display="none";
+    }
+
+    rngTimelineChange(){
+        msg(`changed`);
+        while(this.actions.some(x => x instanceof EmptyAction)){
+            let idx = this.actions.findIndex(x => x instanceof EmptyAction);
+            this.actions.splice(idx, 1);
+        }
+    
+        this.prevTimePos = Math.min(this.prevTimePos, this.actions.length - 1);
+        this.timeline.max = `${this.actions.length - 1}`;
+        this.updateTimePos(this.timeline.valueAsNumber);
+    }    
+
+    currentAction() : Action | undefined {
+        if(this.timeline.valueAsNumber != -1){
+            return this.actions[this.timeline.valueAsNumber];
+        }
+        else{
+            return undefined;
+        }
+    }
+
+    updateTimePos(pos: number){
+        if(this.prevTimePos < pos){
+            for(let i = this.prevTimePos + 1; i <= pos; i++){
+                this.actions[i].enable();
+            }
+        }
+        else if(pos < this.prevTimePos){
+            for(let i = Math.min(this.prevTimePos, this.actions.length - 1); pos < i; i--){
+                this.actions[i].disable();
+            }
+        }
+    
+        this.board.scrollTop = this.board.scrollHeight;
+        window.scrollTo(0,document.body.scrollHeight);
+    
+        if(this.timeline.valueAsNumber != pos){
+    
+            this.timeline.valueAsNumber = pos;
+        }
+    
+        this.prevTimePos = pos;
+    
+        let act = this.currentAction();
+        if(act instanceof SpeechAction){
+            
+            let [caption, speech] = act.getCaptionSpeech();
+            this.caption.textContent = caption;
+            reprocessMathJax(this, caption);
+        }
+        else{
+
+            this.caption.textContent = "";
+        }
+
+        if(UIEdit != undefined && this instanceof UIEdit){
+    
+            this.updateSummaryTextArea();
+        }
+    }    
+    
+    playActions(oncomplete:()=>void){
+        function* fnc(ui: UI){
+            let startPos = Math.max(0, ui.timeline.valueAsNumber);
+    
+            for(let pos = startPos; pos < ui.actions.length; pos++){
+                let act = ui.actions[pos];
+                yield* act.play();
+                ui.updateTimePos(pos);
+    
+                if(ui.pauseFlag){
+                    break;
+                }
+            }
+    
+            if(ui.pauseFlag){
+    
+                ui.pauseFlag = false;
+            }
+            else{
+    
+                if(oncomplete != undefined){
+    
+                    oncomplete();
+                }
+            }
+        }
+        
+        runGenerator( fnc(this) );
+    }
+    
+    openDoc(path: string){
+        fetchText(`json/${path}.json`, (text: string)=>{
+            this.deserializeDoc(text);
+        });
+    }
+    
+    deserializeDoc(text: string){
+        this.actions = [];
+    
+        this.board.innerHTML = "";
+    
+        const doc = JSON.parse(reviseJson(text));
+
+        if(UIEdit != undefined && this instanceof UIEdit){
+            this.txtTitle.value = doc.title;
+        }
+    
+        const h1 = document.createElement("h1");
+        h1.innerHTML = doc.title;
+        this.board.appendChild(h1);
+    
+        this.suppressMathJax = true;
+        for(let [id, obj] of doc.actions.entries()){
+            let act: Action;
+    
+            switch(obj.type){
+            case "text":
+                act = new TextBlockAction(this, (obj as TextBlockAction).text);
+                break;
+            
+            case "speech":
+                act = new SpeechAction(this, (obj as SpeechAction).text);
+                break;
+    
+            case "select":
+                let sel = obj as SelectionAction;
+                act = new SelectionAction(this, sel.refId, sel.domType, sel.startPath, sel.endPath, sel.color);
+                break;
+    
+            case "disable":
+                act = new DisableAction(this, (obj as DisableAction).refId);
+                break;
+    
+            default:
+                console.assert(false);
+                return;
+            }
+            console.assert(act.id == id);
+    
+            this.actions.push(act);
+    
+            this.timeline.max = `${this.actions.length - 1}`;
+            this.timeline.valueAsNumber = this.actions.length - 1;
+        }
+        this.suppressMathJax = false;
+    
+        if(UIEdit != undefined && this instanceof UIEdit){
+    
+            this.summary.textContent = last(this.actions).summary();
+        }
+    
+        MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
+        MathJax.Hub.Queue([()=>{
+            this.timeline.max = `${this.actions.length - 1}`;
+            this.updateTimePos(this.actions.length - 1);
+            this.updateTimePos(-1);
+    
+            this.onOpenDocComplete();
+        }]);
+    }
+
 }
 
+
 export class Action{
+    ui: UI;
     typeName: string;
     id: number;
 
-    constructor(){
+    constructor(ui: UI){
+        this.ui = ui;
         this.typeName = this.getTypeName();
-        if(actions.length == 0){
+        if(this.ui.actions.length == 0){
             this.id = 0;
         }
         else{
-            this.id = Math.max(... actions.map(x => x.id)) + 1;
+            this.id = Math.max(... this.ui.actions.map(x => x.id)) + 1;
         }
     }
 
@@ -63,6 +293,11 @@ export class Action{
 
 export class RefAction extends Action {
     refId: number;
+
+    constructor(ui: UI, refId: number){
+        super(ui);
+        this.refId   = refId;        
+    }
 }    
 
 
@@ -76,14 +311,12 @@ export class SelectionAction extends RefAction {
     domType: string;
     startPath: [number, string][] | null;
     endPath: [number, string][] | null;
-    selectedDoms : HTMLElement[];
     color: number;
     border: HTMLDivElement | null = null;
 
-    constructor(refId: number, domType: string, startPath: [number, string][] | null, endPath: [number, string][] | null, color: number){
-        super();
+    constructor(ui: UI, refId: number, domType: string, startPath: [number, string][] | null, endPath: [number, string][] | null, color: number){
+        super(ui, refId);
 
-        this.refId   = refId;
         this.domType   = domType;
         this.startPath = startPath;
         this.endPath   = endPath;
@@ -108,7 +341,7 @@ export class SelectionAction extends RefAction {
     }
     
     enable(){
-        this.setSelectedDoms();
+        let selectedDoms = this.setSelectedDoms();
 
         let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE;
         let maxX = 0, maxY = 0;
@@ -117,7 +350,7 @@ export class SelectionAction extends RefAction {
             const div = document.getElementById(getBlockId(this.refId)) as HTMLDivElement;
             let rc0 = div.getBoundingClientRect();
 
-            for(let dom of this.selectedDoms){
+            for(let dom of selectedDoms){
                 let rc = dom.getBoundingClientRect();
                 minX = Math.min(minX, rc.left);
                 minY = Math.min(minY, rc.top);
@@ -144,37 +377,37 @@ export class SelectionAction extends RefAction {
     }
 
     disable(){
-        this.setSelectedDoms();
-        for(let dom of this.selectedDoms){
+        let selectedDoms = this.setSelectedDoms();
+        for(let dom of selectedDoms){
             dom.style.color = "unset";
             dom.style.backgroundColor = "unset";
         }    
 
-        this.border.style.display = "none";
+        this.border!.style.display = "none";
     }
 
     summary() : string {
         return "選択";
     }
 
-    setSelectedDoms(){
+    setSelectedDoms() : HTMLElement[]{
         console.assert(this.domType == "math");
 
-        this.selectedDoms = [];
+        let selectedDoms: HTMLElement[] = [];
     
         const div = document.getElementById(getBlockId(this.refId)) as HTMLDivElement;
         const jaxes = getJaxesInBlock(div);
     
         const startJax = getJaxFromPath(jaxes, this.startPath);
-        const startIdx = last(this.startPath)[IDX];
+        const startIdx = last(this.startPath!)[IDX];
     
         const parentJax = startJax.parent;
         console.assert(getJaxIndex(startJax) == startIdx);
-        console.assert(startJax.nodeName == last(this.startPath)[NODE_NAME])
+        console.assert(startJax.nodeName == last(this.startPath!)[NODE_NAME])
     
         if(this.endPath == null){
     
-            this.selectedDoms.push(getDomFromJax(startJax));
+            selectedDoms.push(getDomFromJax(startJax));
         }
         else{
     
@@ -185,25 +418,27 @@ export class SelectionAction extends RefAction {
             console.assert(getJaxIndex(endJax) == endIdx);
             console.assert(endJax.nodeName == last(this.endPath)[NODE_NAME])
         
-            const nodes = parentJax.childNodes.slice(startIdx, endIdx + 1);
+            const nodes = parentJax!.childNodes!.slice(startIdx, endIdx + 1);
             for(let nd of nodes){
     
                 if(nd != null){
     
-                    this.selectedDoms.push(getDomFromJax(nd));
+                    selectedDoms.push(getDomFromJax(nd));
                 }
             }    
         }
+
+        return selectedDoms;
     }
 }
 
 export class DisableAction extends RefAction {
     disableAct: Action;
 
-    constructor(refId: number){
-        super();
+    constructor(ui: UI, refId: number){
+        super(ui, refId);
         this.refId = refId;
-        this.disableAct = actions.find(x => x.id == refId);
+        this.disableAct = this.ui.actions.find(x => x.id == refId)!;
         console.assert(this.disableAct != undefined);
     }
 
@@ -227,13 +462,17 @@ export class DisableAction extends RefAction {
 
 export class TextAction extends Action {
     text: string;
+
+    constructor(ui: UI, text: string){
+        super(ui);
+        this.text = text;
+    }
 }
 
 export class SpeechAction extends TextAction {
 
-    constructor(text: string){
-        super();
-        this.text = text;
+    constructor(ui: UI, text: string){
+        super(ui, text);
     }
 
     toStr() : string {
@@ -242,26 +481,69 @@ export class SpeechAction extends TextAction {
 
     *play(){
         this.enable();
-        yield* speak(this.text);
+        yield* speak(this);
     }
 
     summary() : string {
         return "音声";
+    }
+
+    getCaptionSpeech(): [string, string]{
+        let caption = "";
+        let speech = "";
+        let st = 0;
+        while(st < this.text.length){
+            let k1 = this.text.indexOf("'", st);
+            if(k1 == -1){
+                caption += this.text.substring(st);
+                speech  += this.text.substring(st);
+                break;
+            }
+    
+            caption += this.text.substring(st, k1);
+            speech  += this.text.substring(st, k1);
+    
+            k1++;
+            let k2 = this.text.indexOf("'", k1);
+            if(k2 == -1){
+    
+                caption += this.text.substring(st);
+                speech  += this.text.substring(st);
+                break;
+            }
+    
+            let v = this.text.substring(k1, k2).split("|");
+            if(v.length != 2){
+    
+                let s = this.text.substring(k1 - 1, k2 + 1)
+                
+                caption += s;
+                speech  += s;
+            }
+            else{
+    
+                caption += v[0];
+                speech  += v[1];
+            }
+    
+            st = k2 + 1;
+        }
+
+        return[caption, speech];
     }
 }
 
 export class TextBlockAction extends TextAction {
     div: HTMLDivElement;
 
-    constructor(text: string){
-        super();
+    constructor(ui: UI, text: string){
+        super(ui, text);
 
-        this.text = text;    
         this.div = this.makeTextDiv(this.text);
 
-        if(ui.edit){
+        if(UIEdit != undefined && this.ui instanceof UIEdit ){
 
-            this.div.addEventListener("click", function(ev:MouseEvent){
+            this.div.addEventListener("click", (ev:MouseEvent)=>{
                 onClickBlock(this, ev);
             });
         
@@ -290,9 +572,9 @@ export class TextBlockAction extends TextAction {
     makeTextDiv(text: string) : HTMLDivElement {
         let nextEle = null;
 
-        if(ui.timeline.valueAsNumber != -1){
+        if(this.ui.timeline.valueAsNumber != -1){
 
-            for(let act of actions.slice(ui.timeline.valueAsNumber + 1)){
+            for(let act of this.ui.actions.slice(this.ui.timeline.valueAsNumber + 1)){
                 if(act instanceof TextBlockAction){
                     nextEle = act.div;
                     break;
@@ -304,25 +586,28 @@ export class TextBlockAction extends TextAction {
         div.id = getBlockId(this.id);
         div.style.position = "relative";
     
-        ui.board.insertBefore(div, nextEle);
+        this.ui.board.insertBefore(div, nextEle);
     
         div.tabIndex = 0;
     
         const html = makeHtmlLines(text);
         div.innerHTML = html;
-        reprocessMathJax(html);
+        reprocessMathJax(this.ui, html);
 
-        div.addEventListener("keydown", (ev: KeyboardEvent)=>{
-            if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
-                ev.stopPropagation();
-                ev.preventDefault();
+        if(UIEdit != undefined && this.ui instanceof UIEdit){
 
-                let ele = ev.srcElement as HTMLElement;
-                msg(`del ${ele.tagName} ${ele.id}`);
-                const hideAct = new DisableAction(this.id);
-                addAction(hideAct);
-            }
-        })
+            div.addEventListener("keydown", (ev: KeyboardEvent)=>{
+                if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
+                    ev.stopPropagation();
+                    ev.preventDefault();
+
+                    let ele = ev.srcElement as HTMLElement;
+                    msg(`del ${ele.tagName} ${ele.id}`);
+                    const hideAct = new DisableAction(this.ui, this.id);
+                    (this.ui as UIEdit).addAction(hideAct);
+                }
+            })
+        }
     
         return div;
     }
@@ -332,94 +617,15 @@ export function getBlockId(refId: number) : string {
     return `${idPrefix}${refId}`;
 }
 
-export function updateTimePos(pos: number){
-    if(prevTimePos < pos){
-        for(let i = prevTimePos + 1; i <= pos; i++){
-            actions[i].enable();
-        }
-    }
-    else if(pos < prevTimePos){
-        for(let i = Math.min(prevTimePos, actions.length - 1); pos < i; i--){
-            actions[i].disable();
-        }
-    }
-
-    ui.board.scrollTop = ui.board.scrollHeight;
-    window.scrollTo(0,document.body.scrollHeight);
-
-    if(ui.timeline.valueAsNumber != pos){
-
-        ui.timeline.valueAsNumber = pos;
-    }
-
-    prevTimePos = pos;
-
-    if(ui.edit){
-
-        updateSummaryTextArea();
-    }
-}
-
-export function addAction(act: Action){
-    let selIdx = ui.timeline.valueAsNumber + 1;
-
-    actions.splice(selIdx, 0, act);
-
-    ui.timeline.max = `${actions.length - 1}`;
-    updateTimePos(selIdx);
-
-    ui.textArea.focus();
-}
 
 
-function rngTimelineChange(ev: Event){
-    msg(`changed`);
-    while(actions.some(x => x instanceof EmptyAction)){
-        let idx = actions.findIndex(x => x instanceof EmptyAction);
-        actions.splice(idx, 1);
-    }
 
-    prevTimePos = Math.min(prevTimePos, actions.length - 1);
-    ui.timeline.max = `${actions.length - 1}`;
-    updateTimePos(ui.timeline.valueAsNumber);
-}
-
-export function playActions(oncomplete:()=>void){
-    function* fnc(){
-        let startPos = Math.max(0, ui.timeline.valueAsNumber);
-
-        for(let pos = startPos; pos < actions.length; pos++){
-            let act = actions[pos];
-            yield* act.play();
-            updateTimePos(pos);
-
-            if(pauseFlag){
-                break;
-            }
-        }
-
-        if(pauseFlag){
-
-            pauseFlag = false;
-        }
-        else{
-
-            if(oncomplete != undefined){
-
-                oncomplete();
-            }
-        }
-    }
-    
-    runGenerator( fnc() );
-}
-
-export function pauseAction(fnc:()=>void){
-    pauseFlag = true;
+export function pauseAction(ui: UI, fnc:()=>void){
+    ui.pauseFlag = true;
     cancelSpeech();
 
     const id = setInterval(function(){
-        if(! pauseFlag && ! isSpeaking){
+        if(! ui.pauseFlag && ! isSpeaking){
 
             clearInterval(id);
             msg("停止しました。");
@@ -428,38 +634,49 @@ export function pauseAction(fnc:()=>void){
     },10);
 }
 
-
-export function initTekesan(ui1: UI, oncomplete:()=>void){
-    pauseFlag = false;
-    colors = [ "magenta", "blue", "limegreen" ];
-
-    ui = ui1;
-    console.assert(ui.board != undefined && ui.timeline != undefined);
-
-    msg("body loaded");
-
-    suppressMathJax = false;
-
+export function initPlayer(){
     initSpeech();
 
-    prevTimePos = -1;
-    ui.timeline.addEventListener("change", rngTimelineChange);
-
-    if(ui.edit == true){
-        initEdit();
-    }
+    msg("body loaded");
+   
+    let divs = Array.from(document.getElementsByClassName("tekesan")) as HTMLDivElement[];
 
     if(window.location.search != ""){
         console.assert(window.location.search[0] == '?');
-        
+
         for(let item of window.location.search.substring(1).split('&')){
             let [key, value] = item.split("=");
             if(key == "path"){
-                openDoc(value, oncomplete);
+                let div = divs[0];
+
+                let ui = new UI(div);
+                ui.openDoc(value);
             }
+        }
+    }
+    else{
+
+        for(let div of divs){
+
+            let ui = new UI(div);
         }
     }
 }
 
+export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selColors: HTMLInputElement[], summary : HTMLSpanElement, textArea : HTMLTextAreaElement) : UIEdit {
+    if(window.location.search.includes("debug=1")){
+
+        // <textarea id="txt-msg" rows="15" style="display: none; width: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; " spellcheck="false" ></textarea>
+        textMsg      = document.getElementById("txt-msg") as HTMLDivElement;
+        textMsg.style.display = "block";
+    }
+
+    initSpeech();
+
+    msg("body loaded");
+
+    return new UIEdit(div, txtTitle, selColors, summary, textArea);
+}
 
 }
+

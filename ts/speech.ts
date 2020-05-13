@@ -1,8 +1,8 @@
 /// <reference path="main.ts" />
 namespace tekesan {
 export let isSpeaking = false;
-let voiceList = null;
-let jpVoice : SpeechSynthesisVoice = null;
+let voiceList: string[]|null = null;
+let jpVoice : SpeechSynthesisVoice|null = null;
 let prevIdx = 0;
 let voiceName = "Google 日本語";
 // let voiceName = "Microsoft Haruka Desktop - Japanese";
@@ -22,7 +22,7 @@ function setVoice(){
             msg(`set jp voice[${voice.name}]`);
             jpVoice = voice;
         }
-        voiceList.push(voice.name);
+        voiceList!.push(voice.name);
     });
 }
 
@@ -40,53 +40,16 @@ export function initSpeech(){
     };
 }
 
-export function* speak(text: string){
+export function* speak(act: SpeechAction){
     if(voiceList == null){
         setVoice();
     }
 
-    let caption = "";
-    let speech = "";
-    let st = 0;
-    while(st < text.length){
-        let k1 = text.indexOf("'", st);
-        if(k1 == -1){
-            caption += text.substring(st);
-            speech  += text.substring(st);
-            break;
-        }
+    let [caption, speech] = act.getCaptionSpeech();
 
-        caption += text.substring(st, k1);
-        speech  += text.substring(st, k1);
-
-        k1++;
-        let k2 = text.indexOf("'", k1);
-        if(k2 == -1){
-
-            caption += text.substring(st);
-            speech  += text.substring(st);
-            break;
-        }
-
-        let v = text.substring(k1, k2).split("|");
-        if(v.length != 2){
-
-            let s = text.substring(k1 - 1, k2 + 1)
-            
-            caption += s;
-            speech  += s;
-        }
-        else{
-
-            caption += v[0];
-            speech  += v[1];
-        }
-
-        st = k2 + 1;
-    }
-
-    if(ui.caption != undefined){
-        ui.caption.textContent = caption;
+    if(act.ui.caption != undefined){
+        act.ui.caption.textContent = caption;
+        reprocessMathJax(act.ui, caption);
     }
 
     const uttr = new SpeechSynthesisUtterance(speech);

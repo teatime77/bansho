@@ -5,6 +5,7 @@
         // "sourceMap": true,
         "inlineSourceMap": true,
         "inlineSources": true,
-        "outDir": "../web/js"
+        "outDir": "../web/js",
+        "strict": true
     }
 }
