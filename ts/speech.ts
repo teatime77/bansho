@@ -15,7 +15,7 @@ function setVoice(){
 
 
         if(voice.name == voiceName){
-            msg("set Haruka voice");
+            msg(`set jp voice[${voice.name}]`);
             jpVoice = voice;
         }
         if(jpVoice == null && (voice.lang == "ja-JP" || voice.lang == "ja_JP")){
