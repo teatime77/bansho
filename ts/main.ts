@@ -205,7 +205,6 @@ export class UI {
         this.board.appendChild(h1);
     
         this.suppressMathJax = true;
-        let disable_cnt = 0;
         for(let [id, obj] of doc.actions.entries()){
             let act: Action;
     
@@ -219,19 +218,18 @@ export class UI {
                 break;
     
             case "select":
-                let sel = obj as SelectionAction;
-                act = new SelectionAction(this, sel.refId, sel.domType, sel.startIdx, sel.endIdx, sel.color);
-                break;
+                // let sel = obj as SelectionAction;
+                // act = new SelectionAction(this, sel.refId, sel.domType, sel.startIdx, sel.endIdx, sel.color);
+                continue;
     
             case "disable":
-                disable_cnt++;
                 continue;
     
             default:
                 console.assert(false);
                 return;
             }
-            console.assert(act.id + disable_cnt == id);
+            // console.assert(act.id == id);
     
             this.actions.push(act);
     
