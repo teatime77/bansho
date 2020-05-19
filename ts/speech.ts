@@ -1,5 +1,5 @@
 /// <reference path="main.ts" />
-namespace tekesan {
+namespace bansho {
 export let isSpeaking = false;
 let voiceList: string[]|null = null;
 let jpVoice : SpeechSynthesisVoice|null = null;

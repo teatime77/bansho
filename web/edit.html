@@ -26,7 +26,7 @@ let ui;
 function bodyOnload(){
     console.log("body load");
 
-    let div = document.getElementById("tekesan");
+    let div = document.getElementById("bansho");
     let txtTitle = document.getElementById("txt-title");
     let selColors = [
         document.getElementById("color-0"),
@@ -36,7 +36,7 @@ function bodyOnload(){
     let summary  = document.getElementById("spn-summary");
     let textArea = document.getElementById("txt-math");
 
-    ui = tekesan.initEdit(div, txtTitle, selColors, summary, textArea);
+    ui = bansho.initEdit(div, txtTitle, selColors, summary, textArea);
 }
 
 function getData(){
@@ -83,7 +83,7 @@ input[type="radio"]:checked + label {
 </head>
 
 <body onload="bodyOnload()">
-<div id="tekesan" style="width: 100%; height: 70%;"></div>
+<div id="bansho" style="width: 100%; height: 70%;"></div>
 <button onclick="ui.addEmptyAction()" style="font-family: Segoe UI Emoji;">➕</button>
 <button onclick="ui.updateTimePos(-1)" style="font-family: Segoe UI Emoji;" >⏮</button>
 <button onclick="getData()">開く</button>

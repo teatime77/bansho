@@ -1,7 +1,7 @@
-namespace tekesan {
+namespace bansho {
 declare let MathJax:any;
 
-export const idPrefix = "tekesan-id-";
+export const idPrefix = "bansho-id-";
 
 export let colors : string[] = [ "magenta", "blue", "limegreen" ];
 
@@ -67,7 +67,7 @@ export class UI {
         if(this.isPlaying){
     
             this.btnPlayPause.disabled = true;
-            tekesan.pauseAction(this, ()=>{
+            bansho.pauseAction(this, ()=>{
                 this.btnPlayPause.disabled = false;
                 this.btnPlayPause.innerHTML = "▶️";
             });
@@ -608,7 +608,7 @@ export function initPlayer(){
 
     msg("body loaded");
    
-    let divs = Array.from(document.getElementsByClassName("tekesan")) as HTMLDivElement[];
+    let divs = Array.from(document.getElementsByClassName("bansho")) as HTMLDivElement[];
 
     if(window.location.search != ""){
         console.assert(window.location.search[0] == '?');

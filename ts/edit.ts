@@ -1,4 +1,4 @@
-namespace tekesan {
+namespace bansho {
 let speechInput : boolean;
 let prevTextValue: string = "";
 export let selectColor : number;
