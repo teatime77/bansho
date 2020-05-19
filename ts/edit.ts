@@ -164,7 +164,7 @@ export class UIEdit extends UI {
             act.div.innerHTML = html;
             act.text = text;
 
-            reprocessMathJax(this, html);
+            reprocessMathJax(this, act.div, html);
         }
         else if(act instanceof SpeechAction){
 
@@ -337,4 +337,80 @@ export class UIEdit extends UI {
     }
 
 }
+
+declare let MathJax:any;
+
+function getActionId(id: string) : number {
+    console.assert(id.startsWith(idPrefix));
+    return parseInt(id.substring(idPrefix.length));
+}
+
+
+
+export function reprocessMathJax(ui: UI, div: HTMLDivElement | HTMLSpanElement, html: string){
+
+    if(!ui.suppressMathJax && html.includes("$")){
+        MathJax.typeset([div]);
+    }
+}
+
+let selAct: SelectionAction | null = null;
+
+export function onClickPointerMove(act:TextBlockAction, ev: PointerEvent | MouseEvent, is_click: boolean){
+    for(let ele = ev.srcElement as HTMLElement; ele; ele = ele.parentElement!){
+        if([ "MJX-MI", "MJX-MN", "MJX-MO" ].includes(ele.tagName)){
+
+            let v = Array.from(act.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
+            let i = v.indexOf(ele);
+            console.assert(i != -1);
+
+            if(is_click){
+
+                if(selAct == null){
+
+                    selAct = new SelectionAction(act.ui, getActionId(act.div.id), "math", i, i + 1, selectColor);
+                    selAct.enable();
+
+                    (act.ui as UIEdit).addAction(selAct);
+                }
+                else{
+                    selAct = null;
+                }
+            }
+            else{
+                
+                selAct!.endIdx = Math.max(i, selAct!.startIdx) + 1;
+                selAct!.moveBorder();
+            }
+
+
+            msg(`${ele.tagName}`);
+            break;
+        }
+        else{
+
+            msg(`${ele.tagName}`);
+            if(! ele.tagName.startsWith("MJX-")){
+                break;
+            }
+        }
+    }
+}
+
+
+export function onPointerMove(act:TextBlockAction, ev: PointerEvent){
+    if(selAct == null){
+        return;
+    }
+    onClickPointerMove(act, ev, false);
+}
+
+export function onClickBlock(act:TextBlockAction, ev:MouseEvent){
+    msg("clicked");
+    ev.stopPropagation();
+    onClickPointerMove(act, ev, true);
+}
+
+
+
 }

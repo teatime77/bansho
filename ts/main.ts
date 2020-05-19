@@ -95,7 +95,14 @@ export class UI {
         this.prevTimePos = Math.min(this.prevTimePos, this.actions.length - 1);
         this.timeline.max = `${this.actions.length - 1}`;
         this.updateTimePos(this.timeline.valueAsNumber);
-    }    
+    }
+
+    getActionById(id: number) : Action {
+        let act = this.actions.find(x => x.id == id);
+        console.assert(act != undefined);
+
+        return act!;
+    }
 
     currentAction() : Action | undefined {
         if(this.timeline.valueAsNumber != -1){
@@ -133,7 +140,7 @@ export class UI {
             
             let [caption, speech] = act.getCaptionSpeech();
             this.caption.textContent = caption;
-            reprocessMathJax(this, caption);
+            reprocessMathJax(this, this.caption, caption);
         }
         else{
 
@@ -212,7 +219,7 @@ export class UI {
     
             case "select":
                 let sel = obj as SelectionAction;
-                act = new SelectionAction(this, sel.refId, sel.domType, sel.startPath, sel.endPath, sel.color);
+                act = new SelectionAction(this, sel.refId, sel.domType, sel.startIdx, sel.endIdx, sel.color);
                 break;
     
             case "disable":
@@ -308,72 +315,64 @@ export class EmptyAction extends Action {
 }
 
 export class SelectionAction extends RefAction {
+    textAct: TextBlockAction;
     domType: string;
-    startPath: [number, string][] | null;
-    endPath: [number, string][] | null;
+    startIdx: number = -1;
+    endIdx: number = -1;
     color: number;
     border: HTMLDivElement | null = null;
 
-    constructor(ui: UI, refId: number, domType: string, startPath: [number, string][] | null, endPath: [number, string][] | null, color: number){
+    constructor(ui: UI, refId: number, domType: string, startIdx: number, endIdx: number, color: number){
         super(ui, refId);
 
-        this.domType   = domType;
-        this.startPath = startPath;
-        this.endPath   = endPath;
-        this.color     = color;
+        this.textAct  = ui.getActionById(refId) as TextBlockAction;
+        this.domType  = domType;
+        this.startIdx = startIdx;
+        this.endIdx   = endIdx;
+        this.color    = color;
     }
 
     toStr() : string {
-        const start = this.getJaxPathStr(this.startPath);
-        const end   = this.getJaxPathStr(this.endPath);
-
-        return `{ "type": "select", "refId": ${this.refId}, "domType": "${this.domType}", "startPath": ${start}, "endPath": ${end}, "color": ${this.color} }`;
+        return `{ "type": "select", "refId": ${this.refId}, "domType": "${this.domType}", "startIdx": ${this.startIdx}, "endIdx": ${this.endIdx}, "color": ${this.color} }`;
     }
 
-    getJaxPathStr(path : [number, string][] | null){
-        if(path == null){
-            return "null";
-        }
-        else{
-
-            return "[" + path.map(x => `[${x[0]}, "${x[1]}"]`).join(", ") + "]";
-        }
-    }
-    
-    enable(){
+    moveBorder(){
         let selectedDoms = this.setSelectedDoms();
+        let rc0 = this.textAct.div.getBoundingClientRect();
 
         let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE;
         let maxX = 0, maxY = 0;
 
+        for(let dom of selectedDoms){
+            let rc = dom.getBoundingClientRect();
+            minX = Math.min(minX, rc.left);
+            minY = Math.min(minY, rc.top);
+            maxX = Math.max(maxX, rc.right);
+            maxY = Math.max(maxY, rc.bottom);    
+        }
+
+        let bw = 2;
+
+        this.border!.style.left   = `${minX - bw - rc0.left}px`;
+        this.border!.style.top    = `${minY - bw - rc0.top}px`;
+        this.border!.style.width  = `${maxX - minX + 2*bw}px`;
+        this.border!.style.height = `${maxY - minY + 2*bw}px`;
+        this.border!.style.borderWidth = `${bw}px`;
+    }
+    
+    enable(){
         if(this.border == null){
-            const div = document.getElementById(getBlockId(this.refId)) as HTMLDivElement;
-            let rc0 = div.getBoundingClientRect();
-
-            for(let dom of selectedDoms){
-                let rc = dom.getBoundingClientRect();
-                minX = Math.min(minX, rc.left);
-                minY = Math.min(minY, rc.top);
-                maxX = Math.max(maxX, rc.right);
-                maxY = Math.max(maxY, rc.bottom);    
-            }
-
-            let bw = 2;
             this.border = document.createElement("div");
             this.border.style.position = "absolute";
             this.border.style.zIndex = "-1";
             this.border.style.margin = "0px";
-            this.border.style.left   = `${minX - bw - rc0.left}px`;
-            this.border.style.top    = `${minY - bw - rc0.top}px`;
-            this.border.style.width  = `${maxX - minX + 2*bw}px`;
-            this.border.style.height = `${maxY - minY + 2*bw}px`;
             this.border.style.backgroundColor = "transparent";
             this.border.style.borderStyle = "solid";
-            this.border.style.borderWidth = `${bw}px`;
-            div.appendChild(this.border);
+            this.textAct.div.appendChild(this.border);
         }
+        this.moveBorder();
         this.border.style.borderColor = colors[this.color];
-        this.border.style.display = "block";
+        this.border.style.display = "inline-block";
     }
 
     disable(){
@@ -393,42 +392,9 @@ export class SelectionAction extends RefAction {
     setSelectedDoms() : HTMLElement[]{
         console.assert(this.domType == "math");
 
-        let selectedDoms: HTMLElement[] = [];
-    
-        const div = document.getElementById(getBlockId(this.refId)) as HTMLDivElement;
-        const jaxes = getJaxesInBlock(div);
-    
-        const startJax = getJaxFromPath(jaxes, this.startPath);
-        const startIdx = last(this.startPath!)[IDX];
-    
-        const parentJax = startJax.parent;
-        console.assert(getJaxIndex(startJax) == startIdx);
-        console.assert(startJax.nodeName == last(this.startPath!)[NODE_NAME])
-    
-        if(this.endPath == null){
-    
-            selectedDoms.push(getDomFromJax(startJax));
-        }
-        else{
-    
-            const endJax = getJaxFromPath(jaxes, this.endPath);
-    
-            const endIdx = last(this.endPath)[IDX];
-    
-            console.assert(getJaxIndex(endJax) == endIdx);
-            console.assert(endJax.nodeName == last(this.endPath)[NODE_NAME])
-        
-            const nodes = parentJax!.childNodes!.slice(startIdx, endIdx + 1);
-            for(let nd of nodes){
-    
-                if(nd != null){
-    
-                    selectedDoms.push(getDomFromJax(nd));
-                }
-            }    
-        }
+        let v = Array.from(this.textAct.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
 
-        return selectedDoms;
+        return v.slice(this.startIdx, this.endIdx);
     }
 }
 
@@ -546,6 +512,10 @@ export class TextBlockAction extends TextAction {
             this.div.addEventListener("click", (ev:MouseEvent)=>{
                 onClickBlock(this, ev);
             });
+
+            this.div.addEventListener("pointermove", (ev: PointerEvent)=>{
+                onPointerMove(this, ev);
+            })
         
             this.div.addEventListener('keydown', (event) => {
                 msg(`key down ${event.key} ${event.ctrlKey}`);
@@ -554,7 +524,7 @@ export class TextBlockAction extends TextAction {
     }
 
     enable(){
-        this.div.style.display = "block";
+        this.div.style.display = "inline-block";
     }
 
     disable(){
@@ -585,6 +555,7 @@ export class TextBlockAction extends TextAction {
     
         div.id = getBlockId(this.id);
         div.style.position = "relative";
+        div.style.display = "inline-block";
     
         this.ui.board.insertBefore(div, nextEle);
     
@@ -592,7 +563,7 @@ export class TextBlockAction extends TextAction {
     
         const html = makeHtmlLines(text);
         div.innerHTML = html;
-        reprocessMathJax(this.ui, html);
+        reprocessMathJax(this.ui, div, html);
 
         if(UIEdit != undefined && this.ui instanceof UIEdit){
 
@@ -616,8 +587,6 @@ export class TextBlockAction extends TextAction {
 export function getBlockId(refId: number) : string {
     return `${idPrefix}${refId}`;
 }
-
-
 
 
 export function pauseAction(ui: UI, fnc:()=>void){
@@ -668,7 +637,7 @@ export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selCol
 
         // <textarea id="txt-msg" rows="15" style="display: none; width: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; " spellcheck="false" ></textarea>
         textMsg      = document.getElementById("txt-msg") as HTMLDivElement;
-        textMsg.style.display = "block";
+        textMsg.style.display = "inline-block";
     }
 
     initSpeech();
