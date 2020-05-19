@@ -205,6 +205,7 @@ export class UI {
         this.board.appendChild(h1);
     
         this.suppressMathJax = true;
+        let disable_cnt = 0;
         for(let [id, obj] of doc.actions.entries()){
             let act: Action;
     
@@ -223,14 +224,14 @@ export class UI {
                 break;
     
             case "disable":
-                act = new DisableAction(this, (obj as DisableAction).refId);
-                break;
+                disable_cnt++;
+                continue;
     
             default:
                 console.assert(false);
                 return;
             }
-            console.assert(act.id == id);
+            console.assert(act.id + disable_cnt == id);
     
             this.actions.push(act);
     
@@ -244,16 +245,18 @@ export class UI {
             this.summary.textContent = last(this.actions).summary();
         }
     
-        MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
-        MathJax.Hub.Queue([()=>{
+        MathJax.typesetPromise([this.board])
+        .then(() => {
             this.timeline.max = `${this.actions.length - 1}`;
             this.updateTimePos(this.actions.length - 1);
             this.updateTimePos(-1);
     
             this.onOpenDocComplete();
-        }]);
+        })
+        .catch((err: any) => {
+            console.log(err.message);
+        });
     }
-
 }
 
 
@@ -397,34 +400,6 @@ export class SelectionAction extends RefAction {
         return v.slice(this.startIdx, this.endIdx);
     }
 }
-
-export class DisableAction extends RefAction {
-    disableAct: Action;
-
-    constructor(ui: UI, refId: number){
-        super(ui, refId);
-        this.refId = refId;
-        this.disableAct = this.ui.actions.find(x => x.id == refId)!;
-        console.assert(this.disableAct != undefined);
-    }
-
-    toStr() : string {
-        return `{ "type": "disable", "refId": ${this.refId} }`;
-    }
-
-    enable(){
-        this.disableAct.disable();
-    }
-
-    disable(){
-        this.disableAct.enable();
-    }
-
-    summary() : string {
-        return "無効";
-    }
-}
-
 
 export class TextAction extends Action {
     text: string;
@@ -574,8 +549,6 @@ export class TextBlockAction extends TextAction {
 
                     let ele = ev.srcElement as HTMLElement;
                     msg(`del ${ele.tagName} ${ele.id}`);
-                    const hideAct = new DisableAction(this.ui, this.id);
-                    (this.ui as UIEdit).addAction(hideAct);
                 }
             })
         }

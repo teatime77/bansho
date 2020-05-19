@@ -290,11 +290,6 @@ export class UIEdit extends UI {
                 act.refId = this.actions.indexOf(block!);
                 console.assert(act.refId != -1);
             }
-            else if(act instanceof DisableAction){
-    
-                act.refId = this.actions.indexOf(act.disableAct);
-                console.assert(act.refId != -1);
-            }
         }
     
         for(let [id, act] of this.actions.entries()){
