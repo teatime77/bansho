@@ -104,7 +104,7 @@ export class UIEdit extends UI {
 
         let fnc = (act: Action)=>{
 
-            const refActs = this.actions.filter(x => x instanceof RefAction && x.refId == act.id) as RefAction[];
+            const refActs = this.actions.filter(x => x instanceof SelectionAction && x.refId == act.id) as SelectionAction[];
 
             refActs.forEach(x => fnc(x));
 

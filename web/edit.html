@@ -5,16 +5,24 @@
 <head>
 <meta charset="utf-8" />
 <title>手計算</title>
-<script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
 
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-    tex2jax: {
-        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-        processEscapes: true
-    }
-});
+<script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']]
+        },
+        options: {
+            renderActions: {
+                addMenu: [0, '', '']
+            }
+        },
+        chtml: {
+            scale: 1.0
+        }    
+    };
 </script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script type="text/javascript" src="js/util.js?ver=1" ></script>
 <script type="text/javascript" src="js/jax.js?ver=1" ></script>
 <script type="text/javascript" src="js/main.js?ver=1" ></script>
@@ -94,9 +102,9 @@ input[type="radio"]:checked + label {
 <input type="radio" name="sel-color" value="limegreen"   id="color-2" /><label for="color-2" style="background-color: limegreen; color: transparent;" >□</label>
 <span id="spn-summary" style="width: 4ex;" >要約</span>
 <br/>
-path <input id="txt-path" type="text" size="20" value="eq2" />
+path <input id="txt-path" type="text" size="20" value="gauss-int" />
 title<input id="txt-title" type="text" size="20" />
-
+x = -b \pm \frac{\sqrt{b^2-4ac}}{2a}
 <textarea id="txt-math" style="width: 100%; height: 20%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk;" spellcheck="false" ></textarea>
 
 

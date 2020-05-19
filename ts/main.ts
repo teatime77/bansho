@@ -299,23 +299,14 @@ export class Action{
     }
 }
 
-export class RefAction extends Action {
-    refId: number;
-
-    constructor(ui: UI, refId: number){
-        super(ui);
-        this.refId   = refId;        
-    }
-}    
-
-
 export class EmptyAction extends Action {
     summary() : string {
         return "空";
     }
 }
 
-export class SelectionAction extends RefAction {
+export class SelectionAction extends Action {
+    refId: number;
     textAct: TextBlockAction;
     domType: string;
     startIdx: number = -1;
@@ -324,7 +315,8 @@ export class SelectionAction extends RefAction {
     border: HTMLDivElement | null = null;
 
     constructor(ui: UI, refId: number, domType: string, startIdx: number, endIdx: number, color: number){
-        super(ui, refId);
+        super(ui);
+        this.refId   = refId;        
 
         this.textAct  = ui.getActionById(refId) as TextBlockAction;
         this.domType  = domType;
