@@ -1,11 +1,11 @@
 namespace bansho {
 let speechInput : boolean;
-let prevTextValue: string = "";
 export let selectColor : number;
 
 export class UIEdit extends UI {
     txtTitle: HTMLInputElement;
     selColors: HTMLInputElement[];
+    lineFeedChk : HTMLInputElement;
     summary : HTMLSpanElement;
     textArea : HTMLTextAreaElement;
 
@@ -14,6 +14,7 @@ export class UIEdit extends UI {
         speechInput = false;
         this.txtTitle = title;
         this.selColors = selColors;
+        this.lineFeedChk = document.getElementById("line-feed") as HTMLInputElement;
         this.summary = summary;
         this.textArea = textArea;
 
@@ -31,6 +32,18 @@ export class UIEdit extends UI {
                 }
             }
         });
+
+        this.lineFeedChk.addEventListener("change", (ev: Event)=>{
+            let act = this.currentAction();
+            if(act instanceof TextBlockAction){
+
+                act.lineFeed = this.lineFeedChk.checked;
+                act.updateLineFeed();
+            }
+            else{
+                console.assert(false);
+            }
+        })
 
         colors = this.selColors.map(x => x.value);
 
@@ -131,6 +144,22 @@ export class UIEdit extends UI {
         this.updateTimePos( Math.min(selIdx, this.actions.length - 1) );
     }
 
+    updateTimePos(pos: number){
+        super.updateTimePos(pos);
+
+        let act = this.currentAction();
+
+        if(act instanceof TextBlockAction){
+
+            this.lineFeedChk.parentElement!.style.display = "inline";
+            this.lineFeedChk.checked = act.lineFeed;
+        }
+        else{
+
+            this.lineFeedChk.parentElement!.style.display = "none";
+        }
+    }
+
     updateSummaryTextArea(){
         this.textArea.style.backgroundColor = "white";
         this.textArea.value = "";
@@ -150,13 +179,11 @@ export class UIEdit extends UI {
 
             this.summary.textContent = act.summary();
         }
-
-        prevTextValue = this.textArea.value;
     }
 
     updateFocusedTextBlock(){
         const text = this.textArea.value.trim();
-        const act = this.currentAction();
+        const act = this.currentAction()!;
 
         if(act instanceof TextBlockAction){
 
@@ -164,69 +191,65 @@ export class UIEdit extends UI {
             act.div.innerHTML = html;
             act.text = text;
 
-            reprocessMathJax(this, act.div, html);
-        }
-        else if(act instanceof SpeechAction){
-
-            act.text = text;
-        }
-        else{
-            return;
+            reprocessMathJax(act, act.div, html);
         }
 
         this.summary.textContent = act.summary();
     }
 
     updateTextMath(){
-        if(prevTextValue != this.textArea.value && prevTextValue != this.textArea.value.trim()){
+        const act = this.currentAction();
+        if(act == undefined || act instanceof SpeechAction){
+            return;
+        }
+        
+        let text = this.textArea.value.trim();
 
-            let trimValue = this.textArea.value.trim();
-            let selIdx = this.timeline.valueAsNumber;
-            const act = this.actions[selIdx];
+        if(act instanceof EmptyAction){
+            // 空のアクションの場合
 
-            if(trimValue == ""){
-                // テキストが削除された場合
+            if(text != ""){
 
-                if(!(act instanceof EmptyAction)){
-                    // 空のアクションでない場合
+                if(speechInput){
 
-                    this.resetAction();
-                }
-            }
-            else{
-                // テキストが変更された場合
-
-                if(prevTextValue == ""){
-                    // 新たにテキストを入力した場合
-
-                    if(act instanceof EmptyAction){
-                        // 空のアクションの場合
-
-                        if(speechInput){
-
-                            const newAct = new SpeechAction(this, this.textArea.value.trim());
-                            this.setAction(newAct);    
-                        }
-                        else{
-
-                            const newAct = new TextBlockAction(this, this.textArea.value);
-                            
-                            this.setAction(newAct);                    
-                        }
-                    }
-                    else{
-                        // 空のアクションでない場合
-
-                        this.updateFocusedTextBlock();
-                    }
+                    const newAct = new SpeechAction(this, text);
+                    this.setAction(newAct);    
                 }
                 else{
 
+                    const newAct = new TextBlockAction(this, text);
+                    
+                    this.setAction(newAct);                    
+                }
+            }
+        }
+        else if(act instanceof TextBlockAction){
+
+            if(text == ""){
+                // テキストが削除された場合
+
+                this.resetAction();
+            }
+            else{
+                // テキストがある場合
+
+                let changed = (act.text != text);
+
+                if(act.lineFeed != (act.div.getElementsByClassName("line-feed").length != 0)){
+
+                    changed = true;
+                }
+
+                if(changed){
+                    // テキストか改行が変更された場合
+
+                    act.text = text;
                     this.updateFocusedTextBlock();
                 }
             }
-
-            prevTextValue = this.textArea.value.trim();
+        }
+        else{
+            console.assert(false);
         }
     }
 
@@ -245,10 +268,17 @@ export class UIEdit extends UI {
 
         this.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
             msg(`key press ${ev.ctrlKey} ${ev.key}`);
-            if(ev.ctrlKey && ev.code == "Enter"){
-                this.updateTextMath();
+            if((ev.ctrlKey || ev.shiftKey) && ev.code == "Enter"){
 
                 let act = this.currentAction();
+
+                if(act instanceof TextBlockAction){
+                
+                    act.lineFeed = true;
+                }
+
+                this.updateTextMath();
+
                 if(act instanceof SpeechAction){
                     runGenerator( act.play() );
                 }
@@ -262,10 +292,7 @@ export class UIEdit extends UI {
 
         this.textArea.addEventListener("blur", (ev: FocusEvent)=>{
             msg("blur");
-            if(this.timeline.valueAsNumber != -1){
-
-                this.updateFocusedTextBlock();
-            }
+            this.updateTextMath();
         });
     }
 
@@ -340,13 +367,53 @@ function getActionId(id: string) : number {
     return parseInt(id.substring(idPrefix.length));
 }
 
+let typesetAct : Action | null = null;
+let typesetQue : [Action, HTMLElement, string][] = [];
 
+function popQue(){
+    let div: HTMLElement;
+    let text: string;
 
-export function reprocessMathJax(ui: UI, div: HTMLDivElement | HTMLSpanElement, html: string){
+    if(typesetAct != null){
+        // typesetの処理中の場合
 
-    if(!ui.suppressMathJax && html.includes("$")){
-        MathJax.typeset([div]);
+        return;
     }
+
+    while(typesetQue.length != 0){
+
+        [typesetAct, div, text] = typesetQue.shift()!;
+        div.textContent = text;
+
+        if(text.includes("$")){
+
+            MathJax.typesetPromise([div])
+            .then(() => {
+                if(typesetAct instanceof TextBlockAction){
+                    typesetAct.updateLineFeed();
+                }
+                typesetAct = null;
+
+                if(typesetQue.length != 0){
+                    popQue();
+                }
+            })
+            .catch((err: any) => {
+                console.log(err.message);
+            });
+
+            break;
+        }
+        else{
+
+            typesetAct = null;
+        }
+    }
+}
+
+export function reprocessMathJax(act: Action, div: HTMLDivElement | HTMLSpanElement, html: string){
+    typesetQue.push([act, div, html]);
+    popQue();
 }
 
 let selAct: SelectionAction | null = null;

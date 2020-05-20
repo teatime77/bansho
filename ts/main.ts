@@ -9,7 +9,6 @@ export class UI {
     actions : Action[] = [];
     prevTimePos : number;
     pauseFlag : boolean;
-    suppressMathJax: boolean;
 
     btnPlayPause: HTMLButtonElement;
     board : HTMLDivElement;
@@ -21,7 +20,6 @@ export class UI {
     constructor(div: HTMLDivElement){
         this.prevTimePos = -1;
         this.pauseFlag = false;
-        this.suppressMathJax = false;
 
         this.btnPlayPause = document.createElement("button");
         this.btnPlayPause.disabled = true;
@@ -140,12 +138,13 @@ export class UI {
             
             let [caption, speech] = act.getCaptionSpeech();
             this.caption.textContent = caption;
-            reprocessMathJax(this, this.caption, caption);
+            reprocessMathJax(act, this.caption, caption);
         }
         else{
 
             this.caption.textContent = "";
         }
+        
 
         if(UIEdit != undefined && this instanceof UIEdit){
     
@@ -204,7 +203,6 @@ export class UI {
         h1.innerHTML = doc.title;
         this.board.appendChild(h1);
     
-        this.suppressMathJax = true;
         for(let [id, obj] of doc.actions.entries()){
             let act: Action;
     
@@ -236,24 +234,15 @@ export class UI {
             this.timeline.max = `${this.actions.length - 1}`;
             this.timeline.valueAsNumber = this.actions.length - 1;
         }
-        this.suppressMathJax = false;
     
         if(UIEdit != undefined && this instanceof UIEdit){
     
             this.summary.textContent = last(this.actions).summary();
         }
     
-        MathJax.typesetPromise([this.board])
-        .then(() => {
-            this.timeline.max = `${this.actions.length - 1}`;
-            this.updateTimePos(this.actions.length - 1);
-            this.updateTimePos(-1);
-    
-            this.onOpenDocComplete();
-        })
-        .catch((err: any) => {
-            console.log(err.message);
-        });
+        this.timeline.max = `${this.actions.length - 1}`;
+        this.updateTimePos(-1);    
+        this.onOpenDocComplete();
     }
 }
 
@@ -466,12 +455,34 @@ export class SpeechAction extends TextAction {
 
 export class TextBlockAction extends TextAction {
     div: HTMLDivElement;
+    lineFeed: boolean = false;
+    initialize = false;
 
     constructor(ui: UI, text: string){
         super(ui, text);
 
-        this.div = this.makeTextDiv(this.text);
+        let nextEle = null;
 
+        if(this.ui.timeline.valueAsNumber != -1){
+
+            for(let act of this.ui.actions.slice(this.ui.timeline.valueAsNumber + 1)){
+                if(act instanceof TextBlockAction){
+                    nextEle = act.div;
+                    break;
+                }
+            }
+        }
+        
+        this.div = document.createElement("div");
+    
+        this.div.id = getBlockId(this.id);
+        this.div.style.position = "relative";
+        this.div.style.display = "none";
+    
+        this.ui.board.insertBefore(this.div, nextEle);
+    
+        this.div.tabIndex = 0;
+        
         if(UIEdit != undefined && this.ui instanceof UIEdit ){
 
             this.div.addEventListener("click", (ev:MouseEvent)=>{
@@ -482,14 +493,31 @@ export class TextBlockAction extends TextAction {
                 onPointerMove(this, ev);
             })
         
-            this.div.addEventListener('keydown', (event) => {
-                msg(`key down ${event.key} ${event.ctrlKey}`);
+            this.div.addEventListener('keydown', (ev) => {
+                msg(`key down ${ev.key} ${ev.ctrlKey}`);
+
+                if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
+                    ev.stopPropagation();
+                    ev.preventDefault();
+
+                    let ele = ev.srcElement as HTMLElement;
+                    msg(`del ${ele.tagName} ${ele.id}`);
+                }
+
+
             }, false);
         }
     }
 
     enable(){
         this.div.style.display = "inline-block";
+        if(! this.initialize){
+            this.initialize = true;
+
+            const html = makeHtmlLines(this.text);
+            this.div.innerHTML = html;
+            reprocessMathJax(this, this.div, html);
+        }
     }
 
     disable(){
@@ -504,46 +532,27 @@ export class TextBlockAction extends TextAction {
         return "文字";
     }
 
-    makeTextDiv(text: string) : HTMLDivElement {
-        let nextEle = null;
+    updateLineFeed(){
+        if(this.div.nextSibling != null && this.div.nextSibling.nodeName == "BR"){
+            // 次がBRの場合
 
-        if(this.ui.timeline.valueAsNumber != -1){
+            if(!this.lineFeed){
+                // 改行しない場合
 
-            for(let act of this.ui.actions.slice(this.ui.timeline.valueAsNumber + 1)){
-                if(act instanceof TextBlockAction){
-                    nextEle = act.div;
-                    break;
-                }
+                this.div.parentNode!.removeChild(this.div.nextSibling);
             }
         }
-        const div = document.createElement("div");
-    
-        div.id = getBlockId(this.id);
-        div.style.position = "relative";
-        div.style.display = "inline-block";
-    
-        this.ui.board.insertBefore(div, nextEle);
-    
-        div.tabIndex = 0;
-    
-        const html = makeHtmlLines(text);
-        div.innerHTML = html;
-        reprocessMathJax(this.ui, div, html);
+        else{
+            // 次がBRでない場合
 
-        if(UIEdit != undefined && this.ui instanceof UIEdit){
+            if(this.lineFeed){
+                // 改行する場合
 
-            div.addEventListener("keydown", (ev: KeyboardEvent)=>{
-                if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
-                    ev.stopPropagation();
-                    ev.preventDefault();
-
-                    let ele = ev.srcElement as HTMLElement;
-                    msg(`del ${ele.tagName} ${ele.id}`);
-                }
-            })
+                let  br = document.createElement("br");
+                br.className = "line-feed"
+                this.div.parentNode!.insertBefore(br, this.div.nextSibling);
+            }    
         }
-    
-        return div;
     }
 }
 

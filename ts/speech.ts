@@ -49,7 +49,7 @@ export function* speak(act: SpeechAction){
 
     if(act.ui.caption != undefined){
         act.ui.caption.textContent = caption;
-        reprocessMathJax(act.ui, act.ui.caption, caption);
+        reprocessMathJax(act, act.ui.caption, caption);
     }
 
     const uttr = new SpeechSynthesisUtterance(speech);
