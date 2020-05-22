@@ -1,9 +1,66 @@
-namespace bansho {
+import { msg, runGenerator, tostr, makeHtmlLines } from "./util.js";
+// import { reprocessMathJax, UIEdit, onClickBlock, onPointerMove } from "./edit.js";
+import { speak, cancelSpeech, isSpeaking, initSpeech } from "./speech.js";
+
+// import { combineReducers } from '@reduxjs/toolkit'
+// import { createSlice, configureStore } from '@types/react';
+
+// namespace bansho {
 declare let MathJax:any;
 
 export const idPrefix = "bansho-id-";
 
 export let colors : string[] = [ "magenta", "blue", "limegreen" ];
+
+let typesetAct : Action | null = null;
+
+let typesetQue : [Action, HTMLElement, string][] = [];
+
+function popQue(){
+    let div: HTMLElement;
+    let text: string;
+
+    if(typesetAct != null){
+        // typesetの処理中の場合
+
+        return;
+    }
+
+    while(typesetQue.length != 0){
+
+        [typesetAct, div, text] = typesetQue.shift()!;
+        div.textContent = text;
+
+        if(text.includes("$")){
+
+            MathJax.typesetPromise([div])
+            .then(() => {
+                if(typesetAct instanceof TextBlockAction){
+                    typesetAct.updateLineFeed();
+                }
+                typesetAct = null;
+
+                if(typesetQue.length != 0){
+                    popQue();
+                }
+            })
+            .catch((err: any) => {
+                console.log(err.message);
+            });
+
+            break;
+        }
+        else{
+
+            typesetAct = null;
+        }
+    }
+}
+
+export function reprocessMathJax(act: Action, div: HTMLDivElement | HTMLSpanElement, html: string){
+    typesetQue.push([act, div, html]);
+    popQue();
+}
 
 export class UI {
     actions : Action[] = [];
@@ -16,6 +73,7 @@ export class UI {
     caption: HTMLSpanElement;
 
     isPlaying = false;
+    selectColor : number = 0;
 
     constructor(div: HTMLDivElement){
         this.prevTimePos = -1;
@@ -26,7 +84,6 @@ export class UI {
         this.btnPlayPause.style.fontFamily = "Segoe UI Emoji";
         this.btnPlayPause.style.fontSize = "40px";
         this.btnPlayPause.innerHTML = "⏹";
-        this.btnPlayPause.onclick = this.clickPlayPause.bind(this);
         div.appendChild(this.btnPlayPause);
 
         this.timeline = document.createElement("input");
@@ -36,7 +93,6 @@ export class UI {
         this.timeline.value = "-1";
         this.timeline.step = "1";
         this.timeline.style.width = "100%";
-        this.timeline.onchange = this.rngTimelineChange.bind(this);
         div.appendChild(this.timeline);
 
         this.board    = document.createElement("div");
@@ -48,13 +104,9 @@ export class UI {
         this.caption  = document.createElement("h3");
         this.caption.style.textAlign = "center";
         div.appendChild(this.caption);
-
-        let path = div.getAttribute("data-path");
-        if(path != null){
-
-            this.openDoc(path);
-        }
     }
+
+    setTextBlockEventListener(act: TextBlockAction){}
         
     onOpenDocComplete = ()=>{
         this.btnPlayPause.disabled = false;
@@ -65,7 +117,7 @@ export class UI {
         if(this.isPlaying){
     
             this.btnPlayPause.disabled = true;
-            bansho.pauseAction(this, ()=>{
+            pauseAction(this, ()=>{
                 this.btnPlayPause.disabled = false;
                 this.btnPlayPause.innerHTML = "▶️";
             });
@@ -144,12 +196,6 @@ export class UI {
 
             this.caption.textContent = "";
         }
-        
-
-        if(UIEdit != undefined && this instanceof UIEdit){
-    
-            this.updateSummaryTextArea();
-        }
     }    
     
     playActions(oncomplete:()=>void){
@@ -180,69 +226,6 @@ export class UI {
         }
         
         runGenerator( fnc(this) );
-    }
-    
-    openDoc(path: string){
-        fetchText(`json/${path}.json`, (text: string)=>{
-            this.deserializeDoc(text);
-        });
-    }
-    
-    deserializeDoc(text: string){
-        this.actions = [];
-    
-        this.board.innerHTML = "";
-    
-        const doc = JSON.parse(reviseJson(text));
-
-        if(UIEdit != undefined && this instanceof UIEdit){
-            this.txtTitle.value = doc.title;
-        }
-    
-        const h1 = document.createElement("h1");
-        h1.innerHTML = doc.title;
-        this.board.appendChild(h1);
-    
-        for(let [id, obj] of doc.actions.entries()){
-            let act: Action;
-    
-            switch(obj.type){
-            case "text":
-                act = new TextBlockAction(this, (obj as TextBlockAction).text);
-                break;
-            
-            case "speech":
-                act = new SpeechAction(this, (obj as SpeechAction).text);
-                break;
-    
-            case "select":
-                // let sel = obj as SelectionAction;
-                // act = new SelectionAction(this, sel.refId, sel.domType, sel.startIdx, sel.endIdx, sel.color);
-                continue;
-    
-            case "disable":
-                continue;
-    
-            default:
-                console.assert(false);
-                return;
-            }
-            // console.assert(act.id == id);
-    
-            this.actions.push(act);
-    
-            this.timeline.max = `${this.actions.length - 1}`;
-            this.timeline.valueAsNumber = this.actions.length - 1;
-        }
-    
-        if(UIEdit != undefined && this instanceof UIEdit){
-    
-            this.summary.textContent = last(this.actions).summary();
-        }
-    
-        this.timeline.max = `${this.actions.length - 1}`;
-        this.updateTimePos(-1);    
-        this.onOpenDocComplete();
     }
 }
 
@@ -483,30 +466,7 @@ export class TextBlockAction extends TextAction {
     
         this.div.tabIndex = 0;
         
-        if(UIEdit != undefined && this.ui instanceof UIEdit ){
-
-            this.div.addEventListener("click", (ev:MouseEvent)=>{
-                onClickBlock(this, ev);
-            });
-
-            this.div.addEventListener("pointermove", (ev: PointerEvent)=>{
-                onPointerMove(this, ev);
-            })
-        
-            this.div.addEventListener('keydown', (ev) => {
-                msg(`key down ${ev.key} ${ev.ctrlKey}`);
-
-                if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
-                    ev.stopPropagation();
-                    ev.preventDefault();
-
-                    let ele = ev.srcElement as HTMLElement;
-                    msg(`del ${ele.tagName} ${ele.id}`);
-                }
-
-
-            }, false);
-        }
+        ui.setTextBlockEventListener(this);
     }
 
     enable(){
@@ -575,49 +535,7 @@ export function pauseAction(ui: UI, fnc:()=>void){
     },10);
 }
 
-export function initPlayer(){
-    initSpeech();
 
-    msg("body loaded");
-   
-    let divs = Array.from(document.getElementsByClassName("bansho")) as HTMLDivElement[];
 
-    if(window.location.search != ""){
-        console.assert(window.location.search[0] == '?');
-
-        for(let item of window.location.search.substring(1).split('&')){
-            let [key, value] = item.split("=");
-            if(key == "path"){
-                let div = divs[0];
-
-                let ui = new UI(div);
-                ui.openDoc(value);
-            }
-        }
-    }
-    else{
-
-        for(let div of divs){
-
-            let ui = new UI(div);
-        }
-    }
-}
-
-export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selColors: HTMLInputElement[], summary : HTMLSpanElement, textArea : HTMLTextAreaElement) : UIEdit {
-    if(window.location.search.includes("debug=1")){
-
-        // <textarea id="txt-msg" rows="15" style="display: none; width: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; " spellcheck="false" ></textarea>
-        textMsg      = document.getElementById("txt-msg") as HTMLDivElement;
-        textMsg.style.display = "inline-block";
-    }
-
-    initSpeech();
-
-    msg("body loaded");
-
-    return new UIEdit(div, txtTitle, selColors, summary, textArea);
-}
-
-}
+// }
 

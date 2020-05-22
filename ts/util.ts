@@ -1,4 +1,6 @@
-namespace bansho {
+// import { textMsg } from "./main.js";
+
+// namespace bansho {
 export const padding = 10;
 const endMark = "⛩";
 let stopPlaying: boolean = false;
@@ -7,11 +9,18 @@ export let textMsg : HTMLDivElement;
 export function msg(text: string){
     console.log(text);
 
-    if(textMsg != undefined){
+    if(window.location.search.includes("debug=1")){
 
-        textMsg.textContent = textMsg.textContent + "\n" + text;
-        textMsg.scrollTop = textMsg.scrollHeight;
+        // <textarea id="txt-msg" rows="15" style="display: none; width: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; " spellcheck="false" ></textarea>
     }
+
+    // if(textMsg == undefined){
+
+    //     textMsg      = document.getElementById("txt-msg") as HTMLDivElement;
+    //     textMsg.style.display = "inline-block";
+    // }
+    // textMsg.textContent = textMsg.textContent + "\n" + text;
+    // textMsg.scrollTop = textMsg.scrollHeight;
 }
 
 export function range(n: number) : number[]{
@@ -180,4 +189,4 @@ export function runGenerator(gen: IterableIterator<any>){
 }
 
 
-}
+// }

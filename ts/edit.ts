@@ -1,17 +1,20 @@
-namespace bansho {
-let speechInput : boolean;
-export let selectColor : number;
+import { UI, colors, Action, EmptyAction, TextBlockAction, SelectionAction, TextAction, SpeechAction, getBlockId, idPrefix, reprocessMathJax } from "./main.js";
+import { fetchText, reviseJson, last, makeHtmlLines, msg, runGenerator } from "./util.js";
+import { initSpeech } from "./speech.js";
+
+export let speechInput : boolean;
+
+// namespace bansho {
 
 export class UIEdit extends UI {
-    txtTitle: HTMLInputElement;
     selColors: HTMLInputElement[];
     lineFeedChk : HTMLInputElement;
-    summary : HTMLSpanElement;
     textArea : HTMLTextAreaElement;
+    txtTitle: HTMLInputElement;
+    summary : HTMLSpanElement;
 
     constructor(div: HTMLDivElement, title: HTMLInputElement, selColors: HTMLInputElement[], summary : HTMLSpanElement, textArea : HTMLTextAreaElement){
         super(div);
-        speechInput = false;
         this.txtTitle = title;
         this.selColors = selColors;
         this.lineFeedChk = document.getElementById("line-feed") as HTMLInputElement;
@@ -20,54 +23,21 @@ export class UIEdit extends UI {
 
         this.textArea.style.backgroundColor = "white";
 
-        document.body.addEventListener("keydown", (ev: KeyboardEvent)=>{
-            if(ev.key == "Insert" && ! ev.ctrlKey && ! ev.shiftKey){
-                speechInput = ! speechInput;
-                if(speechInput){
-                    this.textArea.style.backgroundColor = "ivory";
-                }
-                else{
-
-                    this.textArea.style.backgroundColor = "white";
-                }
-            }
-        });
-
-        this.lineFeedChk.addEventListener("change", (ev: Event)=>{
-            let act = this.currentAction();
-            if(act instanceof TextBlockAction){
-
-                act.lineFeed = this.lineFeedChk.checked;
-                act.updateLineFeed();
-            }
-            else{
-                console.assert(false);
-            }
-        })
-
-        colors = this.selColors.map(x => x.value);
-
-        selectColor = this.getSelectColor();
-        this.selColors.forEach(inp =>{
-            inp.addEventListener("click", (ev: MouseEvent)=>{
-                selectColor = this.getSelectColor();
-
-                let act = this.currentAction();
-                if(act instanceof SelectionAction){
-                    act.color = selectColor;
-                    act.enable();
-                }
-            })
-        });
+        // colors = this.selColors.map(x => x.value);
 
         this.actions = [];
 
         this.board.innerHTML = "";
         this.updateSummaryTextArea();
 
-        this.monitorTextMath();
-
         this.addEmptyAction();
+        this.selectColor = this.getSelectColor();
+
+        let path = div.getAttribute("data-path");
+        if(path != null){
+
+            this.openDoc(path);
+        }
     }
 
     getSelectColor(){
@@ -154,10 +124,15 @@ export class UIEdit extends UI {
             this.lineFeedChk.parentElement!.style.display = "inline";
             this.lineFeedChk.checked = act.lineFeed;
         }
+        else if(act instanceof SpeechAction){
+
+        }
         else{
 
             this.lineFeedChk.parentElement!.style.display = "none";
         }
+
+        this.updateSummaryTextArea();
     }
 
     updateSummaryTextArea(){
@@ -248,52 +223,45 @@ export class UIEdit extends UI {
                 }
             }
         }
-        else{
-            console.assert(false);
+    }
+
+    textAreaKeyDown(ev: KeyboardEvent){
+        msg(`key down ${ev.key}`);
+        if(ev.key == "Insert"){
+            if(ev.ctrlKey){
+
+                this.textArea.value = "$$\n\\frac{1}{2 \\pi \\sigma^2} \\int_{-\\infty}^\\infty \\exp^{ - \\frac{{(x - \\mu)}^2}{2 \\sigma^2}  } dx\n$$";
+            }
         }
     }
 
-    monitorTextMath(){
-        setInterval(this.updateTextMath.bind(this), 500);
+    textAreaKeyPress(ev: KeyboardEvent){
+        msg(`key press ${ev.ctrlKey} ${ev.key}`);
+        if((ev.ctrlKey || ev.shiftKey) && ev.code == "Enter"){
 
-        this.textArea.addEventListener("keydown", (ev: KeyboardEvent)=>{
-            msg(`key down ${ev.key}`);
-            if(ev.key == "Insert"){
-                if(ev.ctrlKey){
+            let act = this.currentAction();
 
-                    this.textArea.value = "$$\n\\frac{1}{2 \\pi \\sigma^2} \\int_{-\\infty}^\\infty \\exp^{ - \\frac{{(x - \\mu)}^2}{2 \\sigma^2}  } dx\n$$";
-                }
+            if(act instanceof TextBlockAction){
+            
+                act.lineFeed = true;
             }
-        })
 
-        this.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
-            msg(`key press ${ev.ctrlKey} ${ev.key}`);
-            if((ev.ctrlKey || ev.shiftKey) && ev.code == "Enter"){
-
-                let act = this.currentAction();
-
-                if(act instanceof TextBlockAction){
-                
-                    act.lineFeed = true;
-                }
-
-                this.updateTextMath();
-
-                if(act instanceof SpeechAction){
-                    runGenerator( act.play() );
-                }
-
-                this.addEmptyAction();
-
-                ev.stopPropagation();
-                ev.preventDefault();
-            }
-        });
-
-        this.textArea.addEventListener("blur", (ev: FocusEvent)=>{
-            msg("blur");
             this.updateTextMath();
-        });
+
+            if(act instanceof SpeechAction){
+                runGenerator( act.play() );
+            }
+
+            this.addEmptyAction();
+
+            ev.stopPropagation();
+            ev.preventDefault();
+        }
+    }
+
+    textAreaBlur(ev: FocusEvent){
+        msg("blur");
+        this.updateTextMath();
     }
 
     serializeDoc(title: string) : string {
@@ -358,6 +326,74 @@ export class UIEdit extends UI {
         });
     }
 
+    setTextBlockEventListener(act: TextBlockAction){
+        setTextBlockEventListener(act);
+    }
+
+    
+    openDoc(path: string){
+        fetchText(`json/${path}.json`, (text: string)=>{
+            this.deserializeDoc(text);
+        });
+    }
+    
+    deserializeDoc(text: string){
+        this.actions = [];
+    
+        this.board.innerHTML = "";
+    
+        const doc = JSON.parse(reviseJson(text));
+
+        if(UIEdit != undefined && this instanceof UIEdit){
+            this.txtTitle.value = doc.title;
+        }
+    
+        const h1 = document.createElement("h1");
+        h1.innerHTML = doc.title;
+        this.board.appendChild(h1);
+    
+        for(let [id, obj] of doc.actions.entries()){
+            let act: Action;
+    
+            switch(obj.type){
+            case "text":
+                act = new TextBlockAction(this, (obj as TextBlockAction).text);
+                break;
+            
+            case "speech":
+                act = new SpeechAction(this, (obj as SpeechAction).text);
+                break;
+    
+            case "select":
+                // let sel = obj as SelectionAction;
+                // act = new SelectionAction(this, sel.refId, sel.domType, sel.startIdx, sel.endIdx, sel.color);
+                continue;
+    
+            case "disable":
+                continue;
+    
+            default:
+                console.assert(false);
+                return;
+            }
+            // console.assert(act.id == id);
+    
+            this.actions.push(act);
+    
+            this.timeline.max = `${this.actions.length - 1}`;
+            this.timeline.valueAsNumber = this.actions.length - 1;
+        }
+    
+        if(UIEdit != undefined && this instanceof UIEdit){
+    
+            this.summary.textContent = last(this.actions).summary();
+        }
+    
+        this.timeline.max = `${this.actions.length - 1}`;
+        this.updateTimePos(-1);    
+        this.onOpenDocComplete();
+    }
+
 }
 
 declare let MathJax:any;
@@ -367,54 +403,6 @@ function getActionId(id: string) : number {
     return parseInt(id.substring(idPrefix.length));
 }
 
-let typesetAct : Action | null = null;
-let typesetQue : [Action, HTMLElement, string][] = [];
-
-function popQue(){
-    let div: HTMLElement;
-    let text: string;
-
-    if(typesetAct != null){
-        // typesetの処理中の場合
-
-        return;
-    }
-
-    while(typesetQue.length != 0){
-
-        [typesetAct, div, text] = typesetQue.shift()!;
-        div.textContent = text;
-
-        if(text.includes("$")){
-
-            MathJax.typesetPromise([div])
-            .then(() => {
-                if(typesetAct instanceof TextBlockAction){
-                    typesetAct.updateLineFeed();
-                }
-                typesetAct = null;
-
-                if(typesetQue.length != 0){
-                    popQue();
-                }
-            })
-            .catch((err: any) => {
-                console.log(err.message);
-            });
-
-            break;
-        }
-        else{
-
-            typesetAct = null;
-        }
-    }
-}
-
-export function reprocessMathJax(act: Action, div: HTMLDivElement | HTMLSpanElement, html: string){
-    typesetQue.push([act, div, html]);
-    popQue();
-}
 
 let selAct: SelectionAction | null = null;
 
@@ -430,7 +418,7 @@ export function onClickPointerMove(act:TextBlockAction, ev: PointerEvent | Mouse
 
                 if(selAct == null){
 
-                    selAct = new SelectionAction(act.ui, getActionId(act.div.id), "math", i, i + 1, selectColor);
+                    selAct = new SelectionAction(act.ui, getActionId(act.div.id), "math", i, i + 1, act.ui.selectColor);
                     selAct.enable();
 
                     (act.ui as UIEdit).addAction(selAct);
@@ -459,7 +447,6 @@ export function onClickPointerMove(act:TextBlockAction, ev: PointerEvent | Mouse
     }
 }
 
-
 export function onPointerMove(act:TextBlockAction, ev: PointerEvent){
     if(selAct == null){
         return;
@@ -474,5 +461,247 @@ export function onClickBlock(act:TextBlockAction, ev:MouseEvent){
 }
 
 
+export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selColors: HTMLInputElement[], summary : HTMLSpanElement, textArea : HTMLTextAreaElement) : UIEdit {
+    initRedux();
 
+    initSpeech();
+
+    msg("body loaded");
+
+    return new UIEdit(div, txtTitle, selColors, summary, textArea);
 }
+
+function initRedux(){
+    console.log("hello body");
+
+    // let RTK = {
+    //   "createSlice": createSlice,
+    //   "configureStore": configureStore
+    // }
+    const RTK = (window  as any).RTK;
+
+    const counterSlice = RTK.createSlice({
+        name: "counter",
+        initialState: 0,
+        reducers: {
+            increment: (state: number) => {
+                msg("inc");
+                return state + 1;
+            },
+            decrement: (state: number) => {
+                msg("dec");
+                return state - 1;
+            }
+        }
+    });
+
+    const { increment, decrement } = counterSlice.actions;
+
+    const store = RTK.configureStore({ reducer: counterSlice.reducer });
+    const valueEl = document.getElementById("value")!;
+
+    function render() {
+        msg("render");
+        valueEl.innerHTML = store.getState().toString();
+    }
+
+    render();
+    store.subscribe(render);
+
+    document.getElementById("increment")!.addEventListener("click", function() {
+        store.dispatch(increment());
+        store.dispatch(increment());
+    });
+
+    document.getElementById("decrement")!.addEventListener("click", function() {
+        store.dispatch(decrement());
+    });
+
+    document.getElementById("incrementIfOdd")!.addEventListener("click", function() {
+        if (store.getState() % 2 !== 0) {
+          store.dispatch(increment());
+        }
+    });
+
+    document.getElementById("incrementAsync")!.addEventListener("click", function() {
+        setTimeout(function() {
+          store.dispatch(increment());
+        }, 1000);
+    });
+}
+
+let ui: UIEdit;
+
+function setEventListener(){
+    ui.btnPlayPause.addEventListener("click", (ev: MouseEvent)=>{
+        ui.clickPlayPause();
+    });
+
+    ui.timeline.addEventListener("change", (ev: Event)=>{
+        ui.rngTimelineChange();
+    });
+
+    document.getElementById("add-empty-action")!.addEventListener("click", (ev: MouseEvent)=>{
+        ui.addEmptyAction();
+    });
+
+    document.getElementById("update-time-pos")!.addEventListener("click", (ev: MouseEvent)=>{
+        ui.updateTimePos(-1);
+    });
+
+    document.getElementById("get-data")!.addEventListener("click", (ev: MouseEvent)=>{
+        getData();
+    });
+
+    document.getElementById("delete-action")!.addEventListener("click", (ev: MouseEvent)=>{
+        ui.deleteAction();
+    });
+
+    document.getElementById("put-data")!.addEventListener("click", (ev: MouseEvent)=>{
+        putData();
+    });
+}
+
+function setTextBlockEventListener(act: TextBlockAction){
+    act.div.addEventListener("click", (ev:MouseEvent)=>{
+        onClickBlock(act, ev);
+    });
+
+    act.div.addEventListener("pointermove", (ev: PointerEvent)=>{
+        onPointerMove(act, ev);
+    });
+
+    act.div.addEventListener('keydown', (ev) => {
+        msg(`key down ${ev.key} ${ev.ctrlKey}`);
+
+        if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
+            ev.stopPropagation();
+            ev.preventDefault();
+
+            let ele = ev.srcElement as HTMLElement;
+            msg(`del ${ele.tagName} ${ele.id}`);
+        }
+    }, false);
+}
+
+// import {ShoppingList} from "./form.tsx"
+
+export function setUIEditEventListener(){
+    // let a = new ShoppingList();
+
+    document.body.addEventListener("keydown", (ev: KeyboardEvent)=>{
+        if(ev.key == "Insert" && ! ev.ctrlKey && ! ev.shiftKey){
+            speechInput = ! speechInput;
+            if(speechInput){
+                ui.textArea.style.backgroundColor = "ivory";
+            }
+            else{
+
+                ui.textArea.style.backgroundColor = "white";
+            }
+        }
+    });
+
+    ui.lineFeedChk.addEventListener("change", (ev: Event)=>{
+        let act = ui.currentAction();
+        if(act instanceof TextBlockAction){
+
+            act.lineFeed = ui.lineFeedChk.checked;
+            act.updateLineFeed();
+        }
+        else{
+            console.assert(false);
+        }
+    })
+
+    for(let inp of ui.selColors){
+        inp.addEventListener("click", (ev: MouseEvent)=>{
+            ui.selectColor = ui.getSelectColor();
+
+            let act = ui.currentAction();
+            if(act instanceof SelectionAction){
+                act.color = ui.selectColor;
+                act.enable();
+            }
+        });
+    }
+
+    ui.textArea.addEventListener("keydown", (ev: KeyboardEvent)=>{
+        ui.textAreaKeyDown(ev);
+    })
+
+    ui.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
+        ui.textAreaKeyPress(ev);
+    });
+
+    ui.textArea.addEventListener("blur", (ev: FocusEvent)=>{
+        ui.textAreaBlur(ev);
+    });
+
+    setInterval(()=>{
+        ui.updateTextMath();
+    }, 500);
+}
+
+export function bodyOnload(){
+    console.log("body load");
+
+    speechInput = false;
+
+    let div = document.getElementById("bansho") as HTMLDivElement;
+    let txtTitle = document.getElementById("txt-title") as HTMLInputElement;
+    let selColors = [
+        document.getElementById("color-0") as HTMLInputElement,
+        document.getElementById("color-1") as HTMLInputElement,
+        document.getElementById("color-2") as HTMLInputElement
+    ];
+    let summary  = document.getElementById("spn-summary") as HTMLSpanElement;
+    let textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
+
+    ui = initEdit(div, txtTitle, selColors, summary, textArea);
+
+    setEventListener();
+    setUIEditEventListener();
+}
+
+function getData(){
+    let path  = (document.getElementById("txt-path") as HTMLInputElement).value.trim();
+    ui.openDoc(path);
+}
+
+function putData(){
+    let path  = (document.getElementById("txt-path") as HTMLInputElement).value.trim();
+    ui.backup(path);
+}
+
+
+export function initPlayer(){
+    initSpeech();
+
+    msg("body loaded");
+   
+    let divs = Array.from(document.getElementsByClassName("bansho")) as HTMLDivElement[];
+
+    if(window.location.search != ""){
+        console.assert(window.location.search[0] == '?');
+
+        for(let item of window.location.search.substring(1).split('&')){
+            let [key, value] = item.split("=");
+            if(key == "path"){
+                let div = divs[0];
+
+                // let ui = new UIEdit(div);
+                // ui.openDoc(value);
+            }
+        }
+    }
+    else{
+
+        for(let div of divs){
+
+            let ui = new UI(div);
+        }
+    }
+}
+
+// }

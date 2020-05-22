@@ -23,39 +23,15 @@
 </script>
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script type="text/javascript" src="js/util.js?ver=1" ></script>
-<script type="text/javascript" src="js/jax.js?ver=1" ></script>
-<script type="text/javascript" src="js/main.js?ver=1" ></script>
-<script type="text/javascript" src="js/edit.js?ver=1" ></script>
-<script type="text/javascript" src="js/speech.js?ver=1" ></script>
-<script type="text/javascript">
-let ui;
-
-function bodyOnload(){
-    console.log("body load");
-
-    let div = document.getElementById("bansho");
-    let txtTitle = document.getElementById("txt-title");
-    let selColors = [
-        document.getElementById("color-0"),
-        document.getElementById("color-1"),
-        document.getElementById("color-2")
-    ];
-    let summary  = document.getElementById("spn-summary");
-    let textArea = document.getElementById("txt-math");
-
-    ui = bansho.initEdit(div, txtTitle, selColors, summary, textArea);
-}
-
-function getData(){
-    let path  = document.getElementById("txt-path").value.trim();
-    ui.openDoc(path);
-}
-
-function putData(){
-    let path  = document.getElementById("txt-path").value.trim();
-    ui.backup(path);
-}
+<script src="node_modules/@reduxjs/toolkit/dist/redux-toolkit.umd.js"></script>
+<script type="module" src="js/form.js?ver=1" ></script>
+<script type="module" src="js/util.js?ver=1" ></script>
+<script type="module" src="js/main.js?ver=1" ></script>
+<script type="module" src="js/edit.js?ver=1" ></script>
+<script type="module" src="js/speech.js?ver=1" ></script>
+<script type="module">
+    import { bodyOnload } from "./js/edit.js";
+    document.body.onload = bodyOnload;
 </script>
 
 <style type="text/css">
@@ -90,13 +66,24 @@ input[type="radio"]:checked + label {
 </style>
 </head>
 
-<body onload="bodyOnload()">
+<!-- <body onload="bansho.bodyOnload()"> -->
+<body>
+<div>
+    <p>
+        Clicked: <span id="value">0</span> times
+        <button id="increment">+</button>
+        <button id="decrement">-</button>
+        <button id="incrementIfOdd">Increment if odd</button>
+        <button id="incrementAsync">Increment async</button>
+    </p>
+</div>
+  
 <div id="bansho" style="width: 100%; height: 70%;"></div>
-<button onclick="ui.addEmptyAction()" style="font-family: Segoe UI Emoji;">➕</button>
-<button onclick="ui.updateTimePos(-1)" style="font-family: Segoe UI Emoji;" >⏮</button>
-<button onclick="getData()">開く</button>
-<button onclick="ui.deleteAction()">削除</button>
-<button onclick="putData()">保存</button>
+<button id="add-empty-action" style="font-family: Segoe UI Emoji;">➕</button>
+<button id="update-time-pos" style="font-family: Segoe UI Emoji;" >⏮</button>
+<button id="get-data" >開く</button>
+<button id="delete-action" >削除</button>
+<button id="put-data" >保存</button>
 <input type="radio" name="sel-color" value="magenta" id="color-0" checked /><label for="color-0" style="background-color: magenta; color: transparent;" >□</label>
 <input type="radio" name="sel-color" value="blue"    id="color-1"  /><label for="color-1" style="background-color: blue; color: transparent; " >□</label>
 <input type="radio" name="sel-color" value="limegreen"   id="color-2" /><label for="color-2" style="background-color: limegreen; color: transparent;" >□</label>

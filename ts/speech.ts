@@ -1,5 +1,9 @@
 /// <reference path="main.ts" />
-namespace bansho {
+import { msg } from "./util.js";
+import { SpeechAction, reprocessMathJax } from "./main.js";
+// import { reprocessMathJax } from "./edit.js";
+
+// namespace bansho {
 export let isSpeaking = false;
 let voiceList: string[]|null = null;
 let jpVoice : SpeechSynthesisVoice|null = null;
@@ -82,4 +86,4 @@ export function cancelSpeech(){
     }
 }
 
-}
+// }
