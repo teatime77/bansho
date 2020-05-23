@@ -1,4 +1,4 @@
-// import { textMsg } from "./main.js";
+// import { textMsg } from "./main";
 
 // namespace bansho {
 export const padding = 10;

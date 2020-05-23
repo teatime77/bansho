@@ -1,6 +1,7 @@
-import { UI, colors, Action, EmptyAction, TextBlockAction, SelectionAction, TextAction, SpeechAction, getBlockId, idPrefix, reprocessMathJax } from "./main.js";
-import { fetchText, reviseJson, last, makeHtmlLines, msg, runGenerator } from "./util.js";
-import { initSpeech } from "./speech.js";
+import { UI, colors, Action, EmptyAction, TextBlockAction, SelectionAction, TextAction, SpeechAction, getBlockId, idPrefix, reprocessMathJax } from "./main";
+import { fetchText, reviseJson, last, makeHtmlLines, msg, runGenerator } from "./util";
+import { initSpeech } from "./speech";
+import { configureStore, createSlice } from '@reduxjs/toolkit'
 
 export let speechInput : boolean;
 
@@ -478,9 +479,9 @@ function initRedux(){
     //   "createSlice": createSlice,
     //   "configureStore": configureStore
     // }
-    const RTK = (window  as any).RTK;
+    // const RTK = (window  as any).RTK;
 
-    const counterSlice = RTK.createSlice({
+    const counterSlice = createSlice({
         name: "counter",
         initialState: 0,
         reducers: {
@@ -497,7 +498,7 @@ function initRedux(){
 
     const { increment, decrement } = counterSlice.actions;
 
-    const store = RTK.configureStore({ reducer: counterSlice.reducer });
+    const store = configureStore({ reducer: counterSlice.reducer });
     const valueEl = document.getElementById("value")!;
 
     function render() {

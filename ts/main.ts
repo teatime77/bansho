@@ -1,6 +1,6 @@
-import { msg, runGenerator, tostr, makeHtmlLines } from "./util.js";
-// import { reprocessMathJax, UIEdit, onClickBlock, onPointerMove } from "./edit.js";
-import { speak, cancelSpeech, isSpeaking, initSpeech } from "./speech.js";
+import { msg, runGenerator, tostr, makeHtmlLines } from "./util";
+// import { reprocessMathJax, UIEdit, onClickBlock, onPointerMove } from "./edit";
+import { speak, cancelSpeech, isSpeaking, initSpeech } from "./speech";
 
 // import { combineReducers } from '@reduxjs/toolkit'
 // import { createSlice, configureStore } from '@types/react';
@@ -261,7 +261,7 @@ export class Action{
     disable(){
     }
 
-    *play(){
+    *play() : any {
         this.enable();
         yield;
     }

@@ -1,7 +1,7 @@
 /// <reference path="main.ts" />
-import { msg } from "./util.js";
-import { SpeechAction, reprocessMathJax } from "./main.js";
-// import { reprocessMathJax } from "./edit.js";
+import { msg } from "./util";
+import { SpeechAction, reprocessMathJax } from "./main";
+// import { reprocessMathJax } from "./edit";
 
 // namespace bansho {
 export let isSpeaking = false;
@@ -44,7 +44,7 @@ export function initSpeech(){
     };
 }
 
-export function* speak(act: SpeechAction){
+export function* speak(act: SpeechAction) : any {
     if(voiceList == null){
         setVoice();
     }
