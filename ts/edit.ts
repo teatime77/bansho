@@ -1,4 +1,4 @@
-import { UI, colors, Action, EmptyAction, TextBlockAction, SelectionAction, TextAction, SpeechAction, getBlockId, idPrefix, reprocessMathJax } from "./main";
+import { UI, colors, Widget, EmptyWidget, TextBlockWidget, SelectionWidget, TextWidget, SpeechWidget, getBlockId, idPrefix, reprocessMathJax } from "./main";
 import { fetchText, reviseJson, last, makeHtmlLines, msg, runGenerator } from "./util";
 import { initSpeech } from "./speech";
 import { configureStore, createSlice } from '@reduxjs/toolkit'
@@ -31,7 +31,7 @@ export class UIEdit extends UI {
         this.board.innerHTML = "";
         this.updateSummaryTextArea();
 
-        this.addEmptyAction();
+        this.addEmptyWidget();
         this.selectColor = this.getSelectColor();
 
         let path = div.getAttribute("data-path");
@@ -45,7 +45,7 @@ export class UIEdit extends UI {
         return colors.indexOf( this.selColors.find(x => x.checked)!.value );
     }
 
-    addAction(act: Action){
+    addWidget(act: Widget){
         let selIdx = this.timeline.valueAsNumber + 1;
     
         this.actions.splice(selIdx, 0, act);
@@ -56,44 +56,44 @@ export class UIEdit extends UI {
         this.textArea.focus();
     }
 
-    setAction(act: Action){
+    setWidget(act: Widget){
         let selIdx = this.timeline.valueAsNumber;
 
-        console.assert(this.actions[selIdx] instanceof EmptyAction);
+        console.assert(this.actions[selIdx] instanceof EmptyWidget);
         this.actions[selIdx] = act;
         this.summary.textContent = act.summary();
     }
 
-    resetAction(){
+    resetWidget(){
         let selIdx = this.timeline.valueAsNumber;
 
-        const act = this.actions[selIdx] as TextBlockAction;
-        if(act instanceof TextBlockAction){
+        const act = this.actions[selIdx] as TextBlockWidget;
+        if(act instanceof TextBlockWidget){
 
             this.board.removeChild(act.div);
         }
 
-        this.actions[selIdx] = new EmptyAction(this);
+        this.actions[selIdx] = new EmptyWidget(this);
         this.summary.textContent = this.actions[selIdx].summary();
     }
 
-    addEmptyAction(){
-        this.addAction(new EmptyAction(this));
+    addEmptyWidget(){
+        this.addWidget(new EmptyWidget(this));
     }
 
-    deleteAction(){
+    deleteWidget(){
         if(this.timeline.valueAsNumber == -1){
             return;
         }
 
-        let fnc = (act: Action)=>{
+        let fnc = (act: Widget)=>{
 
-            const refActs = this.actions.filter(x => x instanceof SelectionAction && x.refId == act.id) as SelectionAction[];
+            const refActs = this.actions.filter(x => x instanceof SelectionWidget && x.refId == act.id) as SelectionWidget[];
 
             refActs.forEach(x => fnc(x));
 
             act.disable();
-            if(act instanceof TextBlockAction){
+            if(act instanceof TextBlockWidget){
 
                 this.board.removeChild(act.div);
             }
@@ -118,14 +118,14 @@ export class UIEdit extends UI {
     updateTimePos(pos: number){
         super.updateTimePos(pos);
 
-        let act = this.currentAction();
+        let act = this.currentWidget();
 
-        if(act instanceof TextBlockAction){
+        if(act instanceof TextBlockWidget){
 
             this.lineFeedChk.parentElement!.style.display = "inline";
             this.lineFeedChk.checked = act.lineFeed;
         }
-        else if(act instanceof SpeechAction){
+        else if(act instanceof SpeechWidget){
 
         }
         else{
@@ -144,11 +144,11 @@ export class UIEdit extends UI {
         if(this.timeline.valueAsNumber != -1){
 
             const act = this.actions[this.timeline.valueAsNumber];
-            if(act instanceof TextAction){
+            if(act instanceof TextWidget){
 
                 this.textArea.value = act.text;
 
-                if(act instanceof SpeechAction){
+                if(act instanceof SpeechWidget){
                     this.textArea.style.backgroundColor = "ivory";
                 }
             }
@@ -159,9 +159,9 @@ export class UIEdit extends UI {
 
     updateFocusedTextBlock(){
         const text = this.textArea.value.trim();
-        const act = this.currentAction()!;
+        const act = this.currentWidget()!;
 
-        if(act instanceof TextBlockAction){
+        if(act instanceof TextBlockWidget){
 
             const html = makeHtmlLines(text);
             act.div.innerHTML = html;
@@ -174,37 +174,37 @@ export class UIEdit extends UI {
     }
 
     updateTextMath(){
-        const act = this.currentAction();
-        if(act == undefined || act instanceof SpeechAction){
+        const act = this.currentWidget();
+        if(act == undefined || act instanceof SpeechWidget){
             return;
         }
         
         let text = this.textArea.value.trim();
 
-        if(act instanceof EmptyAction){
+        if(act instanceof EmptyWidget){
             // 空のアクションの場合
 
             if(text != ""){
 
                 if(speechInput){
 
-                    const newAct = new SpeechAction(this, text);
-                    this.setAction(newAct);    
+                    const newAct = new SpeechWidget(this, text);
+                    this.setWidget(newAct);    
                 }
                 else{
 
-                    const newAct = new TextBlockAction(this, text);
+                    const newAct = new TextBlockWidget(this, text);
                     
-                    this.setAction(newAct);                    
+                    this.setWidget(newAct);                    
                 }
             }
         }
-        else if(act instanceof TextBlockAction){
+        else if(act instanceof TextBlockWidget){
 
             if(text == ""){
                 // テキストが削除された場合
 
-                this.resetAction();
+                this.resetWidget();
             }
             else{
                 // テキストがある場合
@@ -240,20 +240,20 @@ export class UIEdit extends UI {
         msg(`key press ${ev.ctrlKey} ${ev.key}`);
         if((ev.ctrlKey || ev.shiftKey) && ev.code == "Enter"){
 
-            let act = this.currentAction();
+            let act = this.currentWidget();
 
-            if(act instanceof TextBlockAction){
+            if(act instanceof TextBlockWidget){
             
                 act.lineFeed = true;
             }
 
             this.updateTextMath();
 
-            if(act instanceof SpeechAction){
+            if(act instanceof SpeechWidget){
                 runGenerator( act.play() );
             }
 
-            this.addEmptyAction();
+            this.addEmptyWidget();
 
             ev.stopPropagation();
             ev.preventDefault();
@@ -269,18 +269,18 @@ export class UIEdit extends UI {
         return `{
       "title": "${title}",
       "actions": [
-    ${this.actions.filter(x => !(x instanceof EmptyAction)) .map(x => "    " + x.toStr()).join(",\n")}
+    ${this.actions.filter(x => !(x instanceof EmptyWidget)) .map(x => "    " + x.toStr()).join(",\n")}
       ]
     }`
     }
     
     renumId(){
         for(let [id, act] of this.actions.entries()){
-            if(act instanceof TextBlockAction){
+            if(act instanceof TextBlockWidget){
                 act.div.id = getBlockId(id);
             }
-            else if(act instanceof SelectionAction){
-                const block = this.actions.find(x => x.id == (act as SelectionAction).refId);
+            else if(act instanceof SelectionWidget){
+                const block = this.actions.find(x => x.id == (act as SelectionWidget).refId);
                 console.assert(block != undefined);
     
                 act.refId = this.actions.indexOf(block!);
@@ -327,7 +327,7 @@ export class UIEdit extends UI {
         });
     }
 
-    setTextBlockEventListener(act: TextBlockAction){
+    setTextBlockEventListener(act: TextBlockWidget){
         setTextBlockEventListener(act);
     }
 
@@ -354,20 +354,20 @@ export class UIEdit extends UI {
         this.board.appendChild(h1);
     
         for(let [id, obj] of doc.actions.entries()){
-            let act: Action;
+            let act: Widget;
     
             switch(obj.type){
             case "text":
-                act = new TextBlockAction(this, (obj as TextBlockAction).text);
+                act = new TextBlockWidget(this, (obj as TextBlockWidget).text);
                 break;
             
             case "speech":
-                act = new SpeechAction(this, (obj as SpeechAction).text);
+                act = new SpeechWidget(this, (obj as SpeechWidget).text);
                 break;
     
             case "select":
-                // let sel = obj as SelectionAction;
-                // act = new SelectionAction(this, sel.refId, sel.domType, sel.startIdx, sel.endIdx, sel.color);
+                // let sel = obj as SelectionWidget;
+                // act = new SelectionWidget(this, sel.refId, sel.domType, sel.startIdx, sel.endIdx, sel.color);
                 continue;
     
             case "disable":
@@ -399,15 +399,15 @@ export class UIEdit extends UI {
 
 declare let MathJax:any;
 
-function getActionId(id: string) : number {
+function getWidgetId(id: string) : number {
     console.assert(id.startsWith(idPrefix));
     return parseInt(id.substring(idPrefix.length));
 }
 
 
-let selAct: SelectionAction | null = null;
+let selAct: SelectionWidget | null = null;
 
-export function onClickPointerMove(act:TextBlockAction, ev: PointerEvent | MouseEvent, is_click: boolean){
+export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | MouseEvent, is_click: boolean){
     for(let ele = ev.srcElement as HTMLElement; ele; ele = ele.parentElement!){
         if([ "MJX-MI", "MJX-MN", "MJX-MO" ].includes(ele.tagName)){
 
@@ -419,10 +419,10 @@ export function onClickPointerMove(act:TextBlockAction, ev: PointerEvent | Mouse
 
                 if(selAct == null){
 
-                    selAct = new SelectionAction(act.ui, getActionId(act.div.id), "math", i, i + 1, act.ui.selectColor);
+                    selAct = new SelectionWidget(act.ui, getWidgetId(act.div.id), "math", i, i + 1, act.ui.selectColor);
                     selAct.enable();
 
-                    (act.ui as UIEdit).addAction(selAct);
+                    (act.ui as UIEdit).addWidget(selAct);
                 }
                 else{
                     selAct = null;
@@ -448,14 +448,14 @@ export function onClickPointerMove(act:TextBlockAction, ev: PointerEvent | Mouse
     }
 }
 
-export function onPointerMove(act:TextBlockAction, ev: PointerEvent){
+export function onPointerMove(act:TextBlockWidget, ev: PointerEvent){
     if(selAct == null){
         return;
     }
     onClickPointerMove(act, ev, false);
 }
 
-export function onClickBlock(act:TextBlockAction, ev:MouseEvent){
+export function onClickBlock(act:TextBlockWidget, ev:MouseEvent){
     msg("clicked");
     ev.stopPropagation();
     onClickPointerMove(act, ev, true);
@@ -543,7 +543,7 @@ function setEventListener(){
     });
 
     document.getElementById("add-empty-action")!.addEventListener("click", (ev: MouseEvent)=>{
-        ui.addEmptyAction();
+        ui.addEmptyWidget();
     });
 
     document.getElementById("update-time-pos")!.addEventListener("click", (ev: MouseEvent)=>{
@@ -555,7 +555,7 @@ function setEventListener(){
     });
 
     document.getElementById("delete-action")!.addEventListener("click", (ev: MouseEvent)=>{
-        ui.deleteAction();
+        ui.deleteWidget();
     });
 
     document.getElementById("put-data")!.addEventListener("click", (ev: MouseEvent)=>{
@@ -563,7 +563,7 @@ function setEventListener(){
     });
 }
 
-function setTextBlockEventListener(act: TextBlockAction){
+function setTextBlockEventListener(act: TextBlockWidget){
     act.div.addEventListener("click", (ev:MouseEvent)=>{
         onClickBlock(act, ev);
     });
@@ -604,8 +604,8 @@ export function setUIEditEventListener(){
     });
 
     ui.lineFeedChk.addEventListener("change", (ev: Event)=>{
-        let act = ui.currentAction();
-        if(act instanceof TextBlockAction){
+        let act = ui.currentWidget();
+        if(act instanceof TextBlockWidget){
 
             act.lineFeed = ui.lineFeedChk.checked;
             act.updateLineFeed();
@@ -619,8 +619,8 @@ export function setUIEditEventListener(){
         inp.addEventListener("click", (ev: MouseEvent)=>{
             ui.selectColor = ui.getSelectColor();
 
-            let act = ui.currentAction();
-            if(act instanceof SelectionAction){
+            let act = ui.currentWidget();
+            if(act instanceof SelectionWidget){
                 act.color = ui.selectColor;
                 act.enable();
             }

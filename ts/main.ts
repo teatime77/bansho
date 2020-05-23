@@ -12,9 +12,9 @@ export const idPrefix = "bansho-id-";
 
 export let colors : string[] = [ "magenta", "blue", "limegreen" ];
 
-let typesetAct : Action | null = null;
+let typesetAct : Widget | null = null;
 
-let typesetQue : [Action, HTMLElement, string][] = [];
+let typesetQue : [Widget, HTMLElement, string][] = [];
 
 function popQue(){
     let div: HTMLElement;
@@ -35,7 +35,7 @@ function popQue(){
 
             MathJax.typesetPromise([div])
             .then(() => {
-                if(typesetAct instanceof TextBlockAction){
+                if(typesetAct instanceof TextBlockWidget){
                     typesetAct.updateLineFeed();
                 }
                 typesetAct = null;
@@ -57,13 +57,13 @@ function popQue(){
     }
 }
 
-export function reprocessMathJax(act: Action, div: HTMLDivElement | HTMLSpanElement, html: string){
+export function reprocessMathJax(act: Widget, div: HTMLDivElement | HTMLSpanElement, html: string){
     typesetQue.push([act, div, html]);
     popQue();
 }
 
 export class UI {
-    actions : Action[] = [];
+    actions : Widget[] = [];
     prevTimePos : number;
     pauseFlag : boolean;
 
@@ -106,7 +106,7 @@ export class UI {
         div.appendChild(this.caption);
     }
 
-    setTextBlockEventListener(act: TextBlockAction){}
+    setTextBlockEventListener(act: TextBlockWidget){}
         
     onOpenDocComplete = ()=>{
         this.btnPlayPause.disabled = false;
@@ -117,7 +117,7 @@ export class UI {
         if(this.isPlaying){
     
             this.btnPlayPause.disabled = true;
-            pauseAction(this, ()=>{
+            pauseWidget(this, ()=>{
                 this.btnPlayPause.disabled = false;
                 this.btnPlayPause.innerHTML = "▶️";
             });
@@ -125,7 +125,7 @@ export class UI {
         else{
     
             this.btnPlayPause.innerHTML = "⏸";
-            this.playActions(()=>{
+            this.playWidgets(()=>{
     
                 this.btnPlayPause.innerHTML = "▶️";
                 this.isPlaying = false;
@@ -137,8 +137,8 @@ export class UI {
 
     rngTimelineChange(){
         msg(`changed`);
-        while(this.actions.some(x => x instanceof EmptyAction)){
-            let idx = this.actions.findIndex(x => x instanceof EmptyAction);
+        while(this.actions.some(x => x instanceof EmptyWidget)){
+            let idx = this.actions.findIndex(x => x instanceof EmptyWidget);
             this.actions.splice(idx, 1);
         }
     
@@ -147,14 +147,14 @@ export class UI {
         this.updateTimePos(this.timeline.valueAsNumber);
     }
 
-    getActionById(id: number) : Action {
+    getWidgetById(id: number) : Widget {
         let act = this.actions.find(x => x.id == id);
         console.assert(act != undefined);
 
         return act!;
     }
 
-    currentAction() : Action | undefined {
+    currentWidget() : Widget | undefined {
         if(this.timeline.valueAsNumber != -1){
             return this.actions[this.timeline.valueAsNumber];
         }
@@ -185,8 +185,8 @@ export class UI {
     
         this.prevTimePos = pos;
     
-        let act = this.currentAction();
-        if(act instanceof SpeechAction){
+        let act = this.currentWidget();
+        if(act instanceof SpeechWidget){
             
             let [caption, speech] = act.getCaptionSpeech();
             this.caption.textContent = caption;
@@ -198,7 +198,7 @@ export class UI {
         }
     }    
     
-    playActions(oncomplete:()=>void){
+    playWidgets(oncomplete:()=>void){
         function* fnc(ui: UI){
             let startPos = Math.max(0, ui.timeline.valueAsNumber);
     
@@ -230,7 +230,7 @@ export class UI {
 }
 
 
-export class Action{
+export class Widget{
     ui: UI;
     typeName: string;
     id: number;
@@ -271,15 +271,15 @@ export class Action{
     }
 }
 
-export class EmptyAction extends Action {
+export class EmptyWidget extends Widget {
     summary() : string {
         return "空";
     }
 }
 
-export class SelectionAction extends Action {
+export class SelectionWidget extends Widget {
     refId: number;
-    textAct: TextBlockAction;
+    textAct: TextBlockWidget;
     domType: string;
     startIdx: number = -1;
     endIdx: number = -1;
@@ -290,7 +290,7 @@ export class SelectionAction extends Action {
         super(ui);
         this.refId   = refId;        
 
-        this.textAct  = ui.getActionById(refId) as TextBlockAction;
+        this.textAct  = ui.getWidgetById(refId) as TextBlockWidget;
         this.domType  = domType;
         this.startIdx = startIdx;
         this.endIdx   = endIdx;
@@ -363,7 +363,7 @@ export class SelectionAction extends Action {
     }
 }
 
-export class TextAction extends Action {
+export class TextWidget extends Widget {
     text: string;
 
     constructor(ui: UI, text: string){
@@ -372,7 +372,7 @@ export class TextAction extends Action {
     }
 }
 
-export class SpeechAction extends TextAction {
+export class SpeechWidget extends TextWidget {
 
     constructor(ui: UI, text: string){
         super(ui, text);
@@ -436,7 +436,7 @@ export class SpeechAction extends TextAction {
     }
 }
 
-export class TextBlockAction extends TextAction {
+export class TextBlockWidget extends TextWidget {
     div: HTMLDivElement;
     lineFeed: boolean = false;
     initialize = false;
@@ -449,7 +449,7 @@ export class TextBlockAction extends TextAction {
         if(this.ui.timeline.valueAsNumber != -1){
 
             for(let act of this.ui.actions.slice(this.ui.timeline.valueAsNumber + 1)){
-                if(act instanceof TextBlockAction){
+                if(act instanceof TextBlockWidget){
                     nextEle = act.div;
                     break;
                 }
@@ -521,7 +521,7 @@ export function getBlockId(refId: number) : string {
 }
 
 
-export function pauseAction(ui: UI, fnc:()=>void){
+export function pauseWidget(ui: UI, fnc:()=>void){
     ui.pauseFlag = true;
     cancelSpeech();
 
