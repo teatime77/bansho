@@ -1,6 +1,8 @@
-import { UI, colors, Widget, EmptyWidget, TextBlockWidget, SelectionWidget, TextWidget, SpeechWidget, getBlockId, idPrefix, reprocessMathJax } from "./main";
-import { fetchText, reviseJson, last, makeHtmlLines, msg, runGenerator } from "./util";
+import { UI } from "./main";
+import { fetchText, reviseJson, last, makeHtmlLines, msg, runGenerator, getBlockId, idPrefix, colors } from "./util";
 import { initSpeech } from "./speech";
+import { glb, Widget, EmptyWidget, TextBlockWidget, SelectionWidget, TextWidget, reprocessMathJax } from "./widget";
+import { SpeechWidget } from "./speech";
 
 export let speechInput : boolean;
 
@@ -25,13 +27,11 @@ export class UIEdit extends UI {
 
         // colors = this.selColors.map(x => x.value);
 
-        this.actions = [];
-
-        this.board.innerHTML = "";
+        glb.board.innerHTML = "";
         this.updateSummaryTextArea();
 
         this.addEmptyWidget();
-        this.selectColor = this.getSelectColor();
+        glb.selectColor = this.getSelectColor();
 
         let path = div.getAttribute("data-path");
         if(path != null){
@@ -45,73 +45,73 @@ export class UIEdit extends UI {
     }
 
     addWidget(act: Widget){
-        let selIdx = this.timeline.valueAsNumber + 1;
+        let selIdx = glb.timeline.valueAsNumber + 1;
     
-        this.actions.splice(selIdx, 0, act);
+        glb.widgets.splice(selIdx, 0, act);
     
-        this.timeline.max = `${this.actions.length - 1}`;
+        glb.timeline.max = `${glb.widgets.length - 1}`;
         this.updateTimePos(selIdx);
     
         this.textArea.focus();
     }
 
     setWidget(act: Widget){
-        let selIdx = this.timeline.valueAsNumber;
+        let selIdx = glb.timeline.valueAsNumber;
 
-        console.assert(this.actions[selIdx] instanceof EmptyWidget);
-        this.actions[selIdx] = act;
+        console.assert(glb.widgets[selIdx] instanceof EmptyWidget);
+        glb.widgets[selIdx] = act;
         this.summary.textContent = act.summary();
     }
 
     resetWidget(){
-        let selIdx = this.timeline.valueAsNumber;
+        let selIdx = glb.timeline.valueAsNumber;
 
-        const act = this.actions[selIdx] as TextBlockWidget;
+        const act = glb.widgets[selIdx] as TextBlockWidget;
         if(act instanceof TextBlockWidget){
 
-            this.board.removeChild(act.div);
+            glb.board.removeChild(act.div);
         }
 
-        this.actions[selIdx] = new EmptyWidget(this);
-        this.summary.textContent = this.actions[selIdx].summary();
+        glb.widgets[selIdx] = new EmptyWidget();
+        this.summary.textContent = glb.widgets[selIdx].summary();
     }
 
     addEmptyWidget(){
-        this.addWidget(new EmptyWidget(this));
+        this.addWidget(new EmptyWidget());
     }
 
     deleteWidget(){
-        if(this.timeline.valueAsNumber == -1){
+        if(glb.timeline.valueAsNumber == -1){
             return;
         }
 
         let fnc = (act: Widget)=>{
 
-            const refActs = this.actions.filter(x => x instanceof SelectionWidget && x.refId == act.id) as SelectionWidget[];
+            const refActs = glb.widgets.filter(x => x instanceof SelectionWidget && x.refId == act.id) as SelectionWidget[];
 
             refActs.forEach(x => fnc(x));
 
             act.disable();
             if(act instanceof TextBlockWidget){
 
-                this.board.removeChild(act.div);
+                glb.board.removeChild(act.div);
             }
         
-            let idx = this.actions.indexOf(act);
+            let idx = glb.widgets.indexOf(act);
             console.assert(idx != -1);
-            this.actions.splice(idx, 1);
+            glb.widgets.splice(idx, 1);
         }
 
-        fnc(this.actions[this.timeline.valueAsNumber]);
+        fnc(glb.widgets[glb.timeline.valueAsNumber]);
 
-        let selIdx = this.timeline.valueAsNumber;
-        this.timeline.max = `${this.actions.length - 1}`;
+        let selIdx = glb.timeline.valueAsNumber;
+        glb.timeline.max = `${glb.widgets.length - 1}`;
 
-        if(selIdx < this.actions.length){
-            this.actions[selIdx].enable();
+        if(selIdx < glb.widgets.length){
+            glb.widgets[selIdx].enable();
         }
 
-        this.updateTimePos( Math.min(selIdx, this.actions.length - 1) );
+        this.updateTimePos( Math.min(selIdx, glb.widgets.length - 1) );
     }
 
     updateTimePos(pos: number){
@@ -140,9 +140,9 @@ export class UIEdit extends UI {
         this.textArea.value = "";
         this.summary.textContent = "";
 
-        if(this.timeline.valueAsNumber != -1){
+        if(glb.timeline.valueAsNumber != -1){
 
-            const act = this.actions[this.timeline.valueAsNumber];
+            const act = glb.widgets[glb.timeline.valueAsNumber];
             if(act instanceof TextWidget){
 
                 this.textArea.value = act.text;
@@ -187,12 +187,12 @@ export class UIEdit extends UI {
 
                 if(speechInput){
 
-                    const newAct = new SpeechWidget(this, text);
+                    const newAct = new SpeechWidget(text);
                     this.setWidget(newAct);    
                 }
                 else{
 
-                    const newAct = new TextBlockWidget(this, text);
+                    const newAct = new TextBlockWidget(text);
                     
                     this.setWidget(newAct);                    
                 }
@@ -268,26 +268,26 @@ export class UIEdit extends UI {
         return `{
       "title": "${title}",
       "actions": [
-    ${this.actions.filter(x => !(x instanceof EmptyWidget)) .map(x => "    " + x.toStr()).join(",\n")}
+    ${glb.widgets.filter(x => !(x instanceof EmptyWidget)) .map(x => "    " + x.toStr()).join(",\n")}
       ]
     }`
     }
     
     renumId(){
-        for(let [id, act] of this.actions.entries()){
+        for(let [id, act] of glb.widgets.entries()){
             if(act instanceof TextBlockWidget){
                 act.div.id = getBlockId(id);
             }
             else if(act instanceof SelectionWidget){
-                const block = this.actions.find(x => x.id == (act as SelectionWidget).refId);
+                const block = glb.widgets.find(x => x.id == (act as SelectionWidget).refId);
                 console.assert(block != undefined);
     
-                act.refId = this.actions.indexOf(block!);
+                act.refId = glb.widgets.indexOf(block!);
                 console.assert(act.refId != -1);
             }
         }
     
-        for(let [id, act] of this.actions.entries()){
+        for(let [id, act] of glb.widgets.entries()){
             act.id = id;
         }
     }
@@ -325,11 +325,6 @@ export class UIEdit extends UI {
             console.error('Error:', error)
         });
     }
-
-    setTextBlockEventListener(act: TextBlockWidget){
-        setTextBlockEventListener(act);
-    }
-
     
     openDoc(path: string){
         fetchText(`json/${path}.json`, (text: string)=>{
@@ -338,9 +333,9 @@ export class UIEdit extends UI {
     }
     
     deserializeDoc(text: string){
-        this.actions = [];
+        glb.widgets = [];
     
-        this.board.innerHTML = "";
+        glb.board.innerHTML = "";
     
         const doc = JSON.parse(reviseJson(text));
 
@@ -350,18 +345,18 @@ export class UIEdit extends UI {
     
         const h1 = document.createElement("h1");
         h1.innerHTML = doc.title;
-        this.board.appendChild(h1);
+        glb.board.appendChild(h1);
     
         for(let [id, obj] of doc.actions.entries()){
             let act: Widget;
     
             switch(obj.type){
             case "text":
-                act = new TextBlockWidget(this, (obj as TextBlockWidget).text);
+                act = new TextBlockWidget((obj as TextBlockWidget).text);
                 break;
             
             case "speech":
-                act = new SpeechWidget(this, (obj as SpeechWidget).text);
+                act = new SpeechWidget((obj as SpeechWidget).text);
                 break;
     
             case "select":
@@ -378,87 +373,25 @@ export class UIEdit extends UI {
             }
             // console.assert(act.id == id);
     
-            this.actions.push(act);
+            glb.widgets.push(act);
     
-            this.timeline.max = `${this.actions.length - 1}`;
-            this.timeline.valueAsNumber = this.actions.length - 1;
+            glb.timeline.max = `${glb.widgets.length - 1}`;
+            glb.timeline.valueAsNumber = glb.widgets.length - 1;
         }
     
         if(UIEdit != undefined && this instanceof UIEdit){
     
-            this.summary.textContent = last(this.actions).summary();
+            this.summary.textContent = last(glb.widgets).summary();
         }
     
-        this.timeline.max = `${this.actions.length - 1}`;
+        glb.timeline.max = `${glb.widgets.length - 1}`;
         this.updateTimePos(-1);    
         this.onOpenDocComplete();
     }
 
 }
 
-declare let MathJax:any;
 
-function getWidgetId(id: string) : number {
-    console.assert(id.startsWith(idPrefix));
-    return parseInt(id.substring(idPrefix.length));
-}
-
-
-let selAct: SelectionWidget | null = null;
-
-export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | MouseEvent, is_click: boolean){
-    for(let ele = ev.srcElement as HTMLElement; ele; ele = ele.parentElement!){
-        if([ "MJX-MI", "MJX-MN", "MJX-MO" ].includes(ele.tagName)){
-
-            let v = Array.from(act.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
-            let i = v.indexOf(ele);
-            console.assert(i != -1);
-
-            if(is_click){
-
-                if(selAct == null){
-
-                    selAct = new SelectionWidget(act.ui, getWidgetId(act.div.id), "math", i, i + 1, act.ui.selectColor);
-                    selAct.enable();
-
-                    (act.ui as UIEdit).addWidget(selAct);
-                }
-                else{
-                    selAct = null;
-                }
-            }
-            else{
-                
-                selAct!.endIdx = Math.max(i, selAct!.startIdx) + 1;
-                selAct!.moveBorder();
-            }
-
-
-            msg(`${ele.tagName}`);
-            break;
-        }
-        else{
-
-            msg(`${ele.tagName}`);
-            if(! ele.tagName.startsWith("MJX-")){
-                break;
-            }
-        }
-    }
-}
-
-export function onPointerMove(act:TextBlockWidget, ev: PointerEvent){
-    if(selAct == null){
-        return;
-    }
-    onClickPointerMove(act, ev, false);
-}
-
-export function onClickBlock(act:TextBlockWidget, ev:MouseEvent){
-    msg("clicked");
-    ev.stopPropagation();
-    onClickPointerMove(act, ev, true);
-}
 
 
 export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selColors: HTMLInputElement[], summary : HTMLSpanElement, textArea : HTMLTextAreaElement) : UIEdit {
@@ -471,14 +404,14 @@ export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selCol
 
 
 
-let ui: UIEdit;
+export let ui: UIEdit;
 
 function setEventListener(){
     ui.btnPlayPause.addEventListener("click", (ev: MouseEvent)=>{
         ui.clickPlayPause();
     });
 
-    ui.timeline.addEventListener("change", (ev: Event)=>{
+    glb.timeline.addEventListener("change", (ev: Event)=>{
         ui.rngTimelineChange();
     });
 
@@ -501,28 +434,6 @@ function setEventListener(){
     document.getElementById("put-data")!.addEventListener("click", (ev: MouseEvent)=>{
         putData();
     });
-}
-
-function setTextBlockEventListener(act: TextBlockWidget){
-    act.div.addEventListener("click", (ev:MouseEvent)=>{
-        onClickBlock(act, ev);
-    });
-
-    act.div.addEventListener("pointermove", (ev: PointerEvent)=>{
-        onPointerMove(act, ev);
-    });
-
-    act.div.addEventListener('keydown', (ev) => {
-        msg(`key down ${ev.key} ${ev.ctrlKey}`);
-
-        if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
-            ev.stopPropagation();
-            ev.preventDefault();
-
-            let ele = ev.srcElement as HTMLElement;
-            msg(`del ${ele.tagName} ${ele.id}`);
-        }
-    }, false);
 }
 
 // import {ShoppingList} from "./form.tsx"
@@ -557,11 +468,11 @@ export function setUIEditEventListener(){
 
     for(let inp of ui.selColors){
         inp.addEventListener("click", (ev: MouseEvent)=>{
-            ui.selectColor = ui.getSelectColor();
+            glb.selectColor = ui.getSelectColor();
 
             let act = ui.currentWidget();
             if(act instanceof SelectionWidget){
-                act.color = ui.selectColor;
+                act.color = glb.selectColor;
                 act.enable();
             }
         });
@@ -643,6 +554,90 @@ export function initPlayer(){
             let ui = new UI(div);
         }
     }
+}
+
+glb.setTextBlockEventListener = function (act: TextBlockWidget){
+    act.div.addEventListener("click", (ev:MouseEvent)=>{
+        onClickBlock(act, ev);
+    });
+
+    act.div.addEventListener("pointermove", (ev: PointerEvent)=>{
+        onPointerMove(act, ev);
+    });
+
+    act.div.addEventListener('keydown', (ev) => {
+        msg(`key down ${ev.key} ${ev.ctrlKey}`);
+
+        if(ev.key == "Delete" && ! ev.ctrlKey && ! ev.shiftKey){
+            ev.stopPropagation();
+            ev.preventDefault();
+
+            let ele = ev.srcElement as HTMLElement;
+            msg(`del ${ele.tagName} ${ele.id}`);
+        }
+    }, false);
+}
+
+
+let selAct: SelectionWidget | null = null;
+
+function getWidgetId(id: string) : number {
+    console.assert(id.startsWith(idPrefix));
+    return parseInt(id.substring(idPrefix.length));
+}
+
+export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | MouseEvent, is_click: boolean){
+    for(let ele = ev.srcElement as HTMLElement; ele; ele = ele.parentElement!){
+        if([ "MJX-MI", "MJX-MN", "MJX-MO" ].includes(ele.tagName)){
+
+            let v = Array.from(act.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
+            let i = v.indexOf(ele);
+            console.assert(i != -1);
+
+            if(is_click){
+
+                if(selAct == null){
+
+                    selAct = new SelectionWidget(getWidgetId(act.div.id), "math", i, i + 1, glb.selectColor);
+                    selAct.enable();
+
+                    (ui as UIEdit).addWidget(selAct);
+                }
+                else{
+                    selAct = null;
+                }
+            }
+            else{
+                
+                selAct!.endIdx = Math.max(i, selAct!.startIdx) + 1;
+                selAct!.moveBorder();
+            }
+
+
+            msg(`${ele.tagName}`);
+            break;
+        }
+        else{
+
+            msg(`${ele.tagName}`);
+            if(! ele.tagName.startsWith("MJX-")){
+                break;
+            }
+        }
+    }
+}
+
+export function onPointerMove(act:TextBlockWidget, ev: PointerEvent){
+    if(selAct == null){
+        return;
+    }
+    onClickPointerMove(act, ev, false);
+}
+
+export function onClickBlock(act:TextBlockWidget, ev:MouseEvent){
+    msg("clicked");
+    ev.stopPropagation();
+    onClickPointerMove(act, ev, true);
 }
 
 // }

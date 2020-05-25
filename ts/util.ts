@@ -33,6 +33,13 @@ export function last<T>(v:Array<T>) : T{
     return v[v.length - 1];
 }
 
+export const idPrefix = "bansho-id-";
+
+export let colors : string[] = [ "magenta", "blue", "limegreen" ];
+
+export function getBlockId(refId: number) : string {
+    return `${idPrefix}${refId}`;
+}
 
 function getIndent(line: string) : [number, string]{
     let indent = 0;
