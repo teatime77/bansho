@@ -46,6 +46,8 @@ module.exports = {
     externals: {
         "react": "React",
         "react-dom": "ReactDOM",
-        "@reduxjs": "@reduxjs"
+        "@reduxjs": "@reduxjs",
+        "redux": "Redux",
+        "react-redux": "ReactRedux"
     }
 };

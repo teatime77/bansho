@@ -1,7 +1,6 @@
 import { UI, colors, Widget, EmptyWidget, TextBlockWidget, SelectionWidget, TextWidget, SpeechWidget, getBlockId, idPrefix, reprocessMathJax } from "./main";
 import { fetchText, reviseJson, last, makeHtmlLines, msg, runGenerator } from "./util";
 import { initSpeech } from "./speech";
-import { configureStore, createSlice } from '@reduxjs/toolkit'
 
 export let speechInput : boolean;
 
@@ -463,8 +462,6 @@ export function onClickBlock(act:TextBlockWidget, ev:MouseEvent){
 
 
 export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selColors: HTMLInputElement[], summary : HTMLSpanElement, textArea : HTMLTextAreaElement) : UIEdit {
-    initRedux();
-
     initSpeech();
 
     msg("body loaded");
@@ -472,64 +469,7 @@ export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selCol
     return new UIEdit(div, txtTitle, selColors, summary, textArea);
 }
 
-function initRedux(){
-    console.log("hello body");
 
-    // let RTK = {
-    //   "createSlice": createSlice,
-    //   "configureStore": configureStore
-    // }
-    // const RTK = (window  as any).RTK;
-
-    const counterSlice = createSlice({
-        name: "counter",
-        initialState: 0,
-        reducers: {
-            increment: (state: number) => {
-                msg("inc");
-                return state + 1;
-            },
-            decrement: (state: number) => {
-                msg("dec");
-                return state - 1;
-            }
-        }
-    });
-
-    const { increment, decrement } = counterSlice.actions;
-
-    const store = configureStore({ reducer: counterSlice.reducer });
-    const valueEl = document.getElementById("value")!;
-
-    function render() {
-        msg("render");
-        valueEl.innerHTML = store.getState().toString();
-    }
-
-    render();
-    store.subscribe(render);
-
-    document.getElementById("increment")!.addEventListener("click", function() {
-        store.dispatch(increment());
-        store.dispatch(increment());
-    });
-
-    document.getElementById("decrement")!.addEventListener("click", function() {
-        store.dispatch(decrement());
-    });
-
-    document.getElementById("incrementIfOdd")!.addEventListener("click", function() {
-        if (store.getState() % 2 !== 0) {
-          store.dispatch(increment());
-        }
-    });
-
-    document.getElementById("incrementAsync")!.addEventListener("click", function() {
-        setTimeout(function() {
-          store.dispatch(increment());
-        }, 1000);
-    });
-}
 
 let ui: UIEdit;
 

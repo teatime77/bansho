@@ -1,9 +1,5 @@
 import { msg, runGenerator, tostr, makeHtmlLines } from "./util";
-// import { reprocessMathJax, UIEdit, onClickBlock, onPointerMove } from "./edit";
 import { speak, cancelSpeech, isSpeaking, initSpeech } from "./speech";
-
-// import { combineReducers } from '@reduxjs/toolkit'
-// import { createSlice, configureStore } from '@types/react';
 
 // namespace bansho {
 declare let MathJax:any;
