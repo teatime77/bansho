@@ -1,35 +1,8 @@
 import { tostr, getBlockId, makeHtmlLines, colors, msg, idPrefix } from "./util";
+import { glb } from "./main";
+import { setTextBlockEventListener, reprocessMathJax } from "./event";
 
-
-export class Glb {
-    widgets : Widget[] = [];
-    caption: HTMLSpanElement;
-    timeline : HTMLInputElement;
-    board : HTMLDivElement;
-    selectColor : number = 0;
-    setTextBlockEventListener: ((act: TextBlockWidget)=>void) | undefined = undefined;
-
-    constructor(){
-        this.caption  = document.createElement("h3");
-        this.caption.style.textAlign = "center";
-
-        this.timeline = document.createElement("input");
-        this.timeline.type = "range";
-        this.timeline.min ="-1";
-        this.timeline.max = "-1";
-        this.timeline.value = "-1";
-        this.timeline.step = "1";
-        this.timeline.style.width = "100%";
-
-        this.board    = document.createElement("div");
-        this.board.style.overflow = "scroll";
-        this.board.style.borderStyle = "inset";
-        this.board.style.borderWidth = "3px";
-
-    }
-}
-
-export let glb: Glb = new Glb();
+// namespace bansho {
 
 export class Widget{
     typeName: string;
@@ -201,7 +174,7 @@ export class TextBlockWidget extends TextWidget {
     
         this.div.tabIndex = 0;
         
-        glb.setTextBlockEventListener!(this);
+        setTextBlockEventListener!(this);
     }
 
     enable(){
@@ -259,56 +232,4 @@ function getWidgetById(id: number) : Widget {
     return act!;
 }
 
-
-declare let MathJax:any;
-
-let typesetAct : Widget | null = null;
-
-let typesetQue : [Widget, HTMLElement, string][] = [];
-
-function popQue(){
-    let div: HTMLElement;
-    let text: string;
-
-    if(typesetAct != null){
-        // typesetの処理中の場合
-
-        return;
-    }
-
-    while(typesetQue.length != 0){
-
-        [typesetAct, div, text] = typesetQue.shift()!;
-        div.textContent = text;
-
-        if(text.includes("$")){
-
-            MathJax.typesetPromise([div])
-            .then(() => {
-                if(typesetAct instanceof TextBlockWidget){
-                    typesetAct.updateLineFeed();
-                }
-                typesetAct = null;
-
-                if(typesetQue.length != 0){
-                    popQue();
-                }
-            })
-            .catch((err: any) => {
-                console.log(err.message);
-            });
-
-            break;
-        }
-        else{
-
-            typesetAct = null;
-        }
-    }
-}
-
-export function reprocessMathJax(act: Widget, div: HTMLDivElement | HTMLSpanElement, html: string){
-    typesetQue.push([act, div, html]);
-    popQue();
-}
-
+// }

@@ -1,6 +1,5 @@
-// import { textMsg } from "./main";
-
 // namespace bansho {
+
 export const padding = 10;
 const endMark = "⛩";
 let stopPlaying: boolean = false;

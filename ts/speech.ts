@@ -1,6 +1,7 @@
-/// <reference path="main.ts" />
 import { msg, tostr } from "./util";
-import { glb, TextWidget, reprocessMathJax } from "./widget";
+import { TextWidget } from "./widget";
+import { reprocessMathJax } from "./event";
+import { glb } from "./main";
 
 // namespace bansho {
 export let isSpeaking = false;
