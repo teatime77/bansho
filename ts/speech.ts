@@ -1,8 +1,3 @@
-// import { msg, tostr } from "./util";
-// import { TextWidget } from "./widget";
-// import { reprocessMathJax } from "./event";
-// import { glb } from "./main";
-
 namespace bansho {
 export let isSpeaking = false;
 let voiceList: string[]|null = null;

@@ -1,14 +1,8 @@
-// import  { colors, idPrefix, last, msg, getBlockId, fetchText, reviseJson, runGenerator, tostr, makeHtmlLines } from "./util";
-// import { speak, cancelSpeech, isSpeaking, initSpeech } from "./speech";
-// import { Widget, EmptyWidget, TextBlockWidget, SelectionWidget, TextWidget } from "./widget"
-// import { SpeechWidget } from "./speech";
-// import { setEventListener, setUIEditEventListener, reprocessMathJax } from "./event";
-
 namespace bansho {
 
 export class Glb {
     widgets : Widget[] = [];
-    caption: HTMLSpanElement;
+    caption: HTMLHeadingElement;
     timeline : HTMLInputElement;
     board : HTMLDivElement;
     selectColor : number = 0;
@@ -17,21 +11,10 @@ export class Glb {
 
     constructor(ui: UI){
         this.ui = ui;
-        this.caption  = document.createElement("h3");
-        this.caption.style.textAlign = "center";
 
-        this.timeline = document.createElement("input");
-        this.timeline.type = "range";
-        this.timeline.min ="-1";
-        this.timeline.max = "-1";
-        this.timeline.value = "-1";
-        this.timeline.step = "1";
-        this.timeline.style.width = "100%";
-
-        this.board    = document.createElement("div");
-        this.board.style.overflow = "scroll";
-        this.board.style.borderStyle = "inset";
-        this.board.style.borderWidth = "3px";
+        this.caption  = document.getElementById("caption") as HTMLHeadingElement;
+        this.timeline = document.getElementById("timeline") as HTMLInputElement;
+        this.board    = document.getElementById("board") as HTMLDivElement;
     }
 }
 
@@ -52,47 +35,29 @@ export class UI {
     txtTitle: HTMLInputElement;
     summary : HTMLSpanElement;
 
-    constructor(div: HTMLDivElement, title: HTMLInputElement, selColors: HTMLInputElement[], summary : HTMLSpanElement, textArea : HTMLTextAreaElement){
+    constructor(){
         glb = new Glb(this);
 
         this.prevTimePos = -1;
         this.pauseFlag = false;
 
-        this.btnPlayPause = document.createElement("button");
-        this.btnPlayPause.disabled = true;
-        this.btnPlayPause.style.fontFamily = "Segoe UI Emoji";
-        this.btnPlayPause.style.fontSize = "40px";
-        this.btnPlayPause.innerHTML = "⏹";
-        div.appendChild(this.btnPlayPause);
+        this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
 
-        div.appendChild(glb.timeline);
-
-        div.appendChild(glb.board);
-
-        div.appendChild(glb.caption);
-
-
-        this.txtTitle = title;
-        this.selColors = selColors;
+        this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.lineFeedChk = document.getElementById("line-feed") as HTMLInputElement;
-        this.summary = summary;
-        this.textArea = textArea;
+        this.summary = document.getElementById("spn-summary") as HTMLSpanElement;
+        this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
 
-        this.textArea.style.backgroundColor = "white";
+        this.selColors = [
+            document.getElementById("color-0") as HTMLInputElement,
+            document.getElementById("color-1") as HTMLInputElement,
+            document.getElementById("color-2") as HTMLInputElement
+        ];
 
-        // colors = this.selColors.map(x => x.value);
-
-        glb.board.innerHTML = "";
         this.updateSummaryTextArea();
 
         this.addEmptyWidget();
         glb.selectColor = this.getSelectColor();
-
-        let path = div.getAttribute("data-path");
-        if(path != null){
-
-            this.openDoc(path);
-        }
     }
         
     onOpenDocComplete = ()=>{
@@ -119,7 +84,6 @@ export class UI {
             });
         }
         this.isPlaying = ! this.isPlaying;
-        // document.getElementById("btn-play").style.display="none";
     }
 
     rngTimelineChange(){
@@ -553,39 +517,12 @@ export class UI {
 
 }
 
-
-
-
-export function initEdit(div: HTMLDivElement, txtTitle: HTMLInputElement, selColors: HTMLInputElement[], summary : HTMLSpanElement, textArea : HTMLTextAreaElement) : UI {
-    initSpeech();
-
-    msg("body loaded");
-
-    return new UI(div, txtTitle, selColors, summary, textArea);
-}
-
-
-
-// export let ui: UIEdit;
-
-
-// import {ShoppingList} from "./form.tsx"
-
-
 export function bodyOnload(){
     console.log("body load");
 
-    let div = document.getElementById("bansho") as HTMLDivElement;
-    let txtTitle = document.getElementById("txt-title") as HTMLInputElement;
-    let selColors = [
-        document.getElementById("color-0") as HTMLInputElement,
-        document.getElementById("color-1") as HTMLInputElement,
-        document.getElementById("color-2") as HTMLInputElement
-    ];
-    let summary  = document.getElementById("spn-summary") as HTMLSpanElement;
-    let textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
+    initSpeech();
 
-    let ui = initEdit(div, txtTitle, selColors, summary, textArea);
+    let ui = new UI();
 
     setEventListener(ui);
     setUIEditEventListener(ui);

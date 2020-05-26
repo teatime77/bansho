@@ -23,11 +23,12 @@ MathJax = {
 </script>
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="js/util.js" ></script>
-<script src="js/widget.js" ></script>
-<script src="js/event.js" ></script>
-<script src="js/speech.js" ></script>
-<script src="js/main.js" ></script>
+
+<script src="js/util.js?ver=1" ></script>
+<script src="js/widget.js?ver=1" ></script>
+<script src="js/event.js?ver=1" ></script>
+<script src="js/speech.js?ver=1" ></script>
+<script src="js/main.js?ver=1" ></script>
 
 <style type="text/css">
 html {
@@ -62,23 +63,13 @@ input[type="radio"]:checked + label {
 
 </head>
 
-<body onload="bansho.bodyOnload()">
-<!-- <body> -->
-    <div id="example"></div>
-    <div id="example2"></div>
-    <div id="test"></div>
-
-<div>
-    <p>
-        Clicked: <span id="value">0</span> times
-        <button id="increment">+</button>
-        <button id="decrement">-</button>
-        <button id="incrementIfOdd">Increment if odd</button>
-        <button id="incrementAsync">Increment async</button>
-    </p>
+<body onload="bansho.bodyOnload()"> 
+<div style="width: 100%; height: 70%;">
+    <button id="play-pause" disabled style="font-family: 'Segoe UI Emoji'; font-size: 40px;" >⏹</button>
+    <input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
+    <div id="board" style="overflow: scroll; border-style: inset; border-width: 3px;"></div>
+    <h3 id="caption" style="text-align: center;" ></h3>
 </div>
-  
-<div id="bansho" style="width: 100%; height: 70%;"></div>
 <button id="add-empty-action" style="font-family: Segoe UI Emoji;">➕</button>
 <button id="update-time-pos" style="font-family: Segoe UI Emoji;" >⏮</button>
 <button id="get-data" >開く</button>

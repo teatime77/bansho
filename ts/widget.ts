@@ -1,7 +1,3 @@
-// import { tostr, getBlockId, makeHtmlLines, colors, msg, idPrefix } from "./util";
-// import { glb } from "./main";
-// import { setTextBlockEventListener, reprocessMathJax } from "./event";
-
 namespace bansho {
 
 export class Widget{
