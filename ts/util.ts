@@ -1,4 +1,4 @@
-// namespace bansho {
+namespace bansho {
 
 export const padding = 10;
 const endMark = "⛩";
@@ -195,4 +195,4 @@ export function runGenerator(gen: IterableIterator<any>){
 }
 
 
-// }
+}

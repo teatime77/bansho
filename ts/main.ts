@@ -1,11 +1,10 @@
-import  { colors, idPrefix, last, msg, getBlockId, fetchText, reviseJson, runGenerator, tostr, makeHtmlLines } from "./util";
+// import  { colors, idPrefix, last, msg, getBlockId, fetchText, reviseJson, runGenerator, tostr, makeHtmlLines } from "./util";
+// import { speak, cancelSpeech, isSpeaking, initSpeech } from "./speech";
+// import { Widget, EmptyWidget, TextBlockWidget, SelectionWidget, TextWidget } from "./widget"
+// import { SpeechWidget } from "./speech";
+// import { setEventListener, setUIEditEventListener, reprocessMathJax } from "./event";
 
-// namespace bansho {
-
-import { speak, cancelSpeech, isSpeaking, initSpeech } from "./speech";
-import { Widget, EmptyWidget, TextBlockWidget, SelectionWidget, TextWidget } from "./widget"
-import { SpeechWidget } from "./speech";
-import { setEventListener, setUIEditEventListener, reprocessMathJax } from "./event";
+namespace bansho {
 
 export class Glb {
     widgets : Widget[] = [];
@@ -702,4 +701,4 @@ export function pauseWidget(ui: UI, fnc:()=>void){
     },10);
 }
 
-// }
+}

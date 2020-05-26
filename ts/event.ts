@@ -1,9 +1,9 @@
 
-// namespace bansho {
+namespace bansho {
 
-import { msg } from "./util";
-import { UI, glb, getData, putData, onClickBlock, onPointerMove } from "./main";
-import { Widget, TextBlockWidget, SelectionWidget } from "./widget";
+// import { msg } from "./util";
+// import { UI, glb, getData, putData, onClickBlock, onPointerMove } from "./main";
+// import { Widget, TextBlockWidget, SelectionWidget } from "./widget";
 
 export function setEventListener(ui: UI){
     ui.btnPlayPause.addEventListener("click", (ev: MouseEvent)=>{
@@ -169,4 +169,4 @@ export function reprocessMathJax(act: Widget, div: HTMLDivElement | HTMLSpanElem
     popQue();
 }
 
-// }
+}

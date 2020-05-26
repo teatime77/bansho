@@ -1,8 +1,8 @@
-import { tostr, getBlockId, makeHtmlLines, colors, msg, idPrefix } from "./util";
-import { glb } from "./main";
-import { setTextBlockEventListener, reprocessMathJax } from "./event";
+// import { tostr, getBlockId, makeHtmlLines, colors, msg, idPrefix } from "./util";
+// import { glb } from "./main";
+// import { setTextBlockEventListener, reprocessMathJax } from "./event";
 
-// namespace bansho {
+namespace bansho {
 
 export class Widget{
     typeName: string;
@@ -232,4 +232,4 @@ function getWidgetById(id: number) : Widget {
     return act!;
 }
 
-// }
+}

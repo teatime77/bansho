@@ -7,27 +7,27 @@
 <title>手計算</title>
 
 <script>
-    MathJax = {
-        tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']]
-        },
-        options: {
-            renderActions: {
-                addMenu: [0, '', '']
-            }
-        },
-        chtml: {
-            scale: 1.0
-        }    
-    };
+MathJax = {
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+    },
+    options: {
+        renderActions: {
+            addMenu: [0, '', '']
+        }
+    },
+    chtml: {
+        scale: 1.0
+    }    
+};
 </script>
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<!-- <script src="node_modules/@reduxjs/toolkit/dist/redux-toolkit.umd.js"></script> -->
-<script src="../node_modules/react/umd/react.development.js"></script>
-<script src="../node_modules/react-dom/umd/react-dom.development.js"></script>
-<script src="../node_modules/react-redux/dist/react-redux.js"></script>
-<script src="../node_modules/redux/dist/redux.js"></script>
+<script src="js/util.js" ></script>
+<script src="js/widget.js" ></script>
+<script src="js/event.js" ></script>
+<script src="js/speech.js" ></script>
+<script src="js/main.js" ></script>
 
 <style type="text/css">
 html {
@@ -62,8 +62,8 @@ input[type="radio"]:checked + label {
 
 </head>
 
-<!-- <body onload="bansho.bodyOnload()"> -->
-<body>
+<body onload="bansho.bodyOnload()">
+<!-- <body> -->
     <div id="example"></div>
     <div id="example2"></div>
     <div id="test"></div>
@@ -96,8 +96,6 @@ path <input id="txt-path" type="text" size="20" value="gauss-int" />
 title<input id="txt-title" type="text" size="20" />
 x = -b \pm \frac{\sqrt{b^2-4ac}}{2a}
 <textarea id="txt-math" style="width: 100%; height: 20%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk;" spellcheck="false" ></textarea>
-
-<script src="./js/main.js?ver=1" ></script>
 
 </body>
 </html>

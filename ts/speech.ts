@@ -1,9 +1,9 @@
-import { msg, tostr } from "./util";
-import { TextWidget } from "./widget";
-import { reprocessMathJax } from "./event";
-import { glb } from "./main";
+// import { msg, tostr } from "./util";
+// import { TextWidget } from "./widget";
+// import { reprocessMathJax } from "./event";
+// import { glb } from "./main";
 
-// namespace bansho {
+namespace bansho {
 export let isSpeaking = false;
 let voiceList: string[]|null = null;
 let jpVoice : SpeechSynthesisVoice|null = null;
@@ -150,4 +150,4 @@ export function cancelSpeech(){
     }
 }
 
-// }
+}
