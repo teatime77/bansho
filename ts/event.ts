@@ -1,5 +1,8 @@
 namespace bansho {
 
+let prevCharIndex = 0;
+export let TemporarySelections: SelectionWidget[] = [];
+
 export function setEventListener(ui: UI){
     ui.btnPlayPause.addEventListener("click", (ev: MouseEvent)=>{
         ui.clickPlayPause();
@@ -98,6 +101,21 @@ export function setTextBlockEventListener(act: TextBlockWidget){
     }, false);
 }
 
+export function setSpeechEventListener(uttr: SpeechSynthesisUtterance){
+    uttr.onend = function(ev: SpeechSynthesisEvent ) {
+        isSpeaking = false;
+        msg(`end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
+
+        Array.from(TemporarySelections).forEach(x => x.disable());
+        console.assert(TemporarySelections.length == 0);
+    };
+
+    uttr.onboundary = function(ev: SpeechSynthesisEvent ) { 
+        msg(`bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
+        prevCharIndex = ev.charIndex;
+    };
+}
+
 declare let MathJax:any;
 
 let typesetAct : Widget | null = null;
@@ -115,9 +133,11 @@ function popQue(){
     }
 
     while(typesetQue.length != 0){
-
         [typesetAct, div, text] = typesetQue.shift()!;
         div.textContent = text;
+
+        let selections = glb.widgets.filter(x => x instanceof SelectionWidget && x.textAct == typesetAct) as SelectionWidget[];
+        selections.forEach(x => { x.border = null; });
 
         if(text.includes("$")){
 

@@ -58,7 +58,7 @@ export class SelectionWidget extends Widget {
     startIdx: number = -1;
     endIdx: number = -1;
     type: number;
-    border: HTMLDivElement;
+    border: HTMLDivElement | null = null;
 
     constructor(refId: number, startIdx: number, endIdx: number, type: SelectionType){
         super();
@@ -68,17 +68,6 @@ export class SelectionWidget extends Widget {
         this.startIdx = startIdx;
         this.endIdx   = endIdx;
         this.type    = type;
-
-        this.border = document.createElement("div");
-
-        this.border.style.display = "none";
-        this.border.style.position = "absolute";
-        this.border.style.zIndex = "-1";
-        this.border.style.margin = "0px";
-        this.border.style.backgroundColor = "transparent";
-        this.border.style.borderStyle = "solid";
-
-        this.textAct.div.appendChild(this.border);
     }
 
     toStr() : string {
@@ -104,28 +93,53 @@ export class SelectionWidget extends Widget {
 
         let colors = [ "orange", "red", "blue", "green" ];
 
-        this.border.style.borderColor = colors[this.type];
-        this.border.style.display = "inline-block";
+        let border = this.border;
+        if(border == null){
 
-        this.border.style.left   = `${minX - bw - rc0.left}px`;
-        this.border.style.top    = `${minY - bw - rc0.top}px`;
-        this.border.style.width  = `${maxX - minX + 2*bw}px`;
-        this.border.style.height = `${maxY - minY + 2*bw}px`;
-        this.border.style.borderWidth = `${bw}px`;
+            border = document.createElement("div");
+
+            border.style.display = "none";
+            border.style.position = "absolute";
+            border.style.zIndex = "-1";
+            border.style.margin = "0px";
+            border.style.backgroundColor = "transparent";
+            border.style.borderStyle = "solid";
+    
+            this.textAct.div.appendChild(border);
+        }
+
+        border.style.borderColor = colors[this.type];
+        border.style.display = "inline-block";
+
+        border.style.left   = `${minX - bw - rc0.left}px`;
+        border.style.top    = `${minY - bw - rc0.top}px`;
+        border.style.width  = `${maxX - minX + 2*bw}px`;
+        border.style.height = `${maxY - minY + 2*bw}px`;
+        border.style.borderWidth = `${bw}px`;
+
+        this.border = border;
     }
     
     enable(){
         this.moveBorder();
+        if(this.type == SelectionType.temporary){
+            TemporarySelections.push(this);
+        }
     }
 
     disable(){
+        TemporarySelections = TemporarySelections.filter(x => x != this);
+
         let selectedDoms = this.setSelectedDoms();
         for(let dom of selectedDoms){
             dom.style.color = "unset";
             dom.style.backgroundColor = "unset";
         }    
 
-        this.border.style.display = "none";
+        if(this.border != null){
+
+            this.border.style.display = "none";
+        }
     }
 
     summary() : string {
@@ -145,6 +159,70 @@ export class TextWidget extends Widget {
     constructor(text: string){
         super();
         this.text = text;
+    }
+}
+
+export class SpeechWidget extends TextWidget {
+
+    constructor(text: string){
+        super(text);
+    }
+
+    toStr() : string {
+        return `{ "type": "speech", "text":${tostr(this.text)} }`;
+    }
+
+    *play(){
+        this.enable();
+        yield* speak(this);
+    }
+
+    summary() : string {
+        return "音声";
+    }
+
+    getCaptionSpeech(): [string, string]{
+        let caption = "";
+        let speech = "";
+        let st = 0;
+        while(st < this.text.length){
+            let k1 = this.text.indexOf("'", st);
+            if(k1 == -1){
+                caption += this.text.substring(st);
+                speech  += this.text.substring(st);
+                break;
+            }
+    
+            caption += this.text.substring(st, k1);
+            speech  += this.text.substring(st, k1);
+    
+            k1++;
+            let k2 = this.text.indexOf("'", k1);
+            if(k2 == -1){
+    
+                caption += this.text.substring(st);
+                speech  += this.text.substring(st);
+                break;
+            }
+    
+            let v = this.text.substring(k1, k2).split("|");
+            if(v.length != 2){
+    
+                let s = this.text.substring(k1 - 1, k2 + 1)
+                
+                caption += s;
+                speech  += s;
+            }
+            else{
+    
+                caption += v[0];
+                speech  += v[1];
+            }
+    
+            st = k2 + 1;
+        }
+
+        return[caption, speech];
     }
 }
 

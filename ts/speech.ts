@@ -2,73 +2,8 @@ namespace bansho {
 export let isSpeaking = false;
 let voiceList: string[]|null = null;
 let jpVoice : SpeechSynthesisVoice|null = null;
-let prevIdx = 0;
 let voiceName = "Google 日本語";
 // let voiceName = "Microsoft Haruka Desktop - Japanese";
-
-export class SpeechWidget extends TextWidget {
-
-    constructor(text: string){
-        super(text);
-    }
-
-    toStr() : string {
-        return `{ "type": "speech", "text":${tostr(this.text)} }`;
-    }
-
-    *play(){
-        this.enable();
-        yield* speak(this);
-    }
-
-    summary() : string {
-        return "音声";
-    }
-
-    getCaptionSpeech(): [string, string]{
-        let caption = "";
-        let speech = "";
-        let st = 0;
-        while(st < this.text.length){
-            let k1 = this.text.indexOf("'", st);
-            if(k1 == -1){
-                caption += this.text.substring(st);
-                speech  += this.text.substring(st);
-                break;
-            }
-    
-            caption += this.text.substring(st, k1);
-            speech  += this.text.substring(st, k1);
-    
-            k1++;
-            let k2 = this.text.indexOf("'", k1);
-            if(k2 == -1){
-    
-                caption += this.text.substring(st);
-                speech  += this.text.substring(st);
-                break;
-            }
-    
-            let v = this.text.substring(k1, k2).split("|");
-            if(v.length != 2){
-    
-                let s = this.text.substring(k1 - 1, k2 + 1)
-                
-                caption += s;
-                speech  += s;
-            }
-            else{
-    
-                caption += v[0];
-                speech  += v[1];
-            }
-    
-            st = k2 + 1;
-        }
-
-        return[caption, speech];
-    }
-}
 
 function setVoice(){
     const voices = speechSynthesis.getVoices()
@@ -122,15 +57,7 @@ export function* speak(act: SpeechWidget) : any {
     }
 
     isSpeaking = true;
-    uttr.onend = function(ev: SpeechSynthesisEvent ) {
-        isSpeaking = false;
-        msg(`end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevIdx, ev.charIndex)}`);
-    };
-
-    uttr.onboundary = function(ev: SpeechSynthesisEvent ) { 
-        msg(`bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevIdx, ev.charIndex)}`);
-        prevIdx = ev.charIndex;
-    };
+    setSpeechEventListener(uttr);
 
     speechSynthesis.speak(uttr);
 
