@@ -5,7 +5,6 @@ export class Glb {
     caption: HTMLHeadingElement;
     timeline : HTMLInputElement;
     board : HTMLDivElement;
-    selectColor : number = 0;
     speechInput : boolean = false;
     ui: UI;
 
@@ -29,7 +28,6 @@ export class UI {
 
     isPlaying = false;
 
-    selColors: HTMLInputElement[];
     lineFeedChk : HTMLInputElement;
     textArea : HTMLTextAreaElement;
     txtTitle: HTMLInputElement;
@@ -48,16 +46,9 @@ export class UI {
         this.summary = document.getElementById("spn-summary") as HTMLSpanElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
 
-        this.selColors = [
-            document.getElementById("color-0") as HTMLInputElement,
-            document.getElementById("color-1") as HTMLInputElement,
-            document.getElementById("color-2") as HTMLInputElement
-        ];
-
         this.updateSummaryTextArea();
 
         this.addEmptyWidget();
-        glb.selectColor = this.getSelectColor();
     }
         
     onOpenDocComplete = ()=>{
@@ -135,10 +126,6 @@ export class UI {
         }
         
         runGenerator( fnc(this) );
-    }
-
-    getSelectColor(){
-        return colors.indexOf( this.selColors.find(x => x.checked)!.value );
     }
 
     addWidget(act: Widget){
@@ -582,7 +569,20 @@ export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | Mouse
 
                 if(selAct == null){
 
-                    selAct = new SelectionWidget(getWidgetId(act.div.id), "math", i, i + 1, glb.selectColor);
+                    let type = SelectionType.temporary;
+                    if(ev.ctrlKey){
+                        if(ev.shiftKey){
+                            type = SelectionType.third;
+                        }
+                        else{
+                            type = SelectionType.first;
+                        }
+                    }
+                    else if(ev.shiftKey){
+                        type = SelectionType.second;
+                    }
+
+                    selAct = new SelectionWidget(getWidgetId(act.div.id), i, i + 1, type);
                     selAct.enable();
 
                     glb.ui.addWidget(selAct);

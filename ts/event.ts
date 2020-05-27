@@ -59,18 +59,6 @@ export function setUIEditEventListener(ui: UI){
         }
     })
 
-    for(let inp of ui.selColors){
-        inp.addEventListener("click", (ev: MouseEvent)=>{
-            glb.selectColor = ui.getSelectColor();
-
-            let act = ui.currentWidget();
-            if(act instanceof SelectionWidget){
-                act.color = glb.selectColor;
-                act.enable();
-            }
-        });
-    }
-
     ui.textArea.addEventListener("keydown", (ev: KeyboardEvent)=>{
         ui.textAreaKeyDown(ev);
     })
@@ -109,8 +97,6 @@ export function setTextBlockEventListener(act: TextBlockWidget){
         }
     }, false);
 }
-
-
 
 declare let MathJax:any;
 

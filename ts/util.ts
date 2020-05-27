@@ -34,8 +34,6 @@ export function last<T>(v:Array<T>) : T{
 
 export const idPrefix = "bansho-id-";
 
-export let colors : string[] = [ "magenta", "blue", "limegreen" ];
-
 export function getBlockId(refId: number) : string {
     return `${idPrefix}${refId}`;
 }

@@ -1,5 +1,12 @@
 namespace bansho {
 
+export enum SelectionType {
+    temporary,
+    first,
+    second,
+    third
+}
+
 export class Widget{
     typeName: string;
     id: number;
@@ -48,25 +55,34 @@ export class EmptyWidget extends Widget {
 export class SelectionWidget extends Widget {
     refId: number;
     textAct: TextBlockWidget;
-    domType: string;
     startIdx: number = -1;
     endIdx: number = -1;
-    color: number;
-    border: HTMLDivElement | null = null;
+    type: number;
+    border: HTMLDivElement;
 
-    constructor(refId: number, domType: string, startIdx: number, endIdx: number, color: number){
+    constructor(refId: number, startIdx: number, endIdx: number, type: SelectionType){
         super();
         this.refId   = refId;        
 
         this.textAct  = getWidgetById(refId) as TextBlockWidget;
-        this.domType  = domType;
         this.startIdx = startIdx;
         this.endIdx   = endIdx;
-        this.color    = color;
+        this.type    = type;
+
+        this.border = document.createElement("div");
+
+        this.border.style.display = "none";
+        this.border.style.position = "absolute";
+        this.border.style.zIndex = "-1";
+        this.border.style.margin = "0px";
+        this.border.style.backgroundColor = "transparent";
+        this.border.style.borderStyle = "solid";
+
+        this.textAct.div.appendChild(this.border);
     }
 
     toStr() : string {
-        return `{ "type": "select", "refId": ${this.refId}, "domType": "${this.domType}", "startIdx": ${this.startIdx}, "endIdx": ${this.endIdx}, "color": ${this.color} }`;
+        return `{ "type": "select", "refId": ${this.refId}, "startIdx": ${this.startIdx}, "endIdx": ${this.endIdx}, "color": ${this.type} }`;
     }
 
     moveBorder(){
@@ -86,26 +102,20 @@ export class SelectionWidget extends Widget {
 
         let bw = 2;
 
-        this.border!.style.left   = `${minX - bw - rc0.left}px`;
-        this.border!.style.top    = `${minY - bw - rc0.top}px`;
-        this.border!.style.width  = `${maxX - minX + 2*bw}px`;
-        this.border!.style.height = `${maxY - minY + 2*bw}px`;
-        this.border!.style.borderWidth = `${bw}px`;
+        let colors = [ "orange", "red", "blue", "green" ];
+
+        this.border.style.borderColor = colors[this.type];
+        this.border.style.display = "inline-block";
+
+        this.border.style.left   = `${minX - bw - rc0.left}px`;
+        this.border.style.top    = `${minY - bw - rc0.top}px`;
+        this.border.style.width  = `${maxX - minX + 2*bw}px`;
+        this.border.style.height = `${maxY - minY + 2*bw}px`;
+        this.border.style.borderWidth = `${bw}px`;
     }
     
     enable(){
-        if(this.border == null){
-            this.border = document.createElement("div");
-            this.border.style.position = "absolute";
-            this.border.style.zIndex = "-1";
-            this.border.style.margin = "0px";
-            this.border.style.backgroundColor = "transparent";
-            this.border.style.borderStyle = "solid";
-            this.textAct.div.appendChild(this.border);
-        }
         this.moveBorder();
-        this.border.style.borderColor = colors[this.color];
-        this.border.style.display = "inline-block";
     }
 
     disable(){
@@ -115,7 +125,7 @@ export class SelectionWidget extends Widget {
             dom.style.backgroundColor = "unset";
         }    
 
-        this.border!.style.display = "none";
+        this.border.style.display = "none";
     }
 
     summary() : string {
@@ -123,8 +133,6 @@ export class SelectionWidget extends Widget {
     }
 
     setSelectedDoms() : HTMLElement[]{
-        console.assert(this.domType == "math");
-
         let v = Array.from(this.textAct.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
 
         return v.slice(this.startIdx, this.endIdx);
