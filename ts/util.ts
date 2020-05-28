@@ -1,7 +1,6 @@
 namespace bansho {
 
 export const padding = 10;
-const endMark = "⛩";
 let stopPlaying: boolean = false;
 export let textMsg : HTMLDivElement;
 
@@ -123,33 +122,6 @@ export function makeHtmlLines(text: string){
     }
 
     return htmlLines.join("\n");
-}
-
-export function tostr(text: string){
-    if(! text.includes('\n')){
-        return JSON.stringify(text);
-    }
-    else{
-        return `${endMark}${text}${endMark}`;
-    }
-}
-
-export function reviseJson(text:string){
-    let ret = "";
-
-    const el = endMark.length;
-    while(true){
-        let k1 = text.indexOf(endMark);
-        if(k1 == -1){
-            return ret + text;
-        }
-
-        let k2 = text.indexOf(endMark, k1 + el);
-        console.assert(k2 != -1);
-
-        ret += text.substring(0, k1) + JSON.stringify(text.substring(k1 + el, k2));
-        text = text.substring(k2 + el);
-    }
 }
 
 export function fetchText(path:string, fnc:(text: string)=>void){

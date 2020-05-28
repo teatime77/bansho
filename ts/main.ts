@@ -307,7 +307,8 @@ export class UI {
 
                     const newAct = new TextBlockWidget(text);
                     
-                    this.setWidget(newAct);                    
+                    this.setWidget(newAct);
+                    newAct.enable();
                 }
             }
         }
@@ -353,11 +354,6 @@ export class UI {
         if((ev.ctrlKey || ev.shiftKey) && ev.code == "Enter"){
 
             let act = this.currentWidget();
-
-            if(act instanceof TextBlockWidget){
-            
-                act.lineFeed = true;
-            }
 
             this.updateTextMath();
 
@@ -450,7 +446,7 @@ export class UI {
     
         glb.board.innerHTML = "";
     
-        const doc = JSON.parse(reviseJson(text));
+        const doc = JSON.parse(text);
 
         if(UI != undefined && this instanceof UI){
             this.txtTitle.value = doc.title;

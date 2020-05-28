@@ -71,7 +71,7 @@ export class SelectionWidget extends Widget {
     }
 
     toStr() : string {
-        return `{ "type": "select", "refId": ${this.refId}, "startIdx": ${this.startIdx}, "endIdx": ${this.endIdx}, "color": ${this.type} }`;
+        return `{ "type": "select", "refId": ${this.refId}, "startIdx": ${this.startIdx}, "endIdx": ${this.endIdx}, "type": ${this.type} }`;
     }
 
     moveBorder(){
@@ -169,7 +169,7 @@ export class SpeechWidget extends TextWidget {
     }
 
     toStr() : string {
-        return `{ "type": "speech", "text":${tostr(this.text)} }`;
+        return `{ "type": "speech", "text":${JSON.stringify(this.text)} }`;
     }
 
     *play(){
@@ -256,7 +256,7 @@ export class TextBlockWidget extends TextWidget {
     
         this.div.tabIndex = 0;
         
-        setTextBlockEventListener!(this);
+        setTextBlockEventListener(this);
     }
 
     enable(){
@@ -275,7 +275,7 @@ export class TextBlockWidget extends TextWidget {
     }
 
     toStr() : string {
-        return `{ "type": "text", "text":${tostr(this.text)} }`;
+        return `{ "type": "text", "text":${JSON.stringify(this.text)} }`;
     }
 
     summary() : string {
