@@ -509,6 +509,8 @@ export function bodyOnload(){
 
     setEventListener(ui);
     setUIEditEventListener(ui);
+
+    initDraw();
 }
 
 export function getData(){

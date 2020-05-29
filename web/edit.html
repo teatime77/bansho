@@ -29,6 +29,7 @@ MathJax = {
 <script src="js/event.js?ver=1" ></script>
 <script src="js/speech.js?ver=1" ></script>
 <script src="js/main.js?ver=1" ></script>
+<script src="js/shape.js?ver=1" ></script>
 
 <style type="text/css">
 html {
@@ -47,9 +48,13 @@ li {
     margin-bottom: 10px;
 }
 
+/*
+
+CSSでラジオボタンをカスタマイズする方法
+https://proengineer.internous.co.jp/content/columnfeature/6492
 
 input[type=radio] {
-    display: none; /* ラジオボタンを非表示にする */
+    display: none;
 }
 input[type="radio"]:not(:checked) + label  {
     border-style: solid;
@@ -59,31 +64,68 @@ input[type="radio"]:checked + label {
     border-style: ridge;
     border-width: 2px;
 }
+
+*/
 </style>
 
 </head>
 
 <body onload="bansho.bodyOnload()"> 
-<div style="width: 100%; height: 70%;">
-    <button id="play-pause" disabled style="font-family: 'Segoe UI Emoji'; font-size: 40px;" >⏹</button>
-    <input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
-    <div id="board" style="overflow: scroll; border-style: inset; border-width: 3px;"></div>
-    <h3 id="caption" style="text-align: center;" ></h3>
+<div style="display: grid; grid-template-rows:150px 1fr 50px 100px; grid-template-columns:150px 1fr 300px; width: 100%; height: 100%;">
+
+    <div style="grid-row: 1; grid-column: 1/span 3; background-color: cornsilk; ">
+        <button onclick="bansho.addShape()" >図形を挿入</button>
+        <input type="radio" name="tool-type" value="select" />選択
+        <input type="radio" name="tool-type" value="TextSelection" />テキスト選択
+        <input type="radio" name="tool-type" value="Point" />点
+        <input type="radio" name="tool-type" value="LineSegment"  checked />線分
+        <input type="radio" name="tool-type" value="BSpline" />曲線
+        <input type="radio" name="tool-type" value="Rect.1" />長方形
+        <input type="radio" name="tool-type" value="Rect.2" />正方形
+        <input type="radio" name="tool-type" value="Circle.1" />円1
+        <input type="radio" name="tool-type" value="Circle.2" />円2
+        <input type="radio" name="tool-type" value="Triangle" />三角形
+        <input type="radio" name="tool-type" value="Midpoint" />中点
+        <input type="radio" name="tool-type" value="Perpendicular" />垂線
+        <input type="radio" name="tool-type" value="ParallelLine" />平行線
+        <input type="radio" name="tool-type" value="Intersection" />交点
+        <input type="radio" name="tool-type" value="Angle" />角度
+        <input type="radio" name="tool-type" value="TextBox" />テキスト
+        <input type="radio" name="tool-type" value="Label" />ラベル
+        <input type="radio" name="tool-type" value="DimensionLine" />寸法線
+        <br/>
+        <button id="play-pause" disabled style="font-family: 'Segoe UI Emoji'; font-size: 40px;" >⏹</button>
+        <input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />    
+    </div>
+
+    <div id="board" style="grid-row: 2; grid-column: 1/span 2; overflow: scroll; border-style:inset; border-width: 3px;" ></div>
+
+    <table id="tbl-property" style="grid-row: 2; grid-column: 3; background-color:lavender;"></table>
+
+    <div style="grid-row: 3; grid-column: 1/span 3; ">
+        <h3 id="caption" style="text-align: center;" ></h3>
+    </div>
+
+    <div style="grid-row: 4; grid-column: 1/span 2; ">
+        <textarea id="txt-math" style="width: 100%; height: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk;" spellcheck="false" ></textarea>
+    </div>
+    <div style="grid-row: 4; grid-column: 3; ">
+        <button id="add-empty-action" style="font-family: Segoe UI Emoji;">➕</button>
+        <button id="update-time-pos" style="font-family: Segoe UI Emoji;" >⏮</button>
+        <button id="get-data" >開く</button>
+        <button id="delete-action" >削除</button>
+        <button id="put-data" >保存</button>
+        <span id="spn-summary" style="width: 4ex;" >要約</span>
+        <label for="line-feed" style="display: none;">
+            <input type="checkbox" id="line-feed" />改行
+        </label>
+        <br/>
+        path <input id="txt-path" type="text" size="20" value="gauss-int" />
+        <br/>
+        title<input id="txt-title" type="text" size="20" />
+        <!-- x = -b \pm \frac{\sqrt{b^2-4ac}}{2a}     -->
+    </div>
 </div>
-<button id="add-empty-action" style="font-family: Segoe UI Emoji;">➕</button>
-<button id="update-time-pos" style="font-family: Segoe UI Emoji;" >⏮</button>
-<button id="get-data" >開く</button>
-<button id="delete-action" >削除</button>
-<button id="put-data" >保存</button>
-<span id="spn-summary" style="width: 4ex;" >要約</span>
-<label for="line-feed" style="display: none;">
-    <input type="checkbox" id="line-feed" />改行
-</label>
-<br/>
-path <input id="txt-path" type="text" size="20" value="gauss-int" />
-title<input id="txt-title" type="text" size="20" />
-x = -b \pm \frac{\sqrt{b^2-4ac}}{2a}<br/>
-<textarea id="txt-math" style="width: 100%; height: 20%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk;" spellcheck="false" ></textarea>
 
 </body>
 </html>

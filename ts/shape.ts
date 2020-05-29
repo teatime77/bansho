@@ -12,14 +12,9 @@ let angleDlgOk : HTMLInputElement;
 let angleDlgColor : HTMLInputElement;
 let view : View;
 
-export let ActionId : number;
 export let focusedActionIdx : number;
-export let allActions : ShapeWidget[];
-export let actions : ShapeWidget[];
 export let actionMap : Map<number, ShapeWidget>;
 
-export let divActions : HTMLDivElement;
-export let divMath : HTMLDivElement;
 export let textMath : HTMLTextAreaElement;
 
 const defaultUid = "Rb6xnDguG5Z9Jij6XLIPHV4oNge2";
@@ -234,7 +229,7 @@ function calcFootOfPerpendicular(pos:Vec2, line: LineSegment) : Vec2 {
 
 
 function setToolType(){
-    const textBoxes = actions.filter(x => x instanceof TextBox) as TextBox[];
+    const textBoxes = glb.widgets.filter(x => x instanceof TextBox) as TextBox[];
 
     view.toolType = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;
 
@@ -386,22 +381,23 @@ function svgPointermove(ev: PointerEvent){
 
 export function addShape(){
     const view1 = new View();
-    actions.push(view1);
+    glb.widgets.push(view1);
     view1.init();
-    divActions.appendChild(view1.summaryDom());
 }
 
 export function initDraw(){
     tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
-
-    TextBox.initDialog();
 
     const toolTypes = document.getElementsByName("tool-type");
     for(let x of toolTypes){
         x.addEventListener("click", setToolType);
     }
 
-    Angle.initDialog();
+    // 未実装
+    if(false){
+        TextBox.initDialog();
+        Angle.initDialog();
+    }
 }
 
 export class Vec2 {
@@ -550,14 +546,9 @@ export class EventQueue {
     }
 }
 
-export class ShapeWidget {
-    id: number;
-
+export class ShapeWidget extends Widget {
     constructor(){
-        this.id = ActionId;
-        ActionId++;
-
-        allActions.push(this);
+        super();
     }
 
     make(data:any):ShapeWidget{
@@ -599,15 +590,6 @@ export class ShapeWidget {
     disable(){
     }
 
-    setEnable(enable: boolean){
-        if(enable){
-            this.enable();
-        }
-        else{
-            this.disable();
-        }
-    }
-
     *play(){
         yield;
     }
@@ -618,83 +600,7 @@ export class ShapeWidget {
         return this.getTypeName();
     }
 
-    summaryDom() : HTMLSpanElement {
-        const span = document.createElement("span");
-        span.dataset.id = "" + this.id;
-        span.textContent = this.summary();
-        span.tabIndex = 0;
-        span.style.whiteSpace = "nowrap";
-        
-        span.addEventListener("keydown", (ev:KeyboardEvent)=>{
-            if([ "ArrowDown", "ArrowUp", "Delete" ].includes(ev.key)){
-                console.log(`key down:${ev.key}`);
 
-                const spans = Array.from(divActions.childNodes) as HTMLSpanElement[];
-                const idx = spans.indexOf(ev.srcElement as HTMLSpanElement);
-                console.assert(idx != -1);
-
-                if(ev.key == "ArrowDown" || ev.key == "ArrowUp"){
-
-                    ev.stopPropagation();
-                    ev.preventDefault();
-
-                    if(ev.key == "ArrowDown"){
-
-                        if(idx + 1 < spans.length){
-                            spans[idx + 1].focus();
-                        }
-                    }
-                    else{
-                        if(0 < idx){
-                            spans[idx - 1].focus();
-                        }
-                    }
-                }
-                else if(ev.key == "Delete"){
-                    this.clear();
-                    const idx = actions.indexOf(this);
-                    console.assert(idx != -1);
-                    actions.splice(idx, 1);
-                    
-                    divActions.removeChild(ev.srcElement as Node);
-                }
-            }
-        });
-
-        span.addEventListener("focus", function(ev:FocusEvent){
-            bansho.msg("focus");
-            const spans = Array.from(divActions.childNodes) as HTMLSpanElement[];
-            const idx = spans.indexOf(this);
-            console.assert(idx != -1);
-    
-            if(focusedActionIdx == -1){
-                for(let [i, act] of actions.entries()){
-                    act.setEnable(i <= idx);
-                }
-            }
-            else{
-                const minIdx = Math.min(idx, focusedActionIdx);
-                const maxIdx = Math.max(idx, focusedActionIdx);
-                for(let i = minIdx; i <= maxIdx; i++){
-                    actions[i].setEnable(i <= idx);
-                }
-            }
-
-            divMath.scrollTop = divMath.scrollHeight;
-    
-            focusedActionIdx = idx;
-
-            const act = actions[focusedActionIdx];
-            if(act.constructor == TextBlockAction){
-                textMath.value = (act as TextBlockAction).text;
-            }
-            else{
-                textMath.value = "";
-            }
-        });
-    
-        return span;
-    }
 }
 
 
@@ -744,7 +650,7 @@ export class View extends ShapeWidget {
 
         this.svg.style.width = this._width;
         this.svg.style.height = this._height;
-        this.svg.style.backgroundColor = "transparent";
+        this.svg.style.backgroundColor = "cornsilk";    // "transparent";
         this.svg.style.margin = "0px";
 
         // viewBox="-10 -10 20 20"
@@ -752,7 +658,7 @@ export class View extends ShapeWidget {
 
         this.svg.setAttribute("preserveAspectRatio", "none");
         //---------- 
-        divMath.appendChild(this.div);
+        glb.board.appendChild(this.div);
         this.div.appendChild(this.svg);
 
         const CTM = this.svg.getCTM()!;
@@ -803,7 +709,7 @@ export class View extends ShapeWidget {
     }
 
     clear(){
-        divMath.removeChild(this.div);
+        glb.board.removeChild(this.div);
     }
 
     summary() : string {
@@ -1013,8 +919,7 @@ export abstract class Shape extends ShapeWidget {
         this.parentView.selectedShapes = [];
     
         console.assert(this.parentView.tool != null);
-        actions.push(this.parentView.tool!);
-        divActions.appendChild(this.parentView.tool!.summaryDom());
+        glb.widgets.push(this.parentView.tool!);
         this.parentView.tool = null;
     }
 
