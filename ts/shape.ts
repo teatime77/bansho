@@ -82,6 +82,18 @@ function getSvgPos(pt: Vec2) : Vec2 {
     return new Vec2(x, y);
 }
 
+function getDomPos(pt: Vec2) : Vec2 {
+    const rc1 = view.svg.getBoundingClientRect() as DOMRect;
+    const rc2 = view.div.getBoundingClientRect() as DOMRect;
+
+    console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
+
+    const x = rc2.width  * (pt.x - view.svg.viewBox.baseVal.x) / view.svg.viewBox.baseVal.width;
+    const y = rc2.height * (pt.y - view.svg.viewBox.baseVal.y) / view.svg.viewBox.baseVal.height;
+
+    return new Vec2(x, y);
+}
+
 
 function toSvgRatio() : Vec2 {
     const rc1 = view.svg.getBoundingClientRect() as DOMRect;
@@ -225,7 +237,7 @@ function setToolType(){
     }
     else{
 
-        textBoxes.forEach(x => x.div.style.zIndex = "-1");
+        // textBoxes.forEach(x => x.div.style.zIndex = "-1");
     }
     if(view.toolType == "select"){
 
@@ -248,19 +260,19 @@ function makeToolByType(toolType: string): Shape|undefined {
 
     switch(typeName){
         case "Point":         return new Point({pos:new Vec2(0,0)});
-        case "LineSegment":  return new LineSegment();
-        case "BSpline":      return new BSpline();
+        case "LineSegment":   return new LineSegment();
+        case "BSpline":       return new BSpline();
         case "Rect":          return new Rect().make({isSquare:(arg == "2")}) as Shape;
-        case "Circle":       return new Circle().make({byDiameter:(arg == "2")}) as Shape;
+        case "Circle":        return new Circle().make({byDiameter:(arg == "2")}) as Shape;
         case "DimensionLine": return new DimensionLine();
         case "Triangle":      return new Triangle();
         case "Midpoint":      return new Midpoint();
         case "Perpendicular": return new Perpendicular()
-        case "ParallelLine": return new ParallelLine()
+        case "ParallelLine":  return new ParallelLine()
         case "Intersection":  return new Intersection();
         case "Angle":         return new Angle();
-        case "TextBox":      return new TextBox();
-        case "Label":           return new Label().make({Text:"こんにちは"}) as Shape;
+        case "TextBox":       return new TextBox().make({ Text: "$\\int_{-\\infty}^\\infty$" });
+        case "Label":         return new Label().make({Text:"こんにちは"}) as Shape;
     } 
 }
 
@@ -293,6 +305,8 @@ function showProperty(obj: Widget){
         console.assert(setter.length == 1);
 
         const inp = document.createElement("input");
+        inp.style.width = "100%";
+
         switch(typeof value){
         case "string":
         case "number":
@@ -334,6 +348,10 @@ function svgClick(ev: MouseEvent){
 
         // for(let ele = ev.srcElement; obj; obj = ob)
         for(let shape of view.shapes.values()){
+            if(shape instanceof TextBox && shape.handles[0].circle == ev.srcElement){
+                showProperty(shape);
+                return
+            }
             if(Object.values(shape).includes(ev.srcElement)){
                 showProperty(shape);
                 return
@@ -381,11 +399,6 @@ export function initDraw(){
     const toolTypes = document.getElementsByName("tool-type");
     for(let x of toolTypes){
         x.addEventListener("click", setToolType);
-    }
-
-    // 未実装
-    if(false){
-        TextBox.initDialog();
     }
 }
 
@@ -631,15 +644,14 @@ export class View extends ShapeWidget {
         this.div.style.width = this._width;
         this.div.style.height = this._height;
         this.div.style.position = "relative";
-        // this.div.style.borderStyle = "ridge";
-        // this.div.style.borderWidth = "3px";
         this.div.style.padding = "0px";
+        this.div.style.zIndex = "1";
+        this.div.style.backgroundColor = "cornsilk";
 
         this.svg = document.createElementNS("http://www.w3.org/2000/svg","svg") as SVGSVGElement;
 
         this.svg.style.width = this._width;
         this.svg.style.height = this._height;
-        this.svg.style.backgroundColor = "cornsilk";    // "transparent";
         this.svg.style.margin = "0px";
 
         // viewBox="-10 -10 20 20"
@@ -1800,7 +1812,6 @@ export class Circle extends CompositeShape {
     }
 }
 
-
 export class DimensionLine extends CompositeShape {
     arcs: SVGPathElement[];
     lines : SVGLineElement[];
@@ -1968,34 +1979,14 @@ export class Triangle extends CompositeShape {
     }
 }
 
-export class TextBox extends Shape {
-    static dialog : HTMLDialogElement;
-    static textBox : TextBox;
-    
+export class TextBox extends CompositeShape {   
     domPos: Vec2 | null = null;
-    text: string = "テキスト";
+    Text: string = "テキスト";
 
     div : HTMLDivElement;
 
-    offsetPos: Vec2 | null = null;
-    pagePos: Vec2 | null = null;
-
-    static okClick(){
-        const self = TextBox.textBox;
-
-        const text = (document.getElementById("text-box-text") as HTMLTextAreaElement).value;
-        self.make({text: text});
-        TextBox.dialog.close();
-    }
-
-    static initDialog(){
-        TextBox.dialog = document.getElementById('text-box-dlg') as HTMLDialogElement;
-        (document.getElementById("text-box-ok") as HTMLInputElement).addEventListener("click", TextBox.okClick);
-    }
-
     constructor(){
         super();
-        TextBox.textBox = this;
 
         this.div = document.createElement("div");
         this.div.style.position = "absolute";
@@ -2004,40 +1995,24 @@ export class TextBox extends Shape {
         this.div.style.zIndex = "-1";
 
         this.parentView.div.appendChild(this.div);
-
-        this.div.addEventListener("pointerdown", (ev: PointerEvent)=>{
-            if(view.toolType == "select"){
-                this.div.setPointerCapture(ev.pointerId);
-
-                this.div.addEventListener("pointermove", this.pointermove);
-
-                this.offsetPos = new Vec2(this.div.offsetLeft, this.div.offsetTop);
-                this.pagePos = new Vec2(ev.pageX, ev.pageY);
-            }
-        });
-
-        this.div.addEventListener("pointerup", (ev: PointerEvent)=>{
-            switch(view.toolType){
-            case "select":
-
-                this.div.removeEventListener("pointermove", this.pointermove);
-                this.div.releasePointerCapture(ev.pointerId);
-                break;
-
-            case "TextSelection":
-
-                onclickBlock(this.div, ev);
-                break;
-            }
-        });
     }
 
-    make(data:any){
-        const obj = data as TextBox;
+    propertyNames() : string[] {
+        return [ "Text" ];
+    }
+
+    setText(text: string){
+        this.Text = text;
+
+        this.div.innerHTML = bansho.makeHtmlLines(this.Text);
+        MathJax.typesetPromise([this.div]);
+    }
+
+    make(obj:any){
+        console.assert(obj.Text != undefined);
+        Object.assign(this, obj);
 
         this.div.id = getBlockId(this.id);
-
-        console.assert(obj.text != undefined);
 
         if(obj.domPos != undefined){
 
@@ -2045,38 +2020,35 @@ export class TextBox extends Shape {
             this.updatePos();
         }
 
-        this.text   = obj.text;
+        this.div.innerHTML = bansho.makeHtmlLines(this.Text);
 
-        this.div.innerHTML = bansho.makeHtmlLines(this.text);
-
-        MathJax.Hub.Queue(["Typeset",MathJax.Hub]);    
+        MathJax.typesetPromise([this.div]);
 
         return this;
-    }
-
-    pointermove=(ev: PointerEvent)=>{
-        const x = this.offsetPos!.x + (ev.pageX - this.pagePos!.x);
-        const y = this.offsetPos!.y + (ev.pageY - this.pagePos!.y);
-
-        this.domPos = new Vec2(x, y);
-
-        this.updatePos();
     }
 
     makeObj(obj: any){
         super.makeObj(obj);
         Object.assign(obj, {
             domPos: this.domPos,
-            text: this.text
+            text: this.Text
         });
     }
 
+    processEvent =(sources: Shape[])=>{
+        console.assert(sources.length == 1 && sources[0] == this.handles[0]);
+        msg(`text pos ${this.handles[0].pos.x} ${this.handles[0].pos.y} `);
+
+        this.domPos = getDomPos(this.handles[0].pos);
+        this.updatePos();
+    }
+
     click =(ev: MouseEvent, pt:Vec2) : void =>{
+        this.addHandle(clickHandle(ev, pt));
         this.domPos = new Vec2(ev.offsetX, ev.offsetY);
 
         this.updatePos();
 
-        TextBox.dialog.showModal();
         this.finishTool();
     }
 
