@@ -128,12 +128,12 @@ function getSvgPoint(ev: MouseEvent | PointerEvent, draggedPoint: Point|null){
         p.y = - p.y;
     }
 
-    if(view._snapToGrid){
+    if(view.SnapToGrid){
 
         const ele = document.elementFromPoint(ev.clientX, ev.clientY);
         if(ele == view.svg || ele == view.gridBg || (draggedPoint != null && ele == draggedPoint.circle)){
-            p.x = Math.round(p.x / view._gridWidth ) * view._gridWidth;
-            p.y = Math.round(p.y / view._gridHeight) * view._gridHeight;
+            p.x = Math.round(p.x / view.GridWidth ) * view.GridWidth;
+            p.y = Math.round(p.y / view.GridHeight) * view.GridHeight;
         }
     }
 
@@ -388,7 +388,7 @@ function svgPointermove(ev: PointerEvent){
 }
 
 export function addShape(){
-    const view1 = new View();
+    const view1 = new View({ Width: 500, Height: 500, ViewBox: "-10 -10 20 20" });
     glb.widgets.push(view1);
     view1.init();
 }
@@ -623,26 +623,26 @@ export class View extends ShapeWidget {
     eventQueue : EventQueue = new EventQueue();
     capture: Point|null = null;
     ShowGrid : boolean = false;
-    _gridWidth : number = 1;
-    _gridHeight : number = 1;
-    _snapToGrid: boolean = false;
+    GridWidth : number = 1;
+    GridHeight : number = 1;
+    SnapToGrid: boolean = false;
     FlipY : boolean = false;
 
-    _width      : string = "500px";
-    _height     : string = "500px";
-    _viewBox    : string = "-10 -10 20 20";
+    Width      : number = 0;
+    Height     : number = 0;
+    ViewBox    : string = "";
 
     constructor(obj: any = {}){
         super();
         view = this;
 
+        console.assert(obj.Width != undefined && obj.Height != undefined && obj.ViewBox != undefined);
         Object.assign(this, obj);
-
 
         this.div = document.createElement("div");
 
-        this.div.style.width = this._width;
-        this.div.style.height = this._height;
+        this.div.style.width  = `${this.Width}px`;
+        this.div.style.height = `${this.Height}px`;
         this.div.style.position = "relative";
         this.div.style.padding = "0px";
         this.div.style.zIndex = "1";
@@ -650,23 +650,19 @@ export class View extends ShapeWidget {
 
         this.svg = document.createElementNS("http://www.w3.org/2000/svg","svg") as SVGSVGElement;
 
-        this.svg.style.width = this._width;
-        this.svg.style.height = this._height;
+        this.svg.style.width  = `${this.Width}px`;
+        this.svg.style.height = `${this.Height}px`;
         this.svg.style.margin = "0px";
 
         // viewBox="-10 -10 20 20"
-        this.svg.setAttribute("viewBox", this._viewBox);
+        this.svg.setAttribute("viewBox", this.ViewBox);
 
         this.svg.setAttribute("preserveAspectRatio", "none");
         //---------- 
         glb.board.appendChild(this.div);
         this.div.appendChild(this.svg);
 
-        const CTM = this.svg.getCTM()!;
-        if(CTM != null){
-
-            this.CTMInv = CTM.inverse();
-        }
+        this.setCTMInv();
     
         const rc = this.svg.getBoundingClientRect() as DOMRect;
         this.svgRatio = this.svg.viewBox.baseVal.width / rc.width;
@@ -708,9 +704,9 @@ export class View extends ShapeWidget {
 
     makeObj(obj: any){
         Object.assign(obj, {
-            "_width": this.svg.style.width,
-            "_height": this.svg.style.height,
-            "_viewBox": this.svg.getAttribute("viewBox")
+            "Width"   : this.Width,
+            "Height"  : this.Height,
+            "ViewBox": this.svg.getAttribute("viewBox")
         });
     }
 
@@ -722,30 +718,38 @@ export class View extends ShapeWidget {
         return "view";
     }
 
-    getWidth() : string {
-        return this.svg.style.width!;
+    setCTMInv(){
+        const CTM = this.svg.getCTM()!;
+        if(CTM != null){
+
+            this.CTMInv = CTM.inverse();
+        }
     }
 
-    setWidth(value: string){
-        this.div.style.width = value;
-        this.svg.style.width = value;
+    setWidth(value: number){
+        this.Width = value;
+
+        this.div.style.width = `${this.Width}px`;
+        this.svg.style.width = `${this.Width}px`;
+
+        this.setCTMInv();
     }
 
-    getHeight() : string {
-        return this.svg.style.height!;
-    }
+    setHeight(value: number){
+        this.Height = value;
 
-    setHeight(value: string){
-        this.div.style.height = value;
-        this.svg.style.height = value;
-    }
+        this.div.style.height = `${this.Height}px`;
+        this.svg.style.height = `${this.Height}px`;
 
-    getViewBox() : string {
-        return this.svg.getAttribute("viewBox")!;
+        this.setCTMInv();
     }
 
     setViewBox(value: string){
-        this.svg.setAttribute("viewBox", value);
+        this.ViewBox = value;
+
+        this.svg.setAttribute("viewBox", this.ViewBox);
+
+        this.setCTMInv();
 
         this.setGridBgBox();
     }
@@ -767,32 +771,20 @@ export class View extends ShapeWidget {
         }
     }
 
-    getGridWidth() {
-        return this._gridWidth;
-    }
-
     setGridWidth(value: any){
-        this._gridWidth = parseFloat(value);
+        this.GridWidth = parseFloat(value);
 
         this.setGridPattern();
-    }
-
-    getGridHeight() {
-        return this._gridHeight;
     }
 
     setGridHeight(value: any){
-        this._gridHeight = parseFloat(value);
+        this.GridHeight = parseFloat(value);
 
         this.setGridPattern();
     }
 
-    getSnapToGrid(){
-        return this._snapToGrid;
-    }
-
     setSnapToGrid(value: boolean){
-        this._snapToGrid = value;
+        this.SnapToGrid = value;
     }
 
     setFlipY(value: boolean){
@@ -833,16 +825,16 @@ export class View extends ShapeWidget {
         pattern.setAttribute("patternUnits", "userSpaceOnUse");
         pattern.setAttribute("x", `${vb.x}`);
         pattern.setAttribute("y", `${vb.y}`);
-        pattern.setAttribute("width", `${this._gridWidth}`);
-        pattern.setAttribute("height", `${this._gridHeight}`);
+        pattern.setAttribute("width", `${this.GridWidth}`);
+        pattern.setAttribute("height", `${this.GridHeight}`);
     
         this.defs.appendChild(pattern);
 
         const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
         rect.setAttribute("x", "0");
         rect.setAttribute("y", "0");
-        rect.setAttribute("width", `${this._gridWidth}`);
-        rect.setAttribute("height", `${this._gridHeight}`);
+        rect.setAttribute("width", `${this.GridWidth}`);
+        rect.setAttribute("height", `${this.GridHeight}`);
         rect.setAttribute("fill", "transparent");
         rect.setAttribute("stroke", "black");
         rect.setAttribute("stroke-width", `${this.toSvg2(gridLineWidth)}`);
