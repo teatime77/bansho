@@ -8,17 +8,23 @@ export enum SelectionType {
 }
 
 export class Widget{
+    static count: number = 0;
     typeName: string;
     id: number;
 
     constructor(){
         this.typeName = this.getTypeName();
-        if(glb.widgets.length == 0){
-            this.id = 0;
-        }
-        else{
-            this.id = Math.max(... glb.widgets.map(x => x.id)) + 1;
-        }
+        this.id = Widget.count++;
+        // if(glb.widgets.length == 0){
+        //     this.id = 0;
+        // }
+        // else{
+        //     this.id = Math.max(... glb.widgets.map(x => x.id)) + 1;
+        // }
+    }
+
+    propertyNames() : string[] {
+        return [];
     }
 
     getTypeName(){

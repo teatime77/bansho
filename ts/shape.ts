@@ -7,9 +7,6 @@ const gridLineWidth = 1;
 
 declare let MathJax:any;
 let tblProperty : HTMLTableElement;
-let angleDlg : HTMLDialogElement;
-let angleDlgOk : HTMLInputElement;
-let angleDlgColor : HTMLInputElement;
 let view : View;
 
 export let focusedActionIdx : number;
@@ -114,17 +111,17 @@ function getSvgPoint(ev: MouseEvent | PointerEvent, draggedPoint: Point|null){
     }
 
 
-    if(view.flipY){
+    if(view.FlipY){
 
         p.y = - p.y;
     }
 
-    if(view.snapToGrid){
+    if(view._snapToGrid){
 
         const ele = document.elementFromPoint(ev.clientX, ev.clientY);
         if(ele == view.svg || ele == view.gridBg || (draggedPoint != null && ele == draggedPoint.circle)){
-            p.x = Math.round(p.x / view.gridWidth ) * view.gridWidth;
-            p.y = Math.round(p.y / view.gridHeight) * view.gridHeight;
+            p.x = Math.round(p.x / view._gridWidth ) * view._gridWidth;
+            p.y = Math.round(p.y / view._gridHeight) * view._gridHeight;
         }
     }
 
@@ -164,17 +161,6 @@ function clickHandle(ev: MouseEvent, pt:Vec2) : Point{
 
     return handle;
 }
-
-function zip(v1:any[], v2:any[]):any[]{
-    const v = [];
-    const minLen = Math.min(v1.length, v2.length);
-    for(let i = 0; i < minLen; i++){
-        v.push([v1[i], v2[i]])
-    }
-
-    return v;
-}
-
 
 function getPoint(ev: MouseEvent) : Point | null{
     const pt = Array.from(view.shapes.values()).find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
@@ -274,58 +260,67 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "Intersection":  return new Intersection();
         case "Angle":         return new Angle();
         case "TextBox":      return new TextBox();
-        case "Label":           return new Label().make({text:"こんにちは"}) as Shape;
+        case "Label":           return new Label().make({Text:"こんにちは"}) as Shape;
     } 
 }
 
-function showProperty(obj: any){
-    const proto = Object.getPrototypeOf(obj);
-
+function showProperty(obj: Widget){
     tblProperty.innerHTML = "";
 
-    for(let name of Object.getOwnPropertyNames(proto)){
-        const desc = Object.getOwnPropertyDescriptor(proto, name);
-        if(desc != undefined && desc.get != undefined && desc.set != undefined){
-            
-            const tr = document.createElement("tr");
+    for(let name of obj.propertyNames()){
+        msg(`property : ${name}`);
 
-            const nameTd = document.createElement("td");
-            nameTd.innerText = name;
+        const tr = document.createElement("tr");
 
-            const valueTd = document.createElement("td");
+        const nameTd = document.createElement("td");
+        nameTd.innerText = name;
 
-            const value = desc.get.apply(obj);
-            
-            const inp = document.createElement("input");
-            switch(typeof value){
-            case "string":
-            case "number":
-                inp.type = "text";
-                inp.value = `${value}`;
-                inp.addEventListener("blur", (function(inp, desc){
-                    return function(ev: FocusEvent){
-                        desc.set!.apply(obj, [ inp.value ]);
-                    };
-                })(inp, desc));
+        const valueTd = document.createElement("td");
 
-                break;
-            case "boolean":
-                inp.type = "checkbox";
-                inp.checked = value as boolean;
-                inp.addEventListener("click", (function(inp, desc){
-                    return function(ev: MouseEvent){
-                        desc.set!.apply(obj, [ inp.checked ]);
-                    };
-                })(inp, desc));
-                break;
-            }
-            valueTd.appendChild(inp);
+        let value;
 
-            tr.appendChild(nameTd);
-            tr.appendChild(valueTd);
-
-            tblProperty.appendChild(tr);
+        let getter = (obj as any)["get" + name] as Function;
+        if(getter == undefined){
+            value = (obj as any)[name];
         }
+        else{
+            console.assert(getter.length == 0);
+            value = getter.apply(obj);
+        }
+        console.assert(value != undefined);
+        
+        const setter = (obj as any)["set" + name] as Function;
+        console.assert(setter.length == 1);
+
+        const inp = document.createElement("input");
+        switch(typeof value){
+        case "string":
+        case "number":
+            inp.type = "text";
+            inp.value = `${value}`;
+            inp.addEventListener("blur", (function(inp, setter){
+                return function(ev: FocusEvent){
+                    setter.apply(obj, [ inp.value ]);
+                };
+            })(inp, setter));
+
+            break;
+        case "boolean":
+            inp.type = "checkbox";
+            inp.checked = value as boolean;
+            inp.addEventListener("click", (function(inp, setter){
+                return function(ev: MouseEvent){
+                    setter.apply(obj, [ inp.checked ]);
+                };
+            })(inp, setter));
+            break;
+        }
+        valueTd.appendChild(inp);
+
+        tr.appendChild(nameTd);
+        tr.appendChild(valueTd);
+
+        tblProperty.appendChild(tr);
     }
 }
 
@@ -337,17 +332,12 @@ function svgClick(ev: MouseEvent){
 
     if(view.toolType == "select"){
 
+        // for(let ele = ev.srcElement; obj; obj = ob)
         for(let shape of view.shapes.values()){
-
-            for(let name of Object.getOwnPropertyNames(shape)){
-                const desc = Object.getOwnPropertyDescriptor(shape, name);
-
-                if(desc != undefined && desc.value == ev.srcElement){
-
-                    showProperty(shape);
-                    return
-                }
-            }        
+            if(Object.values(shape).includes(ev.srcElement)){
+                showProperty(shape);
+                return
+            }
         }
 
         showProperty(view);
@@ -396,7 +386,6 @@ export function initDraw(){
     // 未実装
     if(false){
         TextBox.initDialog();
-        Angle.initDialog();
     }
 }
 
@@ -620,11 +609,11 @@ export class View extends ShapeWidget {
     tool : Shape | null = null;
     eventQueue : EventQueue = new EventQueue();
     capture: Point|null = null;
-    _showGrid : boolean = false;
+    ShowGrid : boolean = false;
     _gridWidth : number = 1;
     _gridHeight : number = 1;
     _snapToGrid: boolean = false;
-    _flipY : boolean = false;
+    FlipY : boolean = false;
 
     _width      : string = "500px";
     _height     : string = "500px";
@@ -681,7 +670,7 @@ export class View extends ShapeWidget {
         this.G1 = document.createElementNS("http://www.w3.org/2000/svg","g");
         this.G2 = document.createElementNS("http://www.w3.org/2000/svg","g");
     
-        if(this.flipY){
+        if(this.FlipY){
             
             this.G0.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
             this.G1.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
@@ -700,6 +689,11 @@ export class View extends ShapeWidget {
         return this;
     }
 
+    propertyNames() : string[] {
+        return [ "Width", "Height", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY" ];
+    }
+
+
     makeObj(obj: any){
         Object.assign(obj, {
             "_width": this.svg.style.width,
@@ -716,46 +710,42 @@ export class View extends ShapeWidget {
         return "view";
     }
 
-    get width() : string {
+    getWidth() : string {
         return this.svg.style.width!;
     }
 
-    set width(value: string){
+    setWidth(value: string){
         this.div.style.width = value;
         this.svg.style.width = value;
     }
 
-    get height() : string {
+    getHeight() : string {
         return this.svg.style.height!;
     }
 
-    set height(value: string){
+    setHeight(value: string){
         this.div.style.height = value;
         this.svg.style.height = value;
     }
 
-    get viewBox() : string {
+    getViewBox() : string {
         return this.svg.getAttribute("viewBox")!;
     }
 
-    set viewBox(value: string){
+    setViewBox(value: string){
         this.svg.setAttribute("viewBox", value);
 
         this.setGridBgBox();
     }
 
-    get showGrid() : boolean {
-        return this._showGrid;
-    }
-
-    set showGrid(value: boolean){
-        if(this._showGrid == value){
+    setShowGrid(value: boolean){
+        if(this.ShowGrid == value){
             return;
         }
 
-        this._showGrid = value;
+        this.ShowGrid = value;
 
-        if(this._showGrid){
+        if(this.ShowGrid){
             this.setGridBgBox();
             this.setGridPattern();
         }
@@ -765,40 +755,36 @@ export class View extends ShapeWidget {
         }
     }
 
-    get gridWidth() {
+    getGridWidth() {
         return this._gridWidth;
     }
 
-    set gridWidth(value: any){
+    setGridWidth(value: any){
         this._gridWidth = parseFloat(value);
 
         this.setGridPattern();
     }
 
-    get gridHeight() {
+    getGridHeight() {
         return this._gridHeight;
     }
 
-    set gridHeight(value: any){
+    setGridHeight(value: any){
         this._gridHeight = parseFloat(value);
 
         this.setGridPattern();
     }
 
-    get snapToGrid(){
+    getSnapToGrid(){
         return this._snapToGrid;
     }
 
-    set snapToGrid(value: boolean){
+    setSnapToGrid(value: boolean){
         this._snapToGrid = value;
     }
 
-    get flipY(){
-        return this._flipY;
-    }
-
-    set flipY(value: boolean){
-        this._flipY = value;
+    setFlipY(value: boolean){
+        this.FlipY = value;
     }
 
     setGridBgBox(){
@@ -989,6 +975,10 @@ export class Point extends Shape {
         return this;
     }
 
+    propertyNames() : string[] {
+        return [ "X", "Y" ];
+    }
+
     makeObj(obj: any){
         super.makeObj(obj);
         Object.assign(obj, { pos: this.pos });
@@ -1004,20 +994,20 @@ export class Point extends Shape {
         return "点";
     }
 
-    get x(){
+    getX(){
         return this.pos.x;
     }
 
-    set x(value:any){
+    setX(value:any){
         this.pos.x =  parseInt(value);
         this.setPos();
     }
 
-    get y(){
+    getY(){
         return this.pos.y;
     }
 
-    set y(value:any){
+    setY(value:any){
         this.pos.y =  parseInt(value);
         this.setPos();
     }
@@ -1147,16 +1137,20 @@ export class LineSegment extends CompositeShape {
         this.parentView.G0.appendChild(this.line);
     }
 
+    propertyNames() : string[] {
+        return [ "Color" ];
+    }
+
     *restore(){
         this.line.style.cursor = "move";
         this.updatePos();
     }
 
-    get color(){
+    getColor(){
         return this.line.getAttribute("stroke")!;
     }
 
-    set color(c:string){
+    setColor(c:string){
         this.line.setAttribute("stroke", c);
     }
     
@@ -1681,6 +1675,10 @@ export class Circle extends CompositeShape {
         this.parentView.G0.appendChild(this.circle);    
     }
 
+    propertyNames() : string[] {
+        return [ "Color" ];
+    }
+
     make(data:any):ShapeWidget{
         const obj = data as Circle;
 
@@ -1707,11 +1705,11 @@ export class Circle extends CompositeShape {
         Object.assign(obj, { byDiameter: this.byDiameter });
     }
 
-    get color(){
+    getColor(){
         return this.circle.getAttribute("stroke")!;
     }
 
-    set color(c:string){
+    setColor(c:string){
         this.circle.setAttribute("stroke", c);
     }
 
@@ -2342,8 +2340,6 @@ export class Angle extends CompositeShape {
 
     arc: SVGPathElement;
 
-    static current: Angle;
-
     constructor(){
         super();
         this.arc = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -2351,10 +2347,13 @@ export class Angle extends CompositeShape {
         this.arc.setAttribute("fill", "none");
         this.arc.setAttribute("stroke", "red");
         this.arc.setAttribute("stroke-width", `${this.toSvg(thisStrokeWidth)}`);
-        this.arc.addEventListener("click", this.arcClick);
         this.arc.style.cursor = "pointer";
 
         this.parentView.G0.appendChild(this.arc);
+    }
+
+    propertyNames() : string[] {
+        return [ "Color" ];
     }
 
     *restore(){
@@ -2369,11 +2368,11 @@ export class Angle extends CompositeShape {
         });
     }
 
-    get color(){
+    getColor(){
         return this.arc.getAttribute("stroke")!;
     }
 
-    set color(c:string){
+    setColor(c:string){
         this.arc.setAttribute("stroke", c);
     }
 
@@ -2419,37 +2418,6 @@ export class Angle extends CompositeShape {
         this.drawArc();
     }
 
-    okClick(){
-        this.arc!.setAttribute("stroke", angleDlgColor.value.trim());
-
-        angleDlg.close();
-    }
-
-
-    static initDialog(){
-        angleDlg = document.getElementById('angle-dlg') as HTMLDialogElement;
-        angleDlgOk = document.getElementById('angle-dlg-ok') as HTMLInputElement;
-        angleDlgColor = document.getElementById('angle-dlg-color') as HTMLInputElement;
-
-        angleDlg.addEventListener("keydown", ev=>{
-            if(ev.key == 'Enter'){
-                Angle.current.okClick();
-            }    
-        });
-
-        angleDlgOk.addEventListener("click", ev=>{
-            Angle.current.okClick();    
-        });
-    
-    }
-
-    arcClick = (ev: MouseEvent)=>{
-        Angle.current = this;
-        angleDlgColor.value = this.arc!.getAttribute("stroke")!;
-
-        angleDlg.showModal();
-    }
-
     click =(ev: MouseEvent, pt:Vec2): void => {
         const line = getLine(ev);
         
@@ -2484,7 +2452,7 @@ export class Angle extends CompositeShape {
 
 
 export class Label extends CompositeShape {
-    text: string = "ラベル";
+    Text: string = "ラベル";
 
     svgText: SVGTextElement;
 
@@ -2493,12 +2461,20 @@ export class Label extends CompositeShape {
         this.svgText = document.createElementNS("http://www.w3.org/2000/svg","text");
     }
 
-    make(data:any):ShapeWidget{
-        const obj = data as Label;
+    propertyNames() : string[] {
+        return [ "Text" ];
+    }
 
-        this.text = obj.text;
+    setText(text: string){
+        this.Text = text;
+        this.svgText.textContent = text;
+    }
 
-        if(this.parentView.flipY){
+    make(obj: any):ShapeWidget{
+        console.assert(obj.Text != undefined);
+        Object.assign(this, obj);
+
+        if(this.parentView.FlipY){
             
             this.svgText.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
         }
@@ -2508,7 +2484,7 @@ export class Label extends CompositeShape {
         this.svgText.setAttribute("font-size", `${16 * p.y}`);
         this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
 
-        this.svgText.textContent = obj.text;
+        this.svgText.textContent = this.Text;
 
         this.parentView.G0.appendChild(this.svgText);
 
@@ -2522,7 +2498,7 @@ export class Label extends CompositeShape {
     makeObj(obj: any){
         super.makeObj(obj);
         Object.assign(obj, {
-            text: this.text
+            text: this.Text
         });
     }
 
@@ -2558,7 +2534,7 @@ export class Image extends CompositeShape {
 
         this.image = document.createElementNS("http://www.w3.org/2000/svg", "image") as SVGImageElement;
 
-        if(this.parentView.flipY){
+        if(this.parentView.FlipY){
             
             this.image.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
         }
