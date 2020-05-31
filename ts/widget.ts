@@ -59,6 +59,22 @@ export class Widget{
     summary() : string {
         return this.getTypeName();
     }
+
+    makeObj() : any{
+        return {
+            id: this.id,
+            typeName: this.typeName
+        };
+    }
+
+    toObj(){
+        if(glb.widgetMap[ this.id ] != undefined){
+            return { ref: this.id };
+        }
+        glb.widgetMap[ this.id ] = this;
+
+        return this.makeObj();
+    }
 }
 
 export class EmptyWidget extends Widget {

@@ -2,11 +2,13 @@ namespace bansho {
 
 export class Glb {
     widgets : Widget[] = [];
+    allWidgets : Widget[] = [];
     caption: HTMLHeadingElement;
     timeline : HTMLInputElement;
     board : HTMLDivElement;
     speechInput : boolean = false;
     ui: UI;
+    widgetMap: { [key: string]: Widget; }  = {};
 
     constructor(ui: UI){
         this.ui = ui;
@@ -635,5 +637,19 @@ export function pauseWidget(ui: UI, fnc:()=>void){
         }
     },10);
 }
+
+
+export function serializeActions() : string {
+    for(let [i,x] of glb.allWidgets.entries()){
+        x.id = i;
+    }
+    glb.widgetMap = {};
+
+    const widgetObjs = glb.widgets.map(x => x.toObj());
+
+    return JSON.stringify(widgetObjs);
+}
+
+
 
 }

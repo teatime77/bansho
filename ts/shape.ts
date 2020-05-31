@@ -10,7 +10,6 @@ let tblProperty : HTMLTableElement;
 let view : View;
 
 export let focusedActionIdx : number;
-export let actionMap : Map<number, ShapeWidget>;
 
 export let textMath : HTMLTextAreaElement;
 
@@ -557,26 +556,6 @@ export class ShapeWidget extends Widget {
         return this;
     }
 
-    toObj(){
-        if(actionMap.has(this.id)){
-            return { ref: this.id };
-        }
-        actionMap.set(this.id, this);
-        
-        const obj = { typeName: this.getTypeName(), id: this.id };
-
-        if(this instanceof CompositeShape){
-            Object.assign(obj, { handles : this.handles.map(x => x.toObj()) });
-        }
-
-        this.makeObj(obj);
-
-        return obj;
-    }
-
-    makeObj(obj: any){
-    }
-
     getTypeName(){
         return this.constructor.name;
     }
@@ -702,8 +681,8 @@ export class View extends ShapeWidget {
     }
 
 
-    makeObj(obj: any){
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             "Width"   : this.Width,
             "Height"  : this.Height,
             "ViewBox": this.svg.getAttribute("viewBox")
@@ -882,8 +861,10 @@ export abstract class Shape extends ShapeWidget {
         this.parentView.shapes.set(this.id, this);
     }
 
-    makeObj(obj: any){
-        obj.viewId = this.viewId;
+    makeObj() : any {
+        let obj = Object.assign(super.makeObj(), {
+            viewId : this.viewId
+        });
 
         if(this.listeners.length != 0){
 
@@ -891,6 +872,8 @@ export abstract class Shape extends ShapeWidget {
                 listeners: this.listeners.map(x => ({ref:x.id}))
             });
         }
+
+        return obj;
     }
 
     finishTool(){
@@ -949,6 +932,12 @@ export abstract class CompositeShape extends Shape {
             }
         }
     }
+
+    makeObj() : any {
+        return Object.assign(super.makeObj() , {
+            handles : this.handles.map(x => x.toObj())
+        });
+    }
 }
 
 export class Point extends Shape {
@@ -983,12 +972,16 @@ export class Point extends Shape {
         return [ "X", "Y" ];
     }
 
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, { pos: this.pos });
+    makeObj() : any {
+        let obj = Object.assign(super.makeObj(), {
+             pos: this.pos 
+        });
+
         if(this.bindTo != undefined){
             obj.bindTo = { ref: this.bindTo.id };
         }
+
+        return obj;
     }
     
     clear(){
@@ -1464,9 +1457,8 @@ export class Rect extends CompositeShape {
         }
     }
 
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             isSquare: this.isSquare,
             lines: this.lines.map(x => x.toObj())
         });
@@ -1704,9 +1696,10 @@ export class Circle extends CompositeShape {
         this.processEvent(this.handles);
     }
 
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, { byDiameter: this.byDiameter });
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            byDiameter: this.byDiameter 
+        });
     }
 
     getColor(){
@@ -1918,9 +1911,10 @@ export class DimensionLine extends CompositeShape {
 export class Triangle extends CompositeShape {
     lines : Array<LineSegment> = [];
 
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, { lines: this.lines.map(x => x.toObj()) });
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            lines: this.lines.map(x => x.toObj()) 
+        });
     }
 
     init(){
@@ -2019,9 +2013,8 @@ export class TextBox extends CompositeShape {
         return this;
     }
 
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             domPos: this.domPos,
             text: this.Text
         });
@@ -2058,9 +2051,10 @@ export class Midpoint extends CompositeShape {
         this.initChildren([this.midpoint]);
     }
 
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, { midpoint: this.midpoint!.toObj() });
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            midpoint: this.midpoint!.toObj()
+        });
     }
 
     calcMidpoint(){
@@ -2109,9 +2103,8 @@ export class Perpendicular extends CompositeShape {
         yield* this.perpendicular!.restore();
     }
     
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             line: this.line!.toObj(),
             foot: this.foot!.toObj(),
             perpendicular: this.perpendicular!.toObj()
@@ -2183,9 +2176,8 @@ export class ParallelLine extends CompositeShape {
         yield* this.line2!.restore();
     }
     
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             line1: this.line1!.toObj(),
             line2: this.line2!.toObj(),
             point: this.point!.toObj()
@@ -2249,9 +2241,8 @@ export class Intersection extends CompositeShape {
     intersection : Point|null = null;
 
     
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             lines: this.lines.map(x => x.toObj()),
             intersection: this.intersection!.toObj()
         });
@@ -2324,9 +2315,8 @@ export class Angle extends CompositeShape {
         this.drawArc();
     }
     
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             lines: this.lines.map(x => x.toObj()),
             ts: Array.from(this.ts)
         });
@@ -2459,9 +2449,8 @@ export class Label extends CompositeShape {
         this.processEvent([this.handles[0]]);
     }
 
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             text: this.Text
         });
     }
@@ -2565,9 +2554,8 @@ export class Image extends CompositeShape {
         return this;
     }
 
-    makeObj(obj: any){
-        super.makeObj(obj);
-        Object.assign(obj, {
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
             pos: this.pos,
             fileName: this.fileName
         });
