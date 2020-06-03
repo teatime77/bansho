@@ -174,17 +174,17 @@ function clickHandle(ev: MouseEvent, pt:Vec2) : Point{
 }
 
 function getPoint(ev: MouseEvent) : Point | null{
-    const pt = Array.from(view.shapes.values()).find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
+    const pt = view.shapes.find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
     return pt == undefined ? null : pt;
 }
 
 function getLine(ev: MouseEvent) : LineSegment | null{
-    const line = Array.from(view.shapes.values()).find(x => x instanceof LineSegment && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
+    const line = view.shapes.find(x => x instanceof LineSegment && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
     return line == undefined ? null : line;
 }
 
 function getCircle(ev: MouseEvent) : Circle | null{
-    const circle = Array.from(view.shapes.values()).find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
+    const circle = view.shapes.find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
     return circle == undefined ? null : circle;
 }
 
@@ -595,7 +595,7 @@ export class View extends ShapeWidget {
     G2 : SVGGElement;
     CTMInv : DOMMatrix | null = null;
     svgRatio: number;
-    shapes: Map<number, Shape> = new Map<number, Shape>();
+    shapes: Shape[]= [];
     toolType = "";
     selectedShapes: Shape[] = [];
     tool : Shape | null = null;
@@ -797,7 +797,7 @@ export class View extends ShapeWidget {
         // viewBoxを得る。
         const vb = this.svg.viewBox.baseVal;
 
-        const patternId = `pattern-${this.id}`;
+        const patternId = `pattern-${getElementId(this)}`;
 
         const pattern = document.createElementNS("http://www.w3.org/2000/svg","pattern") as SVGPatternElement;
         pattern.setAttribute("id", patternId);
@@ -841,8 +841,6 @@ export class View extends ShapeWidget {
 }
 
 export abstract class Shape extends ShapeWidget {
-    viewId: number;
-
     parentView : View;
 
     processEvent(sources: Shape[]){}
@@ -856,20 +854,19 @@ export abstract class Shape extends ShapeWidget {
     constructor(){
         super();
 
-        this.viewId = view.id;
         this.parentView = view;
-        this.parentView.shapes.set(this.id, this);
+        this.parentView.shapes.push(this);
     }
 
     makeObj() : any {
         let obj = Object.assign(super.makeObj(), {
-            viewId : this.viewId
+            parentView : this.parentView.toObj()
         });
 
         if(this.listeners.length != 0){
 
             Object.assign(obj, {
-                listeners: this.listeners.map(x => ({ref:x.id}))
+                listeners: this.listeners.map(x => x.toObj() )
             });
         }
 
@@ -978,7 +975,7 @@ export class Point extends Shape {
         });
 
         if(this.bindTo != undefined){
-            obj.bindTo = { ref: this.bindTo.id };
+            obj.bindTo = this.bindTo.toObj();
         }
 
         return obj;
@@ -1998,7 +1995,7 @@ export class TextBox extends CompositeShape {
         console.assert(obj.Text != undefined);
         Object.assign(this, obj);
 
-        this.div.id = getBlockId(this.id);
+        this.div.id = getBlockId(this);
 
         if(obj.domPos != undefined){
 

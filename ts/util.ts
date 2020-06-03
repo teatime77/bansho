@@ -33,8 +33,20 @@ export function last<T>(v:Array<T>) : T{
 
 export const idPrefix = "bansho-id-";
 
-export function getBlockId(refId: number) : string {
-    return `${idPrefix}${refId}`;
+export function getElementId(act: Widget){
+    let id = glb.elementIdMap.get(act);
+
+    if(id == undefined){
+        id = Math.max(... Array.from(glb.elementIdMap.values())) + 1;
+        glb.elementIdMap.set(act, id);
+    }
+
+    return id;
+}
+
+export function getBlockId(act: Widget) : string {
+    const id = getElementId(act);
+    return `${idPrefix}${id}`;
 }
 
 function getIndent(line: string) : [number, string]{

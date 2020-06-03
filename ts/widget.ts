@@ -8,20 +8,13 @@ export enum SelectionType {
 }
 
 export class Widget{
-    static count: number = 0;
     typeName: string;
-    id: number;
 
     constructor(){
         this.typeName = this.getTypeName();
-        this.id = Widget.count++;
-        // if(glb.widgets.length == 0){
-        //     this.id = 0;
-        // }
-        // else{
-        //     this.id = Math.max(... glb.widgets.map(x => x.id)) + 1;
-        // }
     }
+
+    make(obj: Object){}
 
     propertyNames() : string[] {
         return [];
@@ -29,11 +22,6 @@ export class Widget{
 
     getTypeName(){
         return this.constructor.name;
-    }
-
-    toStr() : string {
-        console.assert(false);
-        return "";
     }
 
     enable(){
@@ -61,17 +49,21 @@ export class Widget{
     }
 
     makeObj() : any{
+        const id = glb.widgetMap.get(this);
+        console.assert(id != undefined);
+
         return {
-            id: this.id,
+            id: id,
             typeName: this.typeName
         };
     }
 
     toObj(){
-        if(glb.widgetMap[ this.id ] != undefined){
-            return { ref: this.id };
+        let id = glb.widgetMap.get(this);
+        if(id != undefined){
+            return { ref: id };
         }
-        glb.widgetMap[ this.id ] = this;
+        glb.widgetMap.set(this, glb.widgetMap.size);
 
         return this.makeObj();
     }
@@ -84,25 +76,28 @@ export class EmptyWidget extends Widget {
 }
 
 export class SelectionWidget extends Widget {
-    refId: number;
     textAct: TextBlockWidget;
     startIdx: number = -1;
     endIdx: number = -1;
     type: number;
     border: HTMLDivElement | null = null;
 
-    constructor(refId: number, startIdx: number, endIdx: number, type: SelectionType){
+    constructor(textAct: TextBlockWidget, startIdx: number, endIdx: number, type: SelectionType){
         super();
-        this.refId   = refId;        
 
-        this.textAct  = getWidgetById(refId) as TextBlockWidget;
+        this.textAct  = textAct;
         this.startIdx = startIdx;
         this.endIdx   = endIdx;
         this.type    = type;
     }
 
-    toStr() : string {
-        return `{ "type": "select", "refId": ${this.refId}, "startIdx": ${this.startIdx}, "endIdx": ${this.endIdx}, "type": ${this.type} }`;
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            textAct: this.textAct.toObj(),
+            startIdx: this.startIdx,
+            endIdx: this.endIdx,
+            type: this.type
+        });
     }
 
     moveBorder(){
@@ -191,16 +186,26 @@ export class TextWidget extends Widget {
         super();
         this.text = text;
     }
+
+    make(obj: any) : Widget {
+        console.assert(obj.text != undefined);
+        this.text = obj.text;
+    
+        return this;
+    }
+
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            text: this.text
+        });
+    }
+
 }
 
 export class SpeechWidget extends TextWidget {
 
     constructor(text: string){
         super(text);
-    }
-
-    toStr() : string {
-        return `{ "type": "speech", "text":${JSON.stringify(this.text)} }`;
     }
 
     *play(){
@@ -279,7 +284,7 @@ export class TextBlockWidget extends TextWidget {
         
         this.div = document.createElement("div");
     
-        this.div.id = getBlockId(this.id);
+        this.div.id = getBlockId(this);
         this.div.style.position = "relative";
         this.div.style.display = "none";
     
@@ -288,6 +293,14 @@ export class TextBlockWidget extends TextWidget {
         this.div.tabIndex = 0;
         
         setTextBlockEventListener(this);
+    }
+
+    make(obj: any) : Widget {
+        super.make(obj);
+        console.assert(obj.lineFeed != undefined);
+        this.lineFeed = obj.lineFeed;
+
+        return this;
     }
 
     enable(){
@@ -305,8 +318,10 @@ export class TextBlockWidget extends TextWidget {
         this.div.style.display = "none";
     }
 
-    toStr() : string {
-        return `{ "type": "text", "text":${JSON.stringify(this.text)} }`;
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            lineFeed: this.lineFeed
+        });
     }
 
     summary() : string {
@@ -335,14 +350,6 @@ export class TextBlockWidget extends TextWidget {
             }    
         }
     }
-}
-
-
-function getWidgetById(id: number) : Widget {
-    let act = glb.widgets.find(x => x.id == id);
-    console.assert(act != undefined);
-
-    return act!;
 }
 
 }

@@ -8,7 +8,8 @@ export class Glb {
     board : HTMLDivElement;
     speechInput : boolean = false;
     ui: UI;
-    widgetMap: { [key: string]: Widget; }  = {};
+    widgetMap  = new Map<Widget, number>();
+    elementIdMap = new Map<Widget, number>();
 
     constructor(ui: UI){
         this.ui = ui;
@@ -173,7 +174,7 @@ export class UI {
 
         let fnc = (act: Widget)=>{
 
-            const refActs = glb.widgets.filter(x => x instanceof SelectionWidget && x.refId == act.id) as SelectionWidget[];
+            const refActs = glb.widgets.filter(x => x instanceof SelectionWidget && x.textAct == act) as SelectionWidget[];
 
             refActs.forEach(x => fnc(x));
 
@@ -375,38 +376,7 @@ export class UI {
         this.updateTextMath();
     }
 
-    serializeDoc(title: string) : string {
-        return `{
-      "title": "${title}",
-      "actions": [
-    ${glb.widgets.filter(x => !(x instanceof EmptyWidget)) .map(x => "    " + x.toStr()).join(",\n")}
-      ]
-    }`
-    }
-    
-    renumId(){
-        for(let [id, act] of glb.widgets.entries()){
-            if(act instanceof TextBlockWidget){
-                act.div.id = getBlockId(id);
-            }
-            else if(act instanceof SelectionWidget){
-                const block = glb.widgets.find(x => x.id == (act as SelectionWidget).refId);
-                console.assert(block != undefined);
-    
-                act.refId = glb.widgets.indexOf(block!);
-                console.assert(act.refId != -1);
-            }
-        }
-    
-        for(let [id, act] of glb.widgets.entries()){
-            act.id = id;
-        }
-    }
-
-    backup(path: string){
-        this.renumId();
-
-        const text = this.serializeDoc(this.txtTitle.value.trim());
+    writeTextFile(path: string, text: string){
         msg(`[${text}]`);
     
         navigator.clipboard.writeText(text).then(function() {
@@ -442,6 +412,7 @@ export class UI {
             this.deserializeDoc(text);
         });
     }
+
     
     deserializeDoc(text: string){
         glb.widgets = [];
@@ -450,56 +421,41 @@ export class UI {
     
         const doc = JSON.parse(text);
 
-        if(UI != undefined && this instanceof UI){
-            this.txtTitle.value = doc.title;
-        }
+        this.txtTitle.value = doc.title;
     
         const h1 = document.createElement("h1");
         h1.innerHTML = doc.title;
         glb.board.appendChild(h1);
     
-        for(let [id, obj] of doc.actions.entries()){
-            let act: Widget;
-    
-            switch(obj.type){
-            case "text":
-                act = new TextBlockWidget((obj as TextBlockWidget).text);
-                break;
-            
-            case "speech":
-                act = new SpeechWidget((obj as SpeechWidget).text);
-                break;
-    
-            case "select":
-                // let sel = obj as SelectionWidget;
-                // act = new SelectionWidget(this, sel.refId, sel.domType, sel.startIdx, sel.endIdx, sel.color);
-                continue;
-    
-            case "disable":
-                continue;
-    
-            default:
-                console.assert(false);
-                return;
-            }
-            // console.assert(act.id == id);
-    
+        for(let obj of doc.widgets){
+            let act = parseWidget(obj);
+        
             glb.widgets.push(act);
-    
-            glb.timeline.max = `${glb.widgets.length - 1}`;
-            glb.timeline.valueAsNumber = glb.widgets.length - 1;
         }
     
-        if(UI != undefined && this instanceof UI){
-    
-            this.summary.textContent = last(glb.widgets).summary();
-        }
+        this.summary.textContent = last(glb.widgets).summary();
     
         glb.timeline.max = `${glb.widgets.length - 1}`;
+        glb.timeline.valueAsNumber = glb.widgets.length - 1;
+
         this.updateTimePos(-1);    
         this.onOpenDocComplete();
     }
 
+}
+
+function parseWidget(obj: any) : Widget {
+    switch(obj.typeName){
+    case TextBlockWidget.name:
+        return new TextBlockWidget("").make(obj);
+
+    case SpeechWidget.name:
+        return new SpeechWidget("").make(obj);
+
+    default:
+        console.assert(false);
+        return null as any as Widget;
+    }
 }
 
 export function bodyOnload(){
@@ -521,8 +477,17 @@ export function getData(){
 }
 
 export function putData(){
+    glb.widgetMap = new Map<Widget, number>();
+    let obj = {
+        title: glb.ui.txtTitle.value.trim(),
+        widgets : glb.widgets.map(x => x.toObj())
+    }
+
+    const text = JSON.stringify(obj, null, 4);
+
     let path  = (document.getElementById("txt-path") as HTMLInputElement).value.trim();
-    glb.ui.backup(path);
+
+    glb.ui.writeTextFile(path, text);
 }
 
 
@@ -552,11 +517,6 @@ export function initPlayer(){
 
 let selAct: SelectionWidget | null = null;
 
-function getWidgetId(id: string) : number {
-    console.assert(id.startsWith(idPrefix));
-    return parseInt(id.substring(idPrefix.length));
-}
-
 export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | MouseEvent, is_click: boolean){
     for(let ele = ev.srcElement as HTMLElement; ele; ele = ele.parentElement!){
         if([ "MJX-MI", "MJX-MN", "MJX-MO" ].includes(ele.tagName)){
@@ -582,7 +542,7 @@ export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | Mouse
                         type = SelectionType.second;
                     }
 
-                    selAct = new SelectionWidget(getWidgetId(act.div.id), i, i + 1, type);
+                    selAct = new SelectionWidget(act, i, i + 1, type);
                     selAct.enable();
 
                     glb.ui.addWidget(selAct);
@@ -637,19 +597,5 @@ export function pauseWidget(ui: UI, fnc:()=>void){
         }
     },10);
 }
-
-
-export function serializeActions() : string {
-    for(let [i,x] of glb.allWidgets.entries()){
-        x.id = i;
-    }
-    glb.widgetMap = {};
-
-    const widgetObjs = glb.widgets.map(x => x.toObj());
-
-    return JSON.stringify(widgetObjs);
-}
-
-
 
 }
