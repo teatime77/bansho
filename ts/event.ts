@@ -4,30 +4,37 @@ let prevCharIndex = 0;
 export let TemporarySelections: SelectionWidget[] = [];
 
 export function setEventListener(ui: UI){
+    // 再生 / 停止ボタン
     ui.btnPlayPause.addEventListener("click", (ev: MouseEvent)=>{
         ui.clickPlayPause();
     });
 
+    // タイムライン
     glb.timeline.addEventListener("change", (ev: Event)=>{
         ui.rngTimelineChange();
     });
 
+    // ➕ ウイジェットの追加
     document.getElementById("add-empty-action")!.addEventListener("click", (ev: MouseEvent)=>{
         ui.addEmptyWidget();
     });
 
+    // ⏮
     document.getElementById("update-time-pos")!.addEventListener("click", (ev: MouseEvent)=>{
         ui.updateTimePos(-1);
     });
 
+    // 開くボタン
     document.getElementById("get-data")!.addEventListener("click", (ev: MouseEvent)=>{
         getData();
     });
 
+    // 削除ボタン
     document.getElementById("delete-action")!.addEventListener("click", (ev: MouseEvent)=>{
         ui.deleteWidget();
     });
 
+    // 保存ボタン
     document.getElementById("put-data")!.addEventListener("click", (ev: MouseEvent)=>{
         putData();
     });
@@ -35,8 +42,8 @@ export function setEventListener(ui: UI){
     
 
 export function setUIEditEventListener(ui: UI){
-    // let a = new ShoppingList();
 
+    // BODY キーダウン
     document.body.addEventListener("keydown", (ev: KeyboardEvent)=>{
         if(ev.key == "Insert" && ! ev.ctrlKey && ! ev.shiftKey){
             glb.speechInput = ! glb.speechInput;
@@ -50,6 +57,7 @@ export function setUIEditEventListener(ui: UI){
         }
     });
 
+    // 改行 チェックボックス
     ui.lineFeedChk.addEventListener("change", (ev: Event)=>{
         let act = ui.currentWidget();
         if(act instanceof TextBlockWidget){
@@ -62,32 +70,39 @@ export function setUIEditEventListener(ui: UI){
         }
     })
 
+    // TEXTAREA キー ダウン
     ui.textArea.addEventListener("keydown", (ev: KeyboardEvent)=>{
         ui.textAreaKeyDown(ev);
     })
 
+    // TEXTAREA キー プレス
     ui.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
         ui.textAreaKeyPress(ev);
     });
 
+    // TEXTAREA BLUR
     ui.textArea.addEventListener("blur", (ev: FocusEvent)=>{
         ui.textAreaBlur(ev);
     });
 
+    // タイマー処理
     setInterval(()=>{
         ui.updateTextMath();
     }, 500);
 }
 
 export function setTextBlockEventListener(act: TextBlockWidget){
+    // テキストブロック クリック
     act.div.addEventListener("click", (ev:MouseEvent)=>{
         onClickBlock(act, ev);
     });
 
+    // テキストブロック ポインター移動
     act.div.addEventListener("pointermove", (ev: PointerEvent)=>{
         onPointerMove(act, ev);
     });
 
+    // テキストブロック キーダウン
     act.div.addEventListener('keydown', (ev) => {
         msg(`key down ${ev.key} ${ev.ctrlKey}`);
 
@@ -102,6 +117,7 @@ export function setTextBlockEventListener(act: TextBlockWidget){
 }
 
 export function setSpeechEventListener(uttr: SpeechSynthesisUtterance){
+    // スピーチ 終了
     uttr.onend = function(ev: SpeechSynthesisEvent ) {
         isSpeaking = false;
         msg(`end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
@@ -110,11 +126,88 @@ export function setSpeechEventListener(uttr: SpeechSynthesisUtterance){
         console.assert(TemporarySelections.length == 0);
     };
 
+    // スピーチ 境界
     uttr.onboundary = function(ev: SpeechSynthesisEvent ) { 
         msg(`bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
         prevCharIndex = ev.charIndex;
     };
 }
+
+/**
+ * プロパティのテキストのイベント処理
+ */
+export function setPropertyTextEventListener(obj: Widget, inp: HTMLInputElement, setter: Function){
+    inp.addEventListener("blur", function(obj, inp, setter){
+        return function(ev: FocusEvent){
+            setter.apply(obj, [ inp.value ]);
+        };
+    
+    }(obj, inp, setter));
+}
+
+/**
+ * プロパティのブール値のイベント処理
+ */
+export function setPropertyCheckboxEventListener(obj: Widget, inp: HTMLInputElement, setter: Function){
+    inp.addEventListener("click", (function(inp, setter){
+        return function(ev: MouseEvent){
+            setter.apply(obj, [ inp.checked ]);
+        };
+    })(inp, setter));
+
+}
+
+/**
+ * tool-typeのクリック
+ */
+export function setToolTypeEventListener(){
+    const toolTypes = document.getElementsByName("tool-type");
+    for(let x of toolTypes){
+        x.addEventListener("click", setToolType);
+    }    
+}
+
+/**
+ * Viewのイベント処理
+ */
+export function setViewEventListener(view: View){
+    view.svg.addEventListener("click", svgClick);
+    view.svg.addEventListener("pointermove", svgPointermove);  
+}
+
+/**
+ * Pointのイベント処理
+ */
+export function setPointEventListener(point: Point){
+    point.circle.addEventListener("pointerdown", point.pointerdown);
+    point.circle.addEventListener("pointermove", point.pointermove);
+    point.circle.addEventListener("pointerup", point.pointerup);
+}
+
+/**
+ * Imageのイベント処理
+ */
+export function setImageEventListener(img: Image){
+    img.image.addEventListener("load", img.load);
+    img.image.addEventListener("pointerdown", img.pointerdown);
+    img.image.addEventListener("pointerup", img.pointerup);
+}
+
+// export function setEventListener(){
+    
+// }
+
+// export function setEventListener(){
+    
+// }
+
+// export function setEventListener(){
+    
+// }
+
+// export function setEventListener(){
+    
+// }
 
 declare let MathJax:any;
 

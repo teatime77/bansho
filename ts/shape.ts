@@ -16,6 +16,7 @@ export let textMath : HTMLTextAreaElement;
 const defaultUid = "Rb6xnDguG5Z9Jij6XLIPHV4oNge2";
 let loginUid : string | null = null;
 let guestUid = defaultUid;
+let firebase: any;
 
 function getImgRef(fileName: string, mode:string){
     // Create a root reference
@@ -55,7 +56,7 @@ export function arrayLast<T>(arr:T[]) : T{
     return arr[arr.length - 1];
 }
 
-function initPoint(pt:Vec2){
+export function initPoint(pt:Vec2){
     const point = new Point({pos:pt});
     point.init();
 
@@ -81,19 +82,6 @@ function getSvgPos(pt: Vec2) : Vec2 {
     return new Vec2(x, y);
 }
 
-function getDomPos(pt: Vec2) : Vec2 {
-    const rc1 = view.svg.getBoundingClientRect() as DOMRect;
-    const rc2 = view.div.getBoundingClientRect() as DOMRect;
-
-    console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
-
-    const x = rc2.width  * (pt.x - view.svg.viewBox.baseVal.x) / view.svg.viewBox.baseVal.width;
-    const y = rc2.height * (pt.y - view.svg.viewBox.baseVal.y) / view.svg.viewBox.baseVal.height;
-
-    return new Vec2(x, y);
-}
-
-
 function toSvgRatio() : Vec2 {
     const rc1 = view.svg.getBoundingClientRect() as DOMRect;
     const rc2 = view.div.getBoundingClientRect() as DOMRect;
@@ -104,8 +92,7 @@ function toSvgRatio() : Vec2 {
 }
 
 
-
-function getSvgPoint(ev: MouseEvent | PointerEvent, draggedPoint: Point|null){
+export function getSvgPoint(ev: MouseEvent | PointerEvent, draggedPoint: Point|null){
 	const point = view.svg.createSVGPoint();
 	
     //画面上の座標を取得する．
@@ -225,7 +212,7 @@ function calcFootOfPerpendicular(pos:Vec2, line: LineSegment) : Vec2 {
 }
 
 
-function setToolType(){
+export function setToolType(){
     const textBoxes = glb.widgets.filter(x => x instanceof TextBox) as TextBox[];
 
     view.toolType = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;
@@ -279,7 +266,6 @@ function showProperty(obj: Widget){
     tblProperty.innerHTML = "";
 
     for(let name of obj.propertyNames()){
-        msg(`property : ${name}`);
 
         const tr = document.createElement("tr");
 
@@ -311,21 +297,12 @@ function showProperty(obj: Widget){
         case "number":
             inp.type = "text";
             inp.value = `${value}`;
-            inp.addEventListener("blur", (function(inp, setter){
-                return function(ev: FocusEvent){
-                    setter.apply(obj, [ inp.value ]);
-                };
-            })(inp, setter));
-
+            setPropertyTextEventListener(obj, inp, setter);
             break;
         case "boolean":
             inp.type = "checkbox";
             inp.checked = value as boolean;
-            inp.addEventListener("click", (function(inp, setter){
-                return function(ev: MouseEvent){
-                    setter.apply(obj, [ inp.checked ]);
-                };
-            })(inp, setter));
+            setPropertyCheckboxEventListener(obj, inp, setter);
             break;
         }
         valueTd.appendChild(inp);
@@ -338,7 +315,7 @@ function showProperty(obj: Widget){
 }
 
 
-function svgClick(ev: MouseEvent){
+export function svgClick(ev: MouseEvent){
     if(view.capture != null || view.toolType == "TextSelection"){
         return;
     }
@@ -376,7 +353,7 @@ function svgClick(ev: MouseEvent){
     }
 }
 
-function svgPointermove(ev: PointerEvent){
+export function svgPointermove(ev: PointerEvent){
     if(view.capture != null){
         return;
     }
@@ -394,11 +371,7 @@ export function addShape(){
 
 export function initDraw(){
     tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
-
-    const toolTypes = document.getElementsByName("tool-type");
-    for(let x of toolTypes){
-        x.addEventListener("click", setToolType);
-    }
+    setToolTypeEventListener();
 }
 
 export class Vec2 {
@@ -605,7 +578,7 @@ export class View extends ShapeWidget {
     GridWidth : number = 1;
     GridHeight : number = 1;
     SnapToGrid: boolean = false;
-    FlipY : boolean = false;
+    FlipY : boolean = true;
 
     Width      : number = 0;
     Height     : number = 0;
@@ -668,8 +641,7 @@ export class View extends ShapeWidget {
         this.svg.appendChild(this.G1);
         this.svg.appendChild(this.G2);
     
-        this.svg.addEventListener("click", svgClick);
-        this.svg.addEventListener("pointermove", svgPointermove);  
+        setViewEventListener(this);
 
         setToolType();
 
@@ -829,10 +801,12 @@ export class View extends ShapeWidget {
 
         console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
 
-        const x = rc1.width  * (pt.x - this.svg.viewBox.baseVal.x) / this.svg.viewBox.baseVal.width;
-        const y = rc1.height * (pt.y - this.svg.viewBox.baseVal.y) / this.svg.viewBox.baseVal.height;
+        let y1 = (this.FlipY ? - pt.y : pt.y);
 
-        return new Vec2(x, y);
+        const x  = rc2.width  * (pt.x - this.svg.viewBox.baseVal.x) / this.svg.viewBox.baseVal.width;
+        const y2 = rc2.height * (y1   - this.svg.viewBox.baseVal.y) / this.svg.viewBox.baseVal.height;
+
+        return new Vec2(x, y2);
     }
 
     toSvg2(x:number) : number{
@@ -952,9 +926,7 @@ export class Point extends Shape {
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("r", `${this.toSvg(5)}`);
         this.circle.setAttribute("fill", "blue");
-        this.circle.addEventListener("pointerdown", this.pointerdown);
-        this.circle.addEventListener("pointermove", this.pointermove);
-        this.circle.addEventListener("pointerup", this.pointerup);
+        setPointEventListener(this);
 
         this.circle.style.cursor = "pointer";
 
@@ -2021,7 +1993,7 @@ export class TextBox extends CompositeShape {
         console.assert(sources.length == 1 && sources[0] == this.handles[0]);
         msg(`text pos ${this.handles[0].pos.x} ${this.handles[0].pos.y} `);
 
-        this.domPos = getDomPos(this.handles[0].pos);
+        this.domPos = this.parentView.getDomPos(this.handles[0].pos);
         this.updatePos();
     }
 
@@ -2452,17 +2424,27 @@ export class Label extends CompositeShape {
         });
     }
 
+    getY() : number {
+        if(this.parentView.FlipY){
+            return - this.handles[0].pos.y;
+        }
+        else{
+
+            return   this.handles[0].pos.y;
+        }
+    }
+
     processEvent =(sources: Shape[])=>{
         console.assert(sources.length == 1 && sources[0] == this.handles[0]);
         this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
-        this.svgText.setAttribute("y", "" + this.handles[0].pos.y);
+        this.svgText.setAttribute("y", `${this.getY()}`);
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
         this.addHandle(clickHandle(ev, pt));
 
         this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
-        this.svgText.setAttribute("y", "" + this.handles[0].pos.y);
+        this.svgText.setAttribute("y", `${this.getY()}`);
         this.finishTool();
     }
 }
@@ -2492,61 +2474,9 @@ export class Image extends CompositeShape {
         setSvgImg(this.image, this.fileName);
 
         this.parentView.G0.appendChild(this.image);
+
+        setImageEventListener(this);
     
-        this.image.addEventListener("load", (ev:Event) => {
-            if(this.handles.length != 0){
-
-                this.image.setAttribute("x", `${this.pos!.x}`);
-                this.image.setAttribute("y", `${this.pos!.y}`);
-
-                const x1 = this.handles[0].pos.x;
-                const y1 = this.handles[0].pos.y;
-
-                const w = x1 - this.pos!.x;
-                const h = y1 - this.pos!.y;
-                this.image.setAttribute("width", `${w}`);
-                this.image.setAttribute("height", `${h}`);
-                    
-                return;
-            }
-            const rc = this.image.getBoundingClientRect();
-            bansho.msg(`img loaded w:${rc.width} h:${rc.height}`);
-    
-            // 縦横比 = 縦 / 横
-            const ratio = rc.height / rc.width;
-    
-            // viewBoxを得る。
-            const vb = this.parentView.svg.viewBox.baseVal;
-    
-            // 縦横比を保って幅がsvgの半分になるようにする。
-            const w = vb.width / 2;
-            const h = ratio * vb.width / 2;
-            this.image.setAttribute("width", `${w}`);
-            this.image.setAttribute("height", `${h}`);
-    
-            // svgの中央に配置する。
-            this.pos = new Vec2( vb.x + (vb.width - w) / 2, vb.y + (vb.height - h) / 2);
-
-            this.image.setAttribute("x", `${this.pos.x}`);
-            this.image.setAttribute("y", `${this.pos.y}`);
-    
-            this.addHandle(initPoint(new Vec2(this.pos.x + w, this.pos.y + h)));
-        });
-
-
-        this.image.addEventListener("pointerdown", (ev: PointerEvent)=>{
-            this.image.setPointerCapture(ev.pointerId);
-
-            this.image.addEventListener("pointermove", this.pointermove);
-
-            this.pointerPos = getSvgPoint(ev, null);
-        });
-
-        this.image.addEventListener("pointerup", (ev: PointerEvent)=>{
-            this.pos = new Vec2(parseFloat(this.image.getAttribute("x")!), parseFloat(this.image.getAttribute("y")!));
-            this.image.removeEventListener("pointermove", this.pointermove);
-            this.image.releasePointerCapture(ev.pointerId);
-        });
         
         return this;
     }
@@ -2556,6 +2486,58 @@ export class Image extends CompositeShape {
             pos: this.pos,
             fileName: this.fileName
         });
+    }
+
+    load(ev:Event){
+        if(this.handles.length != 0){
+
+            this.image.setAttribute("x", `${this.pos!.x}`);
+            this.image.setAttribute("y", `${this.pos!.y}`);
+
+            const x1 = this.handles[0].pos.x;
+            const y1 = this.handles[0].pos.y;
+
+            const w = x1 - this.pos!.x;
+            const h = y1 - this.pos!.y;
+            this.image.setAttribute("width", `${w}`);
+            this.image.setAttribute("height", `${h}`);
+                
+            return;
+        }
+        const rc = this.image.getBoundingClientRect();
+        bansho.msg(`img loaded w:${rc.width} h:${rc.height}`);
+
+        // 縦横比 = 縦 / 横
+        const ratio = rc.height / rc.width;
+
+        // viewBoxを得る。
+        const vb = this.parentView.svg.viewBox.baseVal;
+
+        // 縦横比を保って幅がsvgの半分になるようにする。
+        const w = vb.width / 2;
+        const h = ratio * vb.width / 2;
+        this.image.setAttribute("width", `${w}`);
+        this.image.setAttribute("height", `${h}`);
+
+        // svgの中央に配置する。
+        this.pos = new Vec2( vb.x + (vb.width - w) / 2, vb.y + (vb.height - h) / 2);
+
+        this.image.setAttribute("x", `${this.pos.x}`);
+        this.image.setAttribute("y", `${this.pos.y}`);
+
+        this.addHandle(initPoint(new Vec2(this.pos.x + w, this.pos.y + h)));
+    }
+
+    pointerdown = (ev: PointerEvent)=>{
+        this.image.setPointerCapture(ev.pointerId);
+        this.image.addEventListener("pointermove", this.pointermove);
+        this.pointerPos = getSvgPoint(ev, null);
+    }
+
+    pointerup = (ev: PointerEvent)=>{
+        this.pos = new Vec2(parseFloat(this.image.getAttribute("x")!), parseFloat(this.image.getAttribute("y")!));
+        this.image.removeEventListener("pointermove", this.pointermove);
+        this.image.releasePointerCapture(ev.pointerId);
     }
 
     pointermove=(ev: PointerEvent)=>{
@@ -2590,17 +2572,5 @@ export class Image extends CompositeShape {
         }
     }
 }
-
-
-//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 未実装
-let firebase: any;
-class TextBlockAction extends ShapeWidget{
-    text: string = "";
-}
-export function onclickBlock(div: HTMLDivElement, ev:MouseEvent){
-    console.assert(false, "未実装");
-}
-//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
 
 }
