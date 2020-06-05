@@ -70,18 +70,6 @@ function initLineSegment(){
     return line;
 }
 
-function getSvgPos(pt: Vec2) : Vec2 {
-    const rc1 = view.svg.getBoundingClientRect() as DOMRect;
-    const rc2 = view.div.getBoundingClientRect() as DOMRect;
-
-    console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
-
-    const x = view.svg.viewBox.baseVal.x + view.svg.viewBox.baseVal.width  * pt.x / rc1.width;
-    const y = view.svg.viewBox.baseVal.y + view.svg.viewBox.baseVal.height * pt.y / rc1.height;
-
-    return new Vec2(x, y);
-}
-
 function toSvgRatio() : Vec2 {
     const rc1 = view.svg.getBoundingClientRect() as DOMRect;
     const rc2 = view.div.getBoundingClientRect() as DOMRect;
@@ -93,26 +81,8 @@ function toSvgRatio() : Vec2 {
 
 
 export function getSvgPoint(ev: MouseEvent | PointerEvent, draggedPoint: Point|null){
-	const point = view.svg.createSVGPoint();
-	
-    //画面上の座標を取得する．
-    point.x = ev.offsetX;
-    point.y = ev.offsetY;
 
-    const p = getSvgPos(new Vec2(ev.offsetX, ev.offsetY));
-    if(view.CTMInv != null){
-
-        //座標に逆行列を適用する．
-        const p2 = point.matrixTransform(view.CTMInv);
-        console.assert(Math.abs(p.x - p2.x) < 0.01 && Math.abs(p.y - p2.y) < 0.01)
-        // msg(`dom->svg (${p.x} , ${p.y}) (${p2.x} , ${p2.y})`)
-    }
-
-
-    if(view.FlipY){
-
-        p.y = - p.y;
-    }
+    const p = view.DomToSvgPos(ev.offsetX, ev.offsetY);
 
     if(view.SnapToGrid){
 
@@ -364,7 +334,7 @@ export function svgPointermove(ev: PointerEvent){
 }
 
 export function addShape(){
-    const view1 = new View({ Width: 500, Height: 500, ViewBox: "-10 -10 20 20" });
+    const view1 = new View({ Width: 500, Height: 500, ViewBox: "-5 -15 20 20" });
     glb.widgets.push(view1);
     view1.init();
 }
@@ -632,9 +602,10 @@ export class View extends ShapeWidget {
     
         if(this.FlipY){
             
-            this.G0.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
-            this.G1.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
-            this.G2.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
+            const transform = this.getTransform();
+            this.G0.setAttribute("transform", transform);
+            this.G1.setAttribute("transform", transform);
+            this.G2.setAttribute("transform", transform);
         }
     
         this.svg.appendChild(this.G0);
@@ -646,6 +617,11 @@ export class View extends ShapeWidget {
         setToolType();
 
         return this;
+    }
+
+    getTransform(){
+        const f = 2 * this.svg.viewBox.baseVal.y + this.svg.viewBox.baseVal.height;
+        return `matrix(1, 0, 0, -1, 0, ${f})`;
     }
 
     propertyNames() : string[] {
@@ -795,18 +771,55 @@ export class View extends ShapeWidget {
         this.gridBg.setAttribute("fill", `url(#${patternId})`);
     }
 
-    getDomPos(pt: Vec2) : Vec2 {
+    DomToSvgPos(x1: number, y1: number) : Vec2 {
+        const rc1 = this.svg.getBoundingClientRect() as DOMRect;
+        const rc2 = this.div.getBoundingClientRect() as DOMRect;
+    
+        console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
+    
+        if(this.FlipY){
+    
+            y1 = rc2.height - y1;
+        }
+
+        const x = this.svg.viewBox.baseVal.x + this.svg.viewBox.baseVal.width  * x1 / rc1.width;
+        const y = this.svg.viewBox.baseVal.y + this.svg.viewBox.baseVal.height * y1 / rc1.height;
+    
+        let p2 = new Vec2(x, y);
+
+        if(this.CTMInv != null){
+
+            const point = this.svg.createSVGPoint();
+
+            //画面上の座標を取得する．
+            point.x = x1;
+            point.y = y1;
+
+            //座標に逆行列を適用する．
+            const p3 = point.matrixTransform(this.CTMInv);
+
+            // console.assert(Math.abs(p2.x - p3.x) < 0.01 && Math.abs(p2.y - p3.y) < 0.01)
+        }
+            
+        return p2;
+    }
+    
+    SvgToDomPos(pt: Vec2) : Vec2 {
         const rc1 = this.svg.getBoundingClientRect() as DOMRect;
         const rc2 = this.div.getBoundingClientRect() as DOMRect;
 
         console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
 
-        let y1 = (this.FlipY ? - pt.y : pt.y);
+        const x = rc2.width  * (pt.x - this.svg.viewBox.baseVal.x) / this.svg.viewBox.baseVal.width;
+        let   y = rc2.height * (pt.y - this.svg.viewBox.baseVal.y) / this.svg.viewBox.baseVal.height;
 
-        const x  = rc2.width  * (pt.x - this.svg.viewBox.baseVal.x) / this.svg.viewBox.baseVal.width;
-        const y2 = rc2.height * (y1   - this.svg.viewBox.baseVal.y) / this.svg.viewBox.baseVal.height;
+        if(this.FlipY){
+    
+            y = rc2.height - y;
+        }
 
-        return new Vec2(x, y2);
+
+        return new Vec2(x, y);
     }
 
     toSvg2(x:number) : number{
@@ -1993,7 +2006,7 @@ export class TextBox extends CompositeShape {
         console.assert(sources.length == 1 && sources[0] == this.handles[0]);
         msg(`text pos ${this.handles[0].pos.x} ${this.handles[0].pos.y} `);
 
-        this.domPos = this.parentView.getDomPos(this.handles[0].pos);
+        this.domPos = this.parentView.SvgToDomPos(this.handles[0].pos);
         this.updatePos();
     }
 
@@ -2399,7 +2412,7 @@ export class Label extends CompositeShape {
 
         if(this.parentView.FlipY){
             
-            this.svgText.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
+            this.svgText.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
         }
         this.svgText.setAttribute("stroke", "navy");
 
@@ -2468,7 +2481,8 @@ export class Image extends CompositeShape {
 
         if(this.parentView.FlipY){
             
-            this.image.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
+            const transform = this.parentView.getTransform();
+            this.image.setAttribute("transform", transform);
         }
         this.image.setAttribute("preserveAspectRatio", "none");
         setSvgImg(this.image, this.fileName);
