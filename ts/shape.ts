@@ -229,6 +229,7 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "Angle":         return new Angle();
         case "TextBox":       return new TextBox().make({ Text: "$\\int_{-\\infty}^\\infty$" });
         case "Label":         return new Label().make({Text:"こんにちは"}) as Shape;
+        case "Image":         return new Image({fileName:"./img/teatime77.jpeg"});
     } 
 }
 
@@ -2464,12 +2465,8 @@ export class Label extends CompositeShape {
 
 
 export class Image extends CompositeShape {
-    pos: Vec2 | null = null;
     fileName: string = "";
-
     image: SVGImageElement;
-
-    pointerPos: Vec2 | null = null;
 
     constructor(obj: any){
         super();
@@ -2481,43 +2478,25 @@ export class Image extends CompositeShape {
 
         if(this.parentView.FlipY){
             
-            const transform = this.parentView.getTransform();
-            this.image.setAttribute("transform", transform);
+            this.image.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
         }
         this.image.setAttribute("preserveAspectRatio", "none");
-        setSvgImg(this.image, this.fileName);
+        // setSvgImg(this.image, this.fileName);
+        this.image.setAttributeNS('http://www.w3.org/1999/xlink','href', this.fileName);
 
         this.parentView.G0.appendChild(this.image);
 
         setImageEventListener(this);
-    
-        
-        return this;
     }
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            pos: this.pos,
             fileName: this.fileName
         });
     }
 
-    load(ev:Event){
-        if(this.handles.length != 0){
+    load =(ev:Event)=>{
 
-            this.image.setAttribute("x", `${this.pos!.x}`);
-            this.image.setAttribute("y", `${this.pos!.y}`);
-
-            const x1 = this.handles[0].pos.x;
-            const y1 = this.handles[0].pos.y;
-
-            const w = x1 - this.pos!.x;
-            const h = y1 - this.pos!.y;
-            this.image.setAttribute("width", `${w}`);
-            this.image.setAttribute("height", `${h}`);
-                
-            return;
-        }
         const rc = this.image.getBoundingClientRect();
         bansho.msg(`img loaded w:${rc.width} h:${rc.height}`);
 
@@ -2533,50 +2512,49 @@ export class Image extends CompositeShape {
         this.image.setAttribute("width", `${w}`);
         this.image.setAttribute("height", `${h}`);
 
-        // svgの中央に配置する。
-        this.pos = new Vec2( vb.x + (vb.width - w) / 2, vb.y + (vb.height - h) / 2);
+        let pos = this.handles[0].pos;
 
-        this.image.setAttribute("x", `${this.pos.x}`);
-        this.image.setAttribute("y", `${this.pos.y}`);
+        this.image.setAttribute("x", `${pos.x}`);
+        this.image.setAttribute("y", `${this.getY() - h}`);
 
-        this.addHandle(initPoint(new Vec2(this.pos.x + w, this.pos.y + h)));
+        this.addHandle(initPoint(new Vec2(pos.x + w, pos.y + h)));
     }
 
-    pointerdown = (ev: PointerEvent)=>{
-        this.image.setPointerCapture(ev.pointerId);
-        this.image.addEventListener("pointermove", this.pointermove);
-        this.pointerPos = getSvgPoint(ev, null);
-    }
+    getY() : number {
+        if(this.parentView.FlipY){
+            return - this.handles[0].pos.y;
+        }
+        else{
 
-    pointerup = (ev: PointerEvent)=>{
-        this.pos = new Vec2(parseFloat(this.image.getAttribute("x")!), parseFloat(this.image.getAttribute("y")!));
-        this.image.removeEventListener("pointermove", this.pointermove);
-        this.image.releasePointerCapture(ev.pointerId);
-    }
-
-    pointermove=(ev: PointerEvent)=>{
-        const pt = getSvgPoint(ev, null);
-        const x = this.pos!.x + (pt.x - this.pointerPos!.x);
-        const y = this.pos!.y + (pt.y - this.pointerPos!.y);
-
-        this.image.setAttribute("x", `${x}`);
-        this.image.setAttribute("y", `${y}`);
-
-        this.handles[0].pos.x = x + this.image.width.baseVal.value;
-        this.handles[0].pos.y = y + this.image.height.baseVal.value;
-
-        this.handles[0].setPos();
-    }
+            return   this.handles[0].pos.y;
+        }
+    } 
 
     processEvent =(sources: Shape[])=>{
         for(let src of sources){
             if(src == this.handles[0]){
-                const x = parseFloat(this.image.getAttribute("x")!);
-                const y = parseFloat(this.image.getAttribute("y")!);
 
-                const w = this.handles[0].pos.x - x;
-                const h = this.handles[0].pos.y - y;
-                
+                let pos = this.handles[0].pos;
+
+                let w = this.image.width.baseVal.value;
+                let h = this.image.height.baseVal.value;
+
+                this.image.setAttribute("x", `${pos.x}`);
+                this.image.setAttribute("y", `${this.getY() - h}`);
+
+                let pt1 = this.handles[1];
+                pt1.pos.x = pos.x + w;
+                pt1.pos.y = pos.y + h;
+                pt1.setPos();
+            }
+            else if(src == this.handles[1]){
+                let pt0 = this.handles[0];
+                let pt1 = this.handles[1];
+
+                const w = pt1.pos.x - pt0.pos.x;
+                const h = pt1.pos.y - pt0.pos.y;
+
+                this.image.setAttribute("y", `${this.getY() - h}`);                
                 this.image.setAttribute("width", `${w}`);
                 this.image.setAttribute("height", `${h}`);
             }
@@ -2584,6 +2562,14 @@ export class Image extends CompositeShape {
                 console.assert(false);
             }
         }
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        this.addHandle(clickHandle(ev, pt));
+
+        this.image.setAttribute("x", "" + this.handles[0].pos.x);
+        this.image.setAttribute("y", "" + this.handles[0].pos.y);
+        this.finishTool();
     }
 }
 

@@ -189,25 +189,8 @@ export function setPointEventListener(point: Point){
  */
 export function setImageEventListener(img: Image){
     img.image.addEventListener("load", img.load);
-    img.image.addEventListener("pointerdown", img.pointerdown);
-    img.image.addEventListener("pointerup", img.pointerup);
 }
 
-// export function setEventListener(){
-    
-// }
-
-// export function setEventListener(){
-    
-// }
-
-// export function setEventListener(){
-    
-// }
-
-// export function setEventListener(){
-    
-// }
 
 declare let MathJax:any;
 
