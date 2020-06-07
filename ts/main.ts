@@ -490,6 +490,9 @@ export function parseObject(obj: any) : any {
     case LineSegment.name:
         return new LineSegment().make(obj);
 
+    case Rect.name:
+        return new Rect().make(obj);
+
     default:
         console.assert(false);
         return null as any as Widget;

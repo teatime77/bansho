@@ -1446,12 +1446,11 @@ export class Rect extends CompositeShape {
         super();
     }
 
-    make(data:any):ShapeWidget{
-        const obj = data as Rect;
-
-        this.isSquare = obj.isSquare;
-
-        return this;
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            isSquare: this.isSquare,
+            lines: this.lines.map(x => x.toObj())
+        });
     }
 
     all(v: Widget[]){
@@ -1472,13 +1471,6 @@ export class Rect extends CompositeShape {
 
             yield* line.restore();
         }
-    }
-
-    makeObj() : any {
-        return Object.assign(super.makeObj(), {
-            isSquare: this.isSquare,
-            lines: this.lines.map(x => x.toObj())
-        });
     }
 
     setRectPos(pt: Vec2|null, idx: number, clicked:boolean){

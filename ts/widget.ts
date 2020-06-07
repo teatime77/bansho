@@ -17,7 +17,7 @@ export class Widget{
         this.typeName = this.getTypeName();
     }
 
-    make(obj: any){
+    make(obj: any) : Widget {
         if(obj.id != undefined){
             let id = parseInt(obj.id);
             glb.refMap.set(id, this);
@@ -31,6 +31,8 @@ export class Widget{
                 (this as any)[k] = parseObject(v);
             }
         }
+
+        return this;
     }
 
     all(v: Widget[]){
