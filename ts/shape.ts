@@ -229,7 +229,7 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "Angle":         return new Angle();
         case "TextBox":       return new TextBox().make({ Text: "$\\int_{-\\infty}^\\infty$" });
         case "Label":         return new Label().make({Text:"こんにちは"}) as Shape;
-        case "Image":         return new Image({fileName:"./img/teatime77.jpeg"});
+        case "Image":         return new Image({fileName:"./img/teatime77.png"});
     } 
 }
 
@@ -2593,7 +2593,10 @@ export class Image extends CompositeShape {
         this.image.setAttribute("x", `${pos.x}`);
         this.image.setAttribute("y", `${this.getY() - h}`);
 
-        this.addHandle(initPoint(new Vec2(pos.x + w, pos.y + h)));
+        if(this.handles.length == 1){
+
+            this.addHandle(initPoint(new Vec2(pos.x + w, pos.y + h)));
+        }
     }
 
     getY() : number {
