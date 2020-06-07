@@ -219,7 +219,7 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "LineSegment":   return new LineSegment();
         case "BSpline":       return new BSpline();
         case "Rect":          return new Rect().make({isSquare:(arg == "2")}) as Shape;
-        case "Circle":        return new Circle().make({byDiameter:(arg == "2")}) as Shape;
+        case "Circle":        return new Circle(arg == "2");
         case "DimensionLine": return new DimensionLine();
         case "Triangle":      return new Triangle();
         case "Midpoint":      return new Midpoint();
@@ -1662,14 +1662,16 @@ export class Rect extends CompositeShape {
 }
 
 export class Circle extends CompositeShape {
-    byDiameter:boolean = true;
+    byDiameter:boolean;
     center: Vec2|null = null;
     radius: number = this.toSvg(1);
     
     circle: SVGCircleElement;
 
-    constructor(){
+    constructor(by_diameter: boolean){
         super();
+
+        this.byDiameter = by_diameter;
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("fill", "none");// "transparent");
@@ -1680,15 +1682,24 @@ export class Circle extends CompositeShape {
         this.parentView.G0.appendChild(this.circle);    
     }
 
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            byDiameter: this.byDiameter,
+            center: this.center,
+            radius: this.radius
+        });
+    }
+
     propertyNames() : string[] {
         return [ "Color" ];
     }
 
-    make(data:any):ShapeWidget{
-        const obj = data as Circle;
+    make(obj: any) : Widget {
+        super.make(obj);
 
-        this.byDiameter = obj.byDiameter;
-        //---------- 
+        this.circle.setAttribute("cx", "" + this.center!.x);
+        this.circle.setAttribute("cy", "" + this.center!.y);
+        this.circle.setAttribute("r", "" + this.radius);
 
         return this;
     }
@@ -1703,12 +1714,6 @@ export class Circle extends CompositeShape {
         }
 
         this.processEvent(this.handles);
-    }
-
-    makeObj() : any {
-        return Object.assign(super.makeObj(), {
-            byDiameter: this.byDiameter 
-        });
     }
 
     getColor(){

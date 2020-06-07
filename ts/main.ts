@@ -493,6 +493,9 @@ export function parseObject(obj: any) : any {
     case Rect.name:
         return new Rect().make(obj);
 
+    case Circle.name:
+        return new Circle(obj.byDiameter).make(obj);
+
     default:
         console.assert(false);
         return null as any as Widget;
