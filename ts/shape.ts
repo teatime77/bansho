@@ -2009,6 +2009,28 @@ export class TextBox extends CompositeShape {
         this.parentView.div.appendChild(this.div);
     }
 
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            domPos: this.domPos,
+            Text: this.Text
+        });
+    }
+
+    make(obj: any) : TextBox {
+        super.make(obj);
+
+        this.div.id = getBlockId(this);
+        this.div.innerHTML = bansho.makeHtmlLines(this.Text);
+
+        if(this.domPos != null){
+            this.updatePos();
+        }
+
+        MathJax.typesetPromise([this.div]);
+
+        return this;
+    }
+
     propertyNames() : string[] {
         return [ "Text" ];
     }
@@ -2018,32 +2040,6 @@ export class TextBox extends CompositeShape {
 
         this.div.innerHTML = bansho.makeHtmlLines(this.Text);
         MathJax.typesetPromise([this.div]);
-    }
-
-    make(obj:any){
-        console.assert(obj.Text != undefined);
-        Object.assign(this, obj);
-
-        this.div.id = getBlockId(this);
-
-        if(obj.domPos != undefined){
-
-            this.domPos = obj.domPos;
-            this.updatePos();
-        }
-
-        this.div.innerHTML = bansho.makeHtmlLines(this.Text);
-
-        MathJax.typesetPromise([this.div]);
-
-        return this;
-    }
-
-    makeObj() : any {
-        return Object.assign(super.makeObj(), {
-            domPos: this.domPos,
-            text: this.Text
-        });
     }
 
     processEvent =(sources: Shape[])=>{
@@ -2357,6 +2353,20 @@ export class Angle extends CompositeShape {
 
         this.parentView.G0.appendChild(this.arc);
     }
+    
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            lines: this.lines.map(x => x.toObj()),
+            ts: Array.from(this.ts)
+        });
+    }
+
+    make(obj: any) : Widget {
+        super.make(obj);
+        this.drawArc();
+
+        return this;
+    }
 
     all(v: Widget[]){
         super.all(v);
@@ -2369,13 +2379,6 @@ export class Angle extends CompositeShape {
 
     *restore(){
         this.drawArc();
-    }
-    
-    makeObj() : any {
-        return Object.assign(super.makeObj(), {
-            lines: this.lines.map(x => x.toObj()),
-            ts: Array.from(this.ts)
-        });
     }
 
     getColor(){
@@ -2468,7 +2471,36 @@ export class Label extends CompositeShape {
 
     constructor(){
         super();
+
         this.svgText = document.createElementNS("http://www.w3.org/2000/svg","text");
+        this.svgText.setAttribute("stroke", "navy");
+    }
+
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            Text: this.Text
+        });
+    }
+
+    make(obj: any):ShapeWidget{
+        super.make(obj);
+
+        if(this.parentView.FlipY){
+            
+            this.svgText.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
+        }
+
+        const p = toSvgRatio();
+        this.svgText.setAttribute("font-size", `${16 * p.y}`);
+        this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
+
+        this.svgText.textContent = this.Text;
+        this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
+        this.svgText.setAttribute("y", `${this.getY()}`);
+
+        this.parentView.G0.appendChild(this.svgText);
+
+        return this;
     }
 
     propertyNames() : string[] {
@@ -2480,35 +2512,8 @@ export class Label extends CompositeShape {
         this.svgText.textContent = text;
     }
 
-    make(obj: any):ShapeWidget{
-        console.assert(obj.Text != undefined);
-        Object.assign(this, obj);
-
-        if(this.parentView.FlipY){
-            
-            this.svgText.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
-        }
-        this.svgText.setAttribute("stroke", "navy");
-
-        const p = toSvgRatio();
-        this.svgText.setAttribute("font-size", `${16 * p.y}`);
-        this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
-
-        this.svgText.textContent = this.Text;
-
-        this.parentView.G0.appendChild(this.svgText);
-
-        return this;
-    }
-
     *restore(){
         this.processEvent([this.handles[0]]);
-    }
-
-    makeObj() : any {
-        return Object.assign(super.makeObj(), {
-            text: this.Text
-        });
     }
 
     getY() : number {
@@ -2543,9 +2548,7 @@ export class Image extends CompositeShape {
 
     constructor(obj: any){
         super();
-
-        console.assert(obj.fileName != undefined);
-        Object.assign(this, obj);
+        super.make(obj);
 
         this.image = document.createElementNS("http://www.w3.org/2000/svg", "image") as SVGImageElement;
 

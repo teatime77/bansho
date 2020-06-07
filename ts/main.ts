@@ -499,6 +499,33 @@ export function parseObject(obj: any) : any {
     case DimensionLine.name:
         return new DimensionLine().make(obj);
 
+    case Triangle.name:
+        return new Triangle().make(obj);
+
+    case TextBox.name:
+        return new TextBox().make(obj);
+
+    case Midpoint.name:
+        return new Midpoint().make(obj);
+
+    case Perpendicular.name:
+        return new Perpendicular().make(obj);
+
+    case ParallelLine.name:
+        return new ParallelLine().make(obj);
+
+    case Intersection.name:
+        return new Intersection().make(obj);
+
+    case Angle.name:
+        return new Angle().make(obj);
+
+    case Label.name:
+        return new Label().make(obj);
+
+    case Image.name:
+        return new Image(obj);
+
     default:
         console.assert(false);
         return null as any as Widget;
