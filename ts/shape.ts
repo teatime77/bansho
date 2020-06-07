@@ -1845,6 +1845,13 @@ export class DimensionLine extends CompositeShape {
         }
     }
 
+    make(obj: any) : Widget {
+        super.make(obj);
+        this.drawPath(this.handles[2].pos);
+
+        return this;
+    }
+
     *restore(){
     }
 
