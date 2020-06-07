@@ -8,13 +8,36 @@ export enum SelectionType {
 }
 
 export class Widget{
+    static count: number = 0;
+    id: number;
     typeName: string;
 
     constructor(){
+        this.id = Widget.count++;
         this.typeName = this.getTypeName();
     }
 
-    make(obj: Object){}
+    make(obj: any){
+        if(obj.id != undefined){
+            let id = parseInt(obj.id);
+            glb.refMap.set(id, this);
+        }
+        for(let [k, v] of Object.entries(obj)){
+            if(k == "listeners" || k == "bindTo"){
+                (this as any)[k] = v;
+            }
+            else{
+
+                (this as any)[k] = parseObject(v);
+            }
+        }
+    }
+
+    all(v: Widget[]){
+        if(! v.includes(this)){
+            v.push(this);
+        }
+    }
 
     propertyNames() : string[] {
         return [];
@@ -49,21 +72,17 @@ export class Widget{
     }
 
     makeObj() : any{
-        const id = glb.widgetMap.get(this);
-        console.assert(id != undefined);
-
         return {
-            id: id,
+            id: this.id,
             typeName: this.typeName
         };
     }
 
     toObj(){
-        let id = glb.widgetMap.get(this);
-        if(id != undefined){
-            return { ref: id };
+        if(glb.widgetMap.includes(this)){
+            return { ref: this.id };
         }
-        glb.widgetMap.set(this, glb.widgetMap.size);
+        glb.widgetMap.push(this);
 
         return this.makeObj();
     }

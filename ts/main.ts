@@ -8,8 +8,8 @@ export class Glb {
     board : HTMLDivElement;
     speechInput : boolean = false;
     ui: UI;
-    widgetMap  = new Map<Widget, number>();
-    elementIdMap = new Map<Widget, number>();
+    widgetMap : Widget[] = [];
+    refMap = new Map<number, Widget>();
 
     constructor(ui: UI){
         this.ui = ui;
@@ -428,9 +428,19 @@ export class UI {
         glb.board.appendChild(h1);
     
         for(let obj of doc.widgets){
-            let act = parseWidget(obj);
+            let act = parseObject(obj);
         
             glb.widgets.push(act);
+        }
+
+        let v = getAll();
+        for(let x of v){
+            if(x instanceof Shape && x.listeners.length != 0){
+                x.listeners = parseObject(x.listeners);
+            }
+            if(x instanceof Point && x.bindTo != undefined){
+                x.bindTo = parseObject(x.bindTo);
+            }
         }
     
         this.summary.textContent = last(glb.widgets).summary();
@@ -444,13 +454,41 @@ export class UI {
 
 }
 
-function parseWidget(obj: any) : Widget {
+export function parseObject(obj: any) : any {
+    if(obj == undefined || obj == null || typeof obj != "object"){
+        return obj;
+    }
+
+    if(Array.isArray(obj)){
+        let v = obj.map(x => parseObject(x));
+        return v;
+    }
+
+    if(obj.ref != undefined){
+        let id = parseInt(obj.ref);
+        let o = glb.refMap.get(id);
+        console.assert(o != undefined);
+        return o;
+    }
+
     switch(obj.typeName){
     case TextBlockWidget.name:
         return new TextBlockWidget("").make(obj);
 
     case SpeechWidget.name:
         return new SpeechWidget("").make(obj);
+
+    case View.name:
+        return new View(obj);
+
+    case Point.name:
+        return new Point(obj);
+
+    case Vec2.name:
+        return new Vec2(obj.x, obj.y);
+
+    case LineSegment.name:
+        return new LineSegment().make(obj);
 
     default:
         console.assert(false);
@@ -476,8 +514,23 @@ export function getData(){
     glb.ui.openDoc(path);
 }
 
+function getAll() : Widget[] {
+    let v: Widget[] = [];
+
+    glb.widgets.forEach(x => x.all(v));
+
+    return v;
+}
+
 export function putData(){
-    glb.widgetMap = new Map<Widget, number>();
+    glb.widgets = glb.widgets.filter(x => ! (x instanceof EmptyWidget));
+
+    let v = getAll();
+    for(let [i, x] of v.entries()){
+        x.id = i;
+    }
+
+    glb.widgetMap = [];
     let obj = {
         title: glb.ui.txtTitle.value.trim(),
         widgets : glb.widgets.map(x => x.toObj())

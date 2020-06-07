@@ -337,7 +337,6 @@ export function svgPointermove(ev: PointerEvent){
 export function addShape(){
     const view1 = new View({ Width: 500, Height: 500, ViewBox: "-5 -15 20 20" });
     glb.widgets.push(view1);
-    view1.init();
 }
 
 export function initDraw(){
@@ -346,6 +345,7 @@ export function initDraw(){
 }
 
 export class Vec2 {
+    typeName: string = "Vec2";
     x: number;
     y: number;
 
@@ -459,13 +459,22 @@ export class EventQueue {
     events : ShapeEvent[] = [];
 
     addEvent(destination:Shape, source: Shape){
+        // 送付先が同じイベントを探す。
         const event = this.events.find(x=>x.destination == destination);
+
         if(event == undefined){
+            // 送付先が同じイベントがない場合
+
+            // イベントを追加する。
             this.events.push( new ShapeEvent(destination, [source]) );
         }
         else{
-            if(!event.sources.includes(source)){
+            // 送付先が同じイベントがある場合
 
+            if(!event.sources.includes(source)){
+                // 送付元に含まれない場合
+
+                // 送付元に追加する。
                 event.sources.push(source);
             }
         }
@@ -480,12 +489,19 @@ export class EventQueue {
         const processed : Shape[] = [];
 
         while(this.events.length != 0){
+            // 先頭のイベントを取り出す。
             let event = this.events[0];
+
             if(! processed.includes(event.destination)){
+                // 処理済みでない場合
+
                 processed.push(event.destination);
 
+                // イベント処理をする。
                 event.destination.processEvent(event.sources);
             }
+
+            // 先頭のイベントを除去する。
             this.events.shift();
         }
     }
@@ -494,10 +510,6 @@ export class EventQueue {
 export class ShapeWidget extends Widget {
     constructor(){
         super();
-    }
-
-    make(data:any):ShapeWidget{
-        return this;
     }
 
     getTypeName(){
@@ -557,10 +569,10 @@ export class View extends ShapeWidget {
 
     constructor(obj: any = {}){
         super();
-        view = this;
 
         console.assert(obj.Width != undefined && obj.Height != undefined && obj.ViewBox != undefined);
-        Object.assign(this, obj);
+        super.make(obj);
+        view = this;
 
         this.div = document.createElement("div");
 
@@ -634,7 +646,8 @@ export class View extends ShapeWidget {
         return Object.assign(super.makeObj(), {
             "Width"   : this.Width,
             "Height"  : this.Height,
-            "ViewBox": this.svg.getAttribute("viewBox")
+            "ViewBox" : this.svg.getAttribute("viewBox"),
+            "FlipY"   : this.FlipY
         });
     }
 
@@ -746,7 +759,7 @@ export class View extends ShapeWidget {
         // viewBoxを得る。
         const vb = this.svg.viewBox.baseVal;
 
-        const patternId = `pattern-${getElementId(this)}`;
+        const patternId = `pattern-${this.id}`;
 
         const pattern = document.createElementNS("http://www.w3.org/2000/svg","pattern") as SVGPatternElement;
         pattern.setAttribute("id", patternId);
@@ -832,7 +845,7 @@ export abstract class Shape extends ShapeWidget {
     parentView : View;
 
     processEvent(sources: Shape[]){}
-    listeners:Shape[] = [];
+    listeners:Shape[] = [];     //!!! リネーム注意 !!!
 
     select(selected: boolean){}
 
@@ -852,10 +865,7 @@ export abstract class Shape extends ShapeWidget {
         });
 
         if(this.listeners.length != 0){
-
-            Object.assign(obj, {
-                listeners: this.listeners.map(x => x.toObj() )
-            });
+            obj.listeners = this.listeners.map(x => ({ ref: x.id }) );
         }
 
         return obj;
@@ -887,8 +897,10 @@ export abstract class Shape extends ShapeWidget {
     }
 
     makeEventGraph(src:Shape|null){
+        // イベントのリスナーに対し
         for(let shape of this.listeners){
             
+            // ビューのイベントキューのイベントグラフに追加する。
             this.parentView.eventQueue.addEventMakeEventGraph(shape, this);
         }
     }
@@ -900,6 +912,11 @@ export abstract class Shape extends ShapeWidget {
 
 export abstract class CompositeShape extends Shape {
     handles : Point[] = [];
+
+    all(v: Widget[]){
+        super.all(v);
+        this.handles.forEach(x => x.all(v));
+    }
 
     addHandle(handle: Point, useThisHandleMove: boolean = true){
 
@@ -926,8 +943,8 @@ export abstract class CompositeShape extends Shape {
 }
 
 export class Point extends Shape {
-    pos : Vec2;
-    bindTo: Shape|undefined;
+    pos : Vec2 = new Vec2(NaN, NaN);
+    bindTo: Shape|undefined;    //!!! リネーム注意 !!!
 
     circle : SVGCircleElement;
 
@@ -935,7 +952,8 @@ export class Point extends Shape {
         super();
 
         console.assert(obj.pos != undefined);
-        this.pos = obj.pos as Vec2;
+        super.make(obj);
+        console.assert(! isNaN(this.pos.x));
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("r", `${this.toSvg(5)}`);
@@ -961,7 +979,7 @@ export class Point extends Shape {
         });
 
         if(this.bindTo != undefined){
-            obj.bindTo = this.bindTo.toObj();
+            obj.bindTo = { ref: this.bindTo.id };
         }
 
         return obj;
@@ -1115,6 +1133,17 @@ export class LineSegment extends CompositeShape {
         this.line.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);
 
         this.parentView.G0.appendChild(this.line);
+    }
+
+    make(obj: any) : Widget {
+        super.make(obj);
+        for(let p of this.handles){
+            console.assert(!isNaN(p.pos.x))
+        }
+        this.updatePos();
+        this.line.style.cursor = "move";
+
+        return this;
     }
 
     propertyNames() : string[] {
@@ -1423,6 +1452,11 @@ export class Rect extends CompositeShape {
         this.isSquare = obj.isSquare;
 
         return this;
+    }
+
+    all(v: Widget[]){
+        super.all(v);
+        this.lines.forEach(x => x.all(v));
     }
 
     init(){
@@ -1900,6 +1934,11 @@ export class Triangle extends CompositeShape {
         });
     }
 
+    all(v: Widget[]){
+        super.all(v);
+        this.lines.forEach(x => x.all(v));
+    }
+
     init(){
         this.lines.forEach(x => x.init());
     }
@@ -2040,6 +2079,12 @@ export class Midpoint extends CompositeShape {
         });
     }
 
+    all(v: Widget[]){
+        super.all(v);
+        console.assert(this.midpoint != null);
+        this.midpoint!.all(v);
+    }
+
     calcMidpoint(){
         const p1 = this.handles[0].pos;
         const p2 = this.handles[1].pos;
@@ -2092,6 +2137,13 @@ export class Perpendicular extends CompositeShape {
             foot: this.foot!.toObj(),
             perpendicular: this.perpendicular!.toObj()
         });
+    }
+
+    all(v: Widget[]){
+        super.all(v);
+        this.line!.all(v);
+        this.foot!.all(v);
+        this.perpendicular!.all(v);
     }
 
     makeEventGraph(src:Shape|null){
@@ -2147,6 +2199,13 @@ export class ParallelLine extends CompositeShape {
     line1 : LineSegment | null = null;
     line2 : LineSegment | null = null;
     point : Point|null = null;
+
+    all(v: Widget[]){
+        super.all(v);
+        this.line1!.all(v);
+        this.line2!.all(v);
+        this.point!.all(v);
+    }
 
     init(){
         if(this.line2 != null){
@@ -2223,12 +2282,17 @@ export class Intersection extends CompositeShape {
     lines : LineSegment[] = [];
     intersection : Point|null = null;
 
-    
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             lines: this.lines.map(x => x.toObj()),
             intersection: this.intersection!.toObj()
         });
+    }
+
+    all(v: Widget[]){
+        super.all(v);
+        this.lines.forEach(x => x.all(v));
+        this.intersection!.all(v);
     }
 
     makeEventGraph(src:Shape|null){
@@ -2288,6 +2352,11 @@ export class Angle extends CompositeShape {
         this.arc.style.cursor = "pointer";
 
         this.parentView.G0.appendChild(this.arc);
+    }
+
+    all(v: Widget[]){
+        super.all(v);
+        this.lines.forEach(x => x.all(v));
     }
 
     propertyNames() : string[] {
