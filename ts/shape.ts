@@ -57,20 +57,6 @@ export function arrayLast<T>(arr:T[]) : T{
     return arr[arr.length - 1];
 }
 
-export function initPoint(pt:Vec2){
-    const point = new Point({pos:pt});
-    point.init();
-
-    return point;
-}
-
-function initLineSegment(){
-    const line = new LineSegment();
-    line.init();
-
-    return line;
-}
-
 function toSvgRatio() : Vec2 {
     const rc1 = view.svg.getBoundingClientRect() as DOMRect;
     const rc2 = view.div.getBoundingClientRect() as DOMRect;
@@ -104,7 +90,7 @@ function clickHandle(ev: MouseEvent, pt:Vec2) : Point{
         const line = getLine(ev);
         if(line != null){
 
-            handle = initPoint(pt);
+            handle = new Point({pos:pt});
             line.adjust(handle);
 
             line.bind(handle)
@@ -113,14 +99,14 @@ function clickHandle(ev: MouseEvent, pt:Vec2) : Point{
             const circle = getCircle(ev);
             if(circle != null){
 
-                handle = initPoint(pt);
+                handle = new Point({pos:pt});
                 circle.adjust(handle);
 
                 circle.bind(handle)
             }
             else{
 
-                handle = initPoint(pt);
+                handle = new Point({pos:pt});
             }
         }
     }
@@ -336,7 +322,6 @@ export function svgClick(ev: MouseEvent){
     if(view.tool == null){
         view.tool = makeToolByType(view.toolType)!;
         console.assert(view.tool.getTypeName() == view.toolType.split('.')[0]);
-        view.tool.init();
     }
 
     if(view.tool != null){
@@ -537,28 +522,15 @@ export class ShapeWidget extends Widget {
         return this.constructor.name;
     }
 
-    init(){
-    }
-
-    *restore():any{}
-
     enable(){
     }
 
     disable(){
     }
 
-    *play(){
-        yield;
-    }
-
-    clear(){}
-
     summary() : string {
         return this.getTypeName();
     }
-
-
 }
 
 
@@ -662,7 +634,6 @@ export class View extends ShapeWidget {
         return [ "Width", "Height", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY" ];
     }
 
-
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             "Width"   : this.Width,
@@ -670,10 +641,6 @@ export class View extends ShapeWidget {
             "ViewBox" : this.svg.getAttribute("viewBox"),
             "FlipY"   : this.FlipY
         });
-    }
-
-    clear(){
-        glb.board.removeChild(this.div);
     }
 
     summary() : string {
@@ -859,7 +826,18 @@ export class View extends ShapeWidget {
 
     toSvg2(x:number) : number{
         return x * this.svgRatio;
-    }    
+    }
+
+    G0toG1(){
+        const v = Array.from(this.G0.childNodes.values());
+        for(let x of v){
+            if(!(x instanceof SVGImageElement)){
+
+                this.G0.removeChild(x);
+                this.G1.appendChild(x);
+            }
+        }
+    }
 }
 
 export abstract class Shape extends ShapeWidget {
@@ -893,14 +871,7 @@ export abstract class Shape extends ShapeWidget {
     }
 
     finishTool(){
-        const v = Array.from(this.parentView.G0.childNodes.values());
-        for(let x of v){
-            if(!(x instanceof SVGImageElement)){
-
-                this.parentView.G0.removeChild(x);
-                this.parentView.G1.appendChild(x);
-            }
-        }
+        this.parentView.G0toG1();
     
         for(let x of this.parentView.selectedShapes){
             x.select(false);
@@ -946,14 +917,6 @@ export abstract class CompositeShape extends Shape {
             handle.listeners.push(this);
         }
         this.handles.push(handle);
-    }
-
-    initChildren(children:(Shape|null)[]){
-        for(let x of children){
-            if(x != null){
-                x.init();
-            }
-        }
     }
 
     makeObj() : any {
@@ -1004,9 +967,6 @@ export class Point extends Shape {
         }
 
         return obj;
-    }
-    
-    clear(){
     }
 
     summary() : string {
@@ -1169,11 +1129,6 @@ export class LineSegment extends CompositeShape {
 
     propertyNames() : string[] {
         return [ "Color" ];
-    }
-
-    *restore(){
-        this.line.style.cursor = "move";
-        this.updatePos();
     }
 
     getColor(){
@@ -1479,21 +1434,6 @@ export class Rect extends CompositeShape {
         this.lines.forEach(x => x.all(v));
     }
 
-    init(){
-        super.init();
-
-        this.handles.slice(0, 3).forEach(x => x.listeners.push(this));
-
-        this.lines.forEach(x => x.init());
-    }
-
-    *restore(){
-        for(let line of this.lines){
-
-            yield* line.restore();
-        }
-    }
-
     setRectPos(pt: Vec2|null, idx: number, clicked:boolean){
         if(this.inSetRectPos){
             return;
@@ -1573,7 +1513,7 @@ export class Rect extends CompositeShape {
 
                 line1.line.style.cursor = "move";
                 
-                const handle3 = initPoint(p3);
+                const handle3 = new Point({pos:p3});
                 this.handles.push(handle3);
             }
 
@@ -1592,7 +1532,7 @@ export class Rect extends CompositeShape {
                 line2.addHandle(this.handles[2], false);
                 line2.line.style.cursor = "move";
 
-                const handle4 = initPoint(p4);
+                const handle4 = new Point({pos:p4});
                 this.handles.push(handle4);
 
                 line3.addHandle(this.handles[2], false);
@@ -1656,7 +1596,7 @@ export class Rect extends CompositeShape {
 
             for(let i = 0; i < 4; i++){
 
-                const line = initLineSegment();
+                const line = new LineSegment();
                 this.lines.push(line);
             }
         }
@@ -1723,18 +1663,6 @@ export class Circle extends CompositeShape {
         this.circle.setAttribute("r", "" + this.radius);
 
         return this;
-    }
-
-    init(){
-        super.init();
-    }
-
-    *restore(){
-        for(let p of this.handles){
-            p.listeners.push(this);
-        }
-
-        this.processEvent(this.handles);
     }
 
     getColor(){
@@ -1873,9 +1801,6 @@ export class DimensionLine extends CompositeShape {
         return this;
     }
 
-    *restore(){
-    }
-
     processEvent =(sources: Shape[])=>{
         this.drawPath(this.handles[2].pos);
     }
@@ -1964,19 +1889,8 @@ export class Triangle extends CompositeShape {
         this.lines.forEach(x => x.all(v));
     }
 
-    init(){
-        this.lines.forEach(x => x.init());
-    }
-
-    *restore(){
-        for(let line of this.lines){
-
-            yield* line.restore();
-        }
-    }
-
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        const line = initLineSegment();
+        const line = new LineSegment();
 
         if(this.lines.length == 0){
             line.addHandle(clickHandle(ev, pt));
@@ -2089,11 +2003,6 @@ export class TextBox extends CompositeShape {
 export class Midpoint extends CompositeShape {
     midpoint : Point | null = null;
 
-    init(){
-        super.init();
-        this.initChildren([this.midpoint]);
-    }
-
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             midpoint: this.midpoint!.toObj()
@@ -2129,7 +2038,7 @@ export class Midpoint extends CompositeShape {
 
         if(this.handles.length == 2){
 
-            this.midpoint = initPoint( this.calcMidpoint() );
+            this.midpoint = new Point({pos:this.calcMidpoint()});
 
             this.finishTool();
         }
@@ -2142,15 +2051,6 @@ export class Perpendicular extends CompositeShape {
     foot : Point | null = null;
     perpendicular : LineSegment | null = null;
     inHandleMove: boolean = false;
-
-    init(){
-        super.init();
-        this.initChildren([this.line, this.foot, this.perpendicular]);
-    }
-
-    *restore(){
-        yield* this.perpendicular!.restore();
-    }
     
     makeObj() : any {
         return Object.assign(super.makeObj(), {
@@ -2201,9 +2101,9 @@ export class Perpendicular extends CompositeShape {
 
             this.line.listeners.push(this);
 
-            this.foot = initPoint( calcFootOfPerpendicular(this.handles[0].pos, this.line!) );
+            this.foot = new Point({pos:calcFootOfPerpendicular(this.handles[0].pos, this.line!)});
 
-            this.perpendicular = initLineSegment();
+            this.perpendicular = new LineSegment();
             this.perpendicular.line.style.cursor = "move";
             this.perpendicular.addHandle(this.handles[0]);
             this.perpendicular.addHandle(this.foot, false);
@@ -2226,17 +2126,6 @@ export class ParallelLine extends CompositeShape {
         this.line1!.all(v);
         this.line2!.all(v);
         this.point!.all(v);
-    }
-
-    init(){
-        if(this.line2 != null){
-
-            this.line2.init();
-        }
-    }
-
-    *restore(){
-        yield* this.line2!.restore();
     }
     
     makeObj() : any {
@@ -2284,11 +2173,11 @@ export class ParallelLine extends CompositeShape {
 
             this.point.listeners.push(this);
 
-            this.line2 = initLineSegment();
+            this.line2 = new LineSegment();
             this.line2.line.style.cursor = "move";
 
-            this.line2.addHandle(initPoint(new Vec2(0,0)));
-            this.line2.addHandle(initPoint(new Vec2(0,0)));
+            this.line2.addHandle(new Point({pos:new Vec2(0,0)}));
+            this.line2.addHandle(new Point({pos:new Vec2(0,0)}));
             this.calcParallelLine();
             for(let handle of this.line2.handles){
                 handle.setPos();
@@ -2341,7 +2230,7 @@ export class Intersection extends CompositeShape {
             else{
 
                 const v = linesIntersection(this.lines[0], this.lines[1]);
-                this.intersection = initPoint(v);
+                this.intersection = new Point({pos:v});
 
                 for(let line2 of this.lines){
 
@@ -2645,8 +2534,12 @@ export class Label extends CompositeShape {
         this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
 
         this.svgText.textContent = this.Text;
-        this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
-        this.svgText.setAttribute("y", `${this.getY()}`);
+
+        if(this.handles.length != 0){
+
+            this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
+            this.svgText.setAttribute("y", `${this.getY()}`);
+        }
 
         this.parentView.G0.appendChild(this.svgText);
 
@@ -2723,18 +2616,30 @@ export class Image extends CompositeShape {
 
     load =(ev:Event)=>{
 
-        const rc = this.image.getBoundingClientRect();
-        bansho.msg(`img loaded w:${rc.width} h:${rc.height}`);
+        let w: number;
+        let h: number;
 
-        // 縦横比 = 縦 / 横
-        const ratio = rc.height / rc.width;
+        if(this.handles.length == 2){
 
-        // viewBoxを得る。
-        const vb = this.parentView.svg.viewBox.baseVal;
+            w = Math.abs( this.handles[1].pos.x - this.handles[0].pos.x );
+            h = Math.abs( this.handles[1].pos.y - this.handles[0].pos.y );
+        }
+        else{
 
-        // 縦横比を保って幅がsvgの半分になるようにする。
-        const w = vb.width / 2;
-        const h = ratio * vb.width / 2;
+            const rc = this.image.getBoundingClientRect();
+            bansho.msg(`img loaded w:${rc.width} h:${rc.height}`);
+
+            // 縦横比 = 縦 / 横
+            const ratio = rc.height / rc.width;
+
+            // viewBoxを得る。
+            const vb = this.parentView.svg.viewBox.baseVal;
+
+            // 縦横比を保って幅がsvgの半分になるようにする。
+            w = vb.width / 2;
+            h = ratio * vb.width / 2;
+        }
+
         this.image.setAttribute("width", `${w}`);
         this.image.setAttribute("height", `${h}`);
 
@@ -2745,7 +2650,7 @@ export class Image extends CompositeShape {
 
         if(this.handles.length == 1){
 
-            this.addHandle(initPoint(new Vec2(pos.x + w, pos.y + h)));
+            this.addHandle(new Point({pos:new Vec2(pos.x + w, pos.y + h)}));
         }
     }
 

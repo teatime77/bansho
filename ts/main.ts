@@ -442,6 +442,12 @@ export class UI {
                 x.bindTo = parseObject(x.bindTo);
             }
         }
+
+        for(let act of glb.widgets){
+            if(act instanceof View){
+                act.G0toG1();
+            }
+        }
     
         this.summary.textContent = last(glb.widgets).summary();
     
