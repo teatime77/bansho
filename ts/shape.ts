@@ -3,6 +3,7 @@ namespace bansho{
 const infinity = 20;
 const strokeWidth = 4;
 const thisStrokeWidth = 2;
+const angleStrokeWidth = 2;
 const gridLineWidth = 1;
 
 declare let MathJax:any;
@@ -233,10 +234,10 @@ function makeToolByType(toolType: string): Shape|undefined {
     } 
 }
 
-function showProperty(obj: Widget){
+function showProperty(act: Widget){
     tblProperty.innerHTML = "";
 
-    for(let name of obj.propertyNames()){
+    for(let name of act.propertyNames()){
 
         const tr = document.createElement("tr");
 
@@ -247,36 +248,51 @@ function showProperty(obj: Widget){
 
         let value;
 
-        let getter = (obj as any)["get" + name] as Function;
+        let getter = (act as any)["get" + name] as Function;
         if(getter == undefined){
-            value = (obj as any)[name];
+            value = (act as any)[name];
         }
         else{
             console.assert(getter.length == 0);
-            value = getter.apply(obj);
+            value = getter.apply(act);
         }
         console.assert(value != undefined);
         
-        const setter = (obj as any)["set" + name] as Function;
+        const setter = (act as any)["set" + name] as Function;
         console.assert(setter.length == 1);
 
-        const inp = document.createElement("input");
-        inp.style.width = "100%";
+        if(act instanceof Angle && name == "Mark"){
+            const sel = document.createElement("select");
+            for(let s of [ "□", ")", "))", ")))", "/", "//", "///" ]){
+                let opt = document.createElement("option");
+                opt.textContent = s;
+                sel.add(opt);
+            }
+            valueTd.appendChild(sel);
+            sel.selectedIndex = act.Mark;
 
-        switch(typeof value){
-        case "string":
-        case "number":
-            inp.type = "text";
-            inp.value = `${value}`;
-            setPropertyTextEventListener(obj, inp, setter);
-            break;
-        case "boolean":
-            inp.type = "checkbox";
-            inp.checked = value as boolean;
-            setPropertyCheckboxEventListener(obj, inp, setter);
-            break;
+            setPropertySelectEventListener(act, sel, setter);
         }
-        valueTd.appendChild(inp);
+        else{
+
+            const inp = document.createElement("input");
+            inp.style.width = "100%";
+
+            switch(typeof value){
+            case "string":
+            case "number":
+                inp.type = "text";
+                inp.value = `${value}`;
+                setPropertyTextEventListener(act, inp, setter);
+                break;
+            case "boolean":
+                inp.type = "checkbox";
+                inp.checked = value as boolean;
+                setPropertyCheckboxEventListener(act, inp, setter);
+                break;
+            }
+            valueTd.appendChild(inp);
+        }        
 
         tr.appendChild(nameTd);
         tr.appendChild(valueTd);
@@ -300,6 +316,11 @@ export function svgClick(ev: MouseEvent){
                 return
             }
             if(Object.values(shape).includes(ev.srcElement)){
+                showProperty(shape);
+                return
+            }
+            if(shape instanceof Angle && (shape.arcs as any[]).concat(shape.primes).includes(ev.srcElement as any)){
+                
                 showProperty(shape);
                 return
             }
@@ -2336,28 +2357,35 @@ export class Intersection extends CompositeShape {
     }
 }
 
+enum AngleMark {
+    rightAngle,
+    arc,
+    arc2,
+    arc3,
+    prime,
+    prime2,
+    prime3,
+}
+
 export class Angle extends CompositeShape {
     lines : LineSegment[] = [];
-    ts : number[] = [];
+    Mark: AngleMark = AngleMark.arc;
+    handleIdx: number[] = [];
 
-    arc: SVGPathElement;
+    downPos: Vec2[] = [];
+    arcs   : SVGPathElement[] = [];
+    primes : SVGLineElement[] = [];
+    Color : string = "black";
 
     constructor(){
         super();
-        this.arc = document.createElementNS("http://www.w3.org/2000/svg","path");
-
-        this.arc.setAttribute("fill", "none");
-        this.arc.setAttribute("stroke", "red");
-        this.arc.setAttribute("stroke-width", `${this.toSvg(thisStrokeWidth)}`);
-        this.arc.style.cursor = "pointer";
-
-        this.parentView.G0.appendChild(this.arc);
     }
     
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             lines: this.lines.map(x => x.toObj()),
-            ts: Array.from(this.ts)
+            Mark : this.Mark,
+            handleIdx: Array.from(this.handleIdx)
         });
     }
 
@@ -2374,39 +2402,104 @@ export class Angle extends CompositeShape {
     }
 
     propertyNames() : string[] {
-        return [ "Color" ];
+        return [ "Mark", "Color" ];
     }
 
     *restore(){
         this.drawArc();
     }
 
-    getColor(){
-        return this.arc.getAttribute("stroke")!;
+    setMark(mark: AngleMark){
+        this.Mark = mark;
+        msg(`mark:${mark}`);
+
+        this.drawArc();
     }
 
     setColor(c:string){
-        this.arc.setAttribute("stroke", c);
+        this.Color = c;
+        for(let arc of this.arcs){
+
+            arc.setAttribute("stroke", c);
+        }
+    }
+
+    matchArcs(){
+        let num_arc = this.numArc();
+        while(num_arc < this.arcs.length){
+            let arc = this.arcs.pop()!;
+            arc.parentElement!.removeChild(arc);
+        }
+
+        while(this.arcs.length < num_arc){
+            let arc = document.createElementNS("http://www.w3.org/2000/svg","path");
+
+            arc.setAttribute("fill", "none");
+            arc.setAttribute("stroke", this.Color);
+            arc.setAttribute("stroke-width", `${this.toSvg(angleStrokeWidth)}`);
+            arc.style.cursor = "pointer";
+    
+            this.parentView.G0.appendChild(arc);
+            this.arcs.push(arc);
+        }
+
+        let num_prime = this.numPrime();
+        while(num_prime < this.primes.length){
+            let prime = this.primes.pop()!;
+            prime.parentElement!.removeChild(prime);
+        }
+
+        while(this.primes.length < num_prime){
+            let prime = document.createElementNS("http://www.w3.org/2000/svg","line");
+            prime.setAttribute("stroke", "navy");
+            prime.setAttribute("stroke-width", `${this.toSvg(angleStrokeWidth)}`);
+            prime.style.cursor = "pointer";
+    
+            this.parentView.G0.appendChild(prime);
+            this.primes.push(prime);
+        }
+
+        return [num_arc, num_prime];
+    }
+
+    drawRightAngle(p: Vec2, q1: Vec2, q2: Vec2){
+        const r = this.toSvg(40);
+        const p1 = p.add(q1.mul(r));
+        const p2 = p.add(q2.mul(r));
+        const p3 = p1.add(q2.mul(r));
+
+        const ps = [[p1, p3], [p2, p3]];
+        for(let [i, prime] of this.primes.entries()){
+            prime.setAttribute("x1", `${ps[i][0].x}`);
+            prime.setAttribute("y1", `${ps[i][0].y}`);
+            prime.setAttribute("x2", `${ps[i][1].x}`);
+            prime.setAttribute("y2", `${ps[i][1].y}`);
+        }
     }
 
     drawArc(){
+        let [num_arc, num_prime] = this.matchArcs();
+
         const line1 = this.lines[0];
         const line2 = this.lines[1];
 
-        const q1 = line1.p1.add(line1.p12.mul(this.ts[0]));
-        const q2 = line2.p1.add(line2.p12.mul(this.ts[1]));
-
+        // 交点
         const p = linesIntersection(this.lines[0], this.lines[1]);
 
-        const sign1 = Math.sign(q1.sub(p).dot(line1.e));
-        const sign2 = Math.sign(q2.sub(p).dot(line2.e));
+        // 交点から線分上の点までの単位ベクトル
+        const q1 = line1.handles[this.handleIdx[0]].pos.sub(p).unit();
+        const q2 = line2.handles[this.handleIdx[1]].pos.sub(p).unit();
 
-        const r = this.toSvg(40);        
-        const p1 = p.add(this.lines[0].e.mul(r * sign1));
-        const p2 = p.add(this.lines[1].e.mul(r * sign2));
+        if(this.Mark == AngleMark.rightAngle){
+            // 直角の場合
 
-        let theta1 = Math.atan2(q1.y - p.y, q1.x - p.x);
-        let theta2 = Math.atan2(q2.y - p.y, q2.x - p.x);
+            this.drawRightAngle(p, q1, q2);
+            return;
+        }
+
+        // 線分上の点の角度
+        let theta1 = Math.atan2(q1.y, q1.x);
+        let theta2 = Math.atan2(q2.y, q2.x);
 
         if(theta1 < 0){
             theta1 += 2 * Math.PI;
@@ -2422,9 +2515,59 @@ export class Angle extends CompositeShape {
 
         const largeArcSweepFlag = (Math.PI < deltaTheta ? 1 : 0);
 
-        const d = `M${p1.x} ${p1.y} A ${r} ${r} 0 ${largeArcSweepFlag} 1 ${p2.x} ${p2.y}`;
+        for(let [i, arc] of this.arcs.entries()){
 
-        this.arc!.setAttribute("d", d);
+            const r = this.toSvg(40) * (1 + 0.1 * i);
+            const p1 = p.add(q1.mul(r));
+            const p2 = p.add(q2.mul(r));
+
+            const d = `M${p1.x} ${p1.y} A ${r} ${r} 0 ${largeArcSweepFlag} 1 ${p2.x} ${p2.y}`;
+
+            arc.setAttribute("d", d);
+        }
+
+        for(let [i, prime] of this.primes.entries()){
+            let theta = theta1 + deltaTheta * (i + 1) / (num_prime + 1);
+
+            const r = this.toSvg(40);
+
+            const x1 = p.x + r * 0.9 * Math.cos(theta);
+            const y1 = p.y + r * 0.9 * Math.sin(theta);
+
+            const x2 = p.x + r * 1.1 * Math.cos(theta);
+            const y2 = p.y + r * 1.1 * Math.sin(theta);
+
+            prime.setAttribute("x1", `${x1}`);
+            prime.setAttribute("y1", `${y1}`);
+            prime.setAttribute("x2", `${x2}`);
+            prime.setAttribute("y2", `${y2}`);
+        }
+    }
+
+    numArc(){
+        switch(this.Mark){
+            case AngleMark.rightAngle:
+                return 0;
+            case AngleMark.arc :
+            case AngleMark.prime:
+            case AngleMark.prime2:
+            case AngleMark.prime3:
+                return 1;
+            case AngleMark.arc2:
+                return 2;
+            case AngleMark.arc3:
+                return 3;
+        }
+    }
+
+    numPrime(){
+        switch(this.Mark){
+            case AngleMark.rightAngle: return 2;
+            case AngleMark.prime:   return 1;
+            case AngleMark.prime2:  return 2;
+            case AngleMark.prime3:  return 3;
+            default:                return 0;
+        }
     }
 
     processEvent =(sources: Shape[])=>{
@@ -2437,8 +2580,7 @@ export class Angle extends CompositeShape {
         if(line != null){
             this.lines.push(line);
 
-            const t = pt.sub(line.p1).dot(line.e) / line.len;
-            this.ts.push(t);
+            this.downPos.push(pt);
 
             if(this.lines.length == 1){
 
@@ -2446,6 +2588,14 @@ export class Angle extends CompositeShape {
                 line.select(true);
             }
             else{
+
+                // 交点
+                const p = linesIntersection(this.lines[0], this.lines[1]);
+                
+                for(let [i, pt] of this.downPos.entries()){
+                    const head_side = (0 < pt.sub(p).dot(this.lines[i].p12)  );
+                    this.handleIdx.push(head_side ? 1 : 0);
+                }       
 
                 this.drawArc();
         

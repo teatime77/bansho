@@ -157,6 +157,19 @@ export function setPropertyCheckboxEventListener(obj: Widget, inp: HTMLInputElem
 
 }
 
+
+/**
+ * プロパティのブール値のイベント処理
+ */
+export function setPropertySelectEventListener(obj: Widget, sel: HTMLSelectElement, setter: Function){
+    sel.addEventListener("change",  (function(sel, setter){
+        return function(ev: Event){
+            setter.apply(obj, [ sel.selectedIndex ]);
+        };
+    })(sel, setter));
+}
+
+
 /**
  * tool-typeのクリック
  */
