@@ -559,6 +559,10 @@ export class View extends ShapeWidget {
     Width      : number = 0;
     Height     : number = 0;
     ViewBox    : string = "";
+    ShowXAxis  : boolean = true;
+    ShowYAxis  : boolean = true;
+
+    xyAxis : (SVGLineElement|null)[] = [ null, null];
 
     constructor(obj: any = {}){
         super();
@@ -617,6 +621,9 @@ export class View extends ShapeWidget {
         this.svg.appendChild(this.G0);
         this.svg.appendChild(this.G1);
         this.svg.appendChild(this.G2);
+
+        this.setShowXAxis(this.ShowXAxis);
+        this.setShowYAxis(this.ShowYAxis);
     
         setViewEventListener(this);
 
@@ -631,7 +638,7 @@ export class View extends ShapeWidget {
     }
 
     propertyNames() : string[] {
-        return [ "Width", "Height", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY" ];
+        return [ "Width", "Height", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY", "ShowXAxis", "ShowYAxis" ];
     }
 
     makeObj() : any {
@@ -639,7 +646,9 @@ export class View extends ShapeWidget {
             "Width"   : this.Width,
             "Height"  : this.Height,
             "ViewBox" : this.svg.getAttribute("viewBox"),
-            "FlipY"   : this.FlipY
+            "FlipY"   : this.FlipY,
+            "ShowXAxis": this.ShowXAxis,
+            "ShowYAxis": this.ShowYAxis,
         });
     }
 
@@ -718,6 +727,49 @@ export class View extends ShapeWidget {
 
     setFlipY(value: boolean){
         this.FlipY = value;
+    }
+
+    setShowXAxis(value: boolean){
+        this.ShowXAxis = value;
+        this.setShowXYAxis(value, 0);
+    }
+
+    setShowYAxis(value: boolean){
+        this.ShowYAxis = value;
+        this.setShowXYAxis(value, 1);
+    }
+
+    setShowXYAxis(show_axis: boolean, idx: number){
+        if(show_axis != (this.xyAxis[idx] != null)){
+            if(show_axis){
+                if(idx == 0){
+
+                    this.xyAxis[idx] = this.makeLine(-Number.MAX_VALUE, 0, Number.MAX_VALUE, 0);
+                }
+                else{
+
+                    this.xyAxis[idx] = this.makeLine(0, -Number.MAX_VALUE, 0, Number.MAX_VALUE);
+                }
+            }
+            else{
+                this.xyAxis[idx]!.parentElement!.removeChild(this.xyAxis[idx]!);
+                this.xyAxis[idx] = null;
+            }
+        }
+    }
+
+    makeLine(x1: number, y1: number, x2: number, y2: number){
+        const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+        line.setAttribute("stroke", "navy");
+        line.setAttribute("stroke-width", `${this.toSvg2(strokeWidth)}`);
+        line.setAttribute("x1", `${x1}`);
+        line.setAttribute("y1", `${y1}`);
+        line.setAttribute("x2", `${x2}`);
+        line.setAttribute("y2", `${y2}`);
+
+        this.G1.insertBefore(line, this.G1.firstElementChild);
+
+        return line;
     }
 
     setGridBgBox(){
