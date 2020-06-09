@@ -293,26 +293,43 @@ export function svgClick(ev: MouseEvent){
         return;
     }
 
-    if(view.toolType == "select"){
+    if(ev.ctrlKey || view.toolType == "select"){
 
         // for(let ele = ev.srcElement; obj; obj = ob)
+        let clicked_shape : Shape|null = null;
         for(let shape of view.shapes.values()){
             if(shape instanceof TextBox && shape.handles[0].circle == ev.srcElement){
-                showProperty(shape);
-                return
+                clicked_shape = shape;
+                break;
             }
             if(Object.values(shape).includes(ev.srcElement)){
-                showProperty(shape);
-                return
+                clicked_shape = shape;
+                break;
             }
             if(shape instanceof Angle && (shape.arcs as any[]).concat(shape.primes).includes(ev.srcElement as any)){
-                
-                showProperty(shape);
-                return
+                clicked_shape = shape;
+                break;
             }
         }
 
-        showProperty(view);
+        if(ev.ctrlKey){
+            if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment){
+
+                const selAct = new ShapeSelection(clicked_shape);
+                selAct.enable();
+        
+                glb.ui.addWidget(selAct);
+            }
+        }
+        else{
+            
+            if(clicked_shape == null){
+                showProperty(view);
+            }
+            else{
+                showProperty(clicked_shape);
+            }    
+        }
         
         return;
     }
@@ -546,7 +563,6 @@ export class View extends ShapeWidget {
     svgRatio: number;
     shapes: Shape[]= [];
     toolType = "";
-    selectedShapes: Shape[] = [];
     tool : Shape | null = null;
     eventQueue : EventQueue = new EventQueue();
     capture: Point|null = null;
@@ -894,11 +910,14 @@ export class View extends ShapeWidget {
 
 export abstract class Shape extends ShapeWidget {
     parentView : View;
+    selected: boolean = false;
 
     processEvent(sources: Shape[]){}
     listeners:Shape[] = [];     //!!! リネーム注意 !!!
 
-    select(selected: boolean){}
+    select(selected: boolean){
+        this.selected = selected;
+    }
 
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
@@ -925,10 +944,8 @@ export abstract class Shape extends ShapeWidget {
     finishTool(){
         this.parentView.G0toG1();
     
-        for(let x of this.parentView.selectedShapes){
-            x.select(false);
-        }
-        this.parentView.selectedShapes = [];
+        let selected_shapes = allShapes().filter(x => x.parentView == this.parentView && x.selected);
+        selected_shapes.forEach(x => x.select(false));
     
         console.assert(this.parentView.tool != null);
         glb.widgets.push(this.parentView.tool!);
@@ -1067,15 +1084,15 @@ export class Point extends Shape {
     }
 
     select(selected: boolean){
-        if(selected){
-            if(! this.parentView.selectedShapes.includes(this)){
-                this.parentView.selectedShapes.push(this);
+        if(this.selected != selected){
+            this.selected = selected;
+
+            if(this.selected){
                 this.circle.setAttribute("fill", "orange");
             }
-        }
-        else{
-
-            this.circle.setAttribute("fill", "blue");
+            else{
+                this.circle.setAttribute("fill", "blue");
+            }
         }
     }
 
@@ -1192,15 +1209,15 @@ export class LineSegment extends CompositeShape {
     }
     
     select(selected: boolean){
-        if(selected){
-            if(! this.parentView.selectedShapes.includes(this)){
-                this.parentView.selectedShapes.push(this);
+        if(this.selected != selected){
+            this.selected = selected;
+
+            if(this.selected){
                 this.line.setAttribute("stroke", "orange");
             }
-        }
-        else{
-
-            this.line.setAttribute("stroke", "navy");
+            else{
+                this.line.setAttribute("stroke", "navy");
+            }
         }
     }
 

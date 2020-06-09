@@ -564,6 +564,10 @@ function getAll() : Widget[] {
     return v;
 }
 
+export function allShapes() : Shape[] {
+    return getAll().filter(x => x instanceof Shape) as Shape[];
+}
+
 export function putData(){
     glb.widgets = glb.widgets.filter(x => ! (x instanceof EmptyWidget));
 

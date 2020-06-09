@@ -96,6 +96,29 @@ export class EmptyWidget extends Widget {
     }
 }
 
+export class ShapeSelection extends Widget {
+    shape: Point|LineSegment;
+
+    constructor(shape: Point|LineSegment) {
+        super();
+        this.shape = shape;
+    }
+
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            shape: this.shape.toObj()
+        });
+    }
+
+    enable(){
+        this.shape.select(true);
+    }
+
+    disable(){
+        this.shape.select(false);
+    }
+}
+
 export class SelectionWidget extends Widget {
     textAct: TextBlockWidget;
     startIdx: number = -1;
