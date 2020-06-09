@@ -578,7 +578,7 @@ export class View extends ShapeWidget {
     ShowXAxis  : boolean = true;
     ShowYAxis  : boolean = true;
 
-    xyAxis : (SVGLineElement|null)[] = [ null, null];
+    xyAxis : (LineSegment|null)[] = [ null, null];
 
     constructor(obj: any = {}){
         super();
@@ -756,19 +756,21 @@ export class View extends ShapeWidget {
     }
 
     setShowXYAxis(show_axis: boolean, idx: number){
+        const big_value = Math.max(this.svg.viewBox.baseVal.width, this.svg.viewBox.baseVal.height) * 10000;
+
         if(show_axis != (this.xyAxis[idx] != null)){
             if(show_axis){
                 if(idx == 0){
 
-                    this.xyAxis[idx] = this.makeLine(-Number.MAX_VALUE, 0, Number.MAX_VALUE, 0);
+                    this.xyAxis[idx] = new LineSegment().makeByPos(-big_value, 0, big_value, 0);
                 }
                 else{
 
-                    this.xyAxis[idx] = this.makeLine(0, -Number.MAX_VALUE, 0, Number.MAX_VALUE);
+                    this.xyAxis[idx] = new LineSegment().makeByPos(0, -big_value, 0, big_value);
                 }
             }
             else{
-                this.xyAxis[idx]!.parentElement!.removeChild(this.xyAxis[idx]!);
+                this.xyAxis[idx]!.delete();
                 this.xyAxis[idx] = null;
             }
         }
@@ -993,6 +995,12 @@ export abstract class CompositeShape extends Shape {
             handles : this.handles.map(x => x.toObj())
         });
     }
+
+    delete(){
+        for(let x of this.handles){
+            x.delete();
+        }
+    }
 }
 
 export class Point extends Shape {
@@ -1165,6 +1173,10 @@ export class Point extends Shape {
         this.makeEventGraph(null);
         this.parentView.eventQueue.processQueue();
     }
+
+    delete(){
+        this.circle.parentElement!.removeChild(this.circle);
+    }
 }
 
 export class LineSegment extends CompositeShape {    
@@ -1192,6 +1204,15 @@ export class LineSegment extends CompositeShape {
         }
         this.updatePos();
         this.line.style.cursor = "move";
+
+        return this;
+    }
+
+    makeByPos(x1: number, y1: number, x2: number, y2: number){
+        this.line.style.cursor = "move";
+        this.addHandle(new Point({pos:new Vec2(x1, y1)}));
+        this.addHandle(new Point({pos:new Vec2(x2, y2)}));
+        this.updatePos();
 
         return this;
     }
@@ -1324,6 +1345,11 @@ export class LineSegment extends CompositeShape {
         }
         handle.pos = this.p1.add(this.p12.mul(posInLine));
         handle.setPos();
+    }
+
+    delete(){
+        super.delete();
+        this.line.parentElement!.removeChild(this.line);
     }
 }
 
