@@ -170,30 +170,7 @@ function calcFootOfPerpendicular(pos:Vec2, line: LineSegment) : Vec2 {
 
 
 export function setToolType(){
-    const textBoxes = glb.widgets.filter(x => x instanceof TextBox) as TextBox[];
-
     view.toolType = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;
-
-    if(view.toolType == "TextSelection"){
-
-        textBoxes.forEach(x => x.div.style.zIndex = "auto");
-    }
-    else{
-
-        // textBoxes.forEach(x => x.div.style.zIndex = "-1");
-    }
-    if(view.toolType == "select"){
-
-        textBoxes.forEach(x => x.div.style.cursor = "move");
-    }
-    else if(view.toolType == "TextSelection"){
-
-        textBoxes.forEach(x => x.div.style.cursor = "text");
-    }
-    else{
-
-        textBoxes.forEach(x => x.div.style.cursor = "default");
-    }
 }
 
 function makeToolByType(toolType: string): Shape|undefined {
@@ -289,7 +266,7 @@ function showProperty(act: Widget){
 
 
 export function svgClick(ev: MouseEvent){
-    if(view.capture != null || view.toolType == "TextSelection"){
+    if(view.capture != null){
         return;
     }
 
@@ -315,10 +292,10 @@ export function svgClick(ev: MouseEvent){
         if(ev.ctrlKey){
             if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment){
 
-                const selAct = new ShapeSelection(clicked_shape);
-                selAct.enable();
+                const act = new ShapeSelection(clicked_shape);
+                act.enable();
         
-                glb.addWidget(selAct);
+                glb.addWidget(act);
             }
         }
         else{

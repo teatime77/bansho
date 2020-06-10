@@ -1,7 +1,7 @@
 namespace bansho {
 
 let prevCharIndex = 0;
-export let TemporarySelections: SelectionWidget[] = [];
+export let TemporarySelections: TextSelection[] = [];
 
 export function setEventListener(){
     // 再生 / 停止ボタン
@@ -225,7 +225,7 @@ function popQue(){
         [typesetAct, div, text] = typesetQue.shift()!;
         div.textContent = text;
 
-        let selections = glb.widgets.filter(x => x instanceof SelectionWidget && x.textAct == typesetAct) as SelectionWidget[];
+        let selections = glb.widgets.filter(x => x instanceof TextSelection && x.textAct == typesetAct) as TextSelection[];
         selections.forEach(x => { x.border = null; });
 
         if(text.includes("$")){

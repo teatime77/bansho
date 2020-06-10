@@ -17,6 +17,7 @@ export class Glb {
     txtTitle: HTMLInputElement;
     summary : HTMLSpanElement;
 
+    textSel: TextSelection | null = null;
     isPlaying = false;
     pauseFlag : boolean;
     speechInput : boolean = false;
@@ -159,7 +160,7 @@ export class Glb {
 
         let fnc = (act: Widget)=>{
 
-            const refActs = glb.widgets.filter(x => x instanceof SelectionWidget && x.textAct == act) as SelectionWidget[];
+            const refActs = glb.widgets.filter(x => x instanceof TextSelection && x.textAct == act) as TextSelection[];
 
             refActs.forEach(x => fnc(x));
 
@@ -599,19 +600,17 @@ export function initPlayer(){
     }
 }
 
-let selAct: SelectionWidget | null = null;
-
 export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | MouseEvent, is_click: boolean){
     for(let ele = ev.srcElement as HTMLElement; ele; ele = ele.parentElement!){
         if([ "MJX-MI", "MJX-MN", "MJX-MO" ].includes(ele.tagName)){
 
             let v = Array.from(act.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
-            let i = v.indexOf(ele);
-            console.assert(i != -1);
+            let idx = v.indexOf(ele);
+            console.assert(idx != -1);
 
             if(is_click){
 
-                if(selAct == null){
+                if(glb.textSel == null){
 
                     let type = SelectionType.temporary;
                     if(ev.ctrlKey){
@@ -626,19 +625,19 @@ export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | Mouse
                         type = SelectionType.second;
                     }
 
-                    selAct = new SelectionWidget(act, i, i + 1, type);
-                    selAct.enable();
+                    glb.textSel = new TextSelection(act, idx, idx + 1, type);
+                    glb.textSel.enable();
 
-                    glb.addWidget(selAct);
+                    glb.addWidget(glb.textSel);
                 }
                 else{
-                    selAct = null;
+                    glb.textSel = null;
                 }
             }
             else{
                 
-                selAct!.endIdx = Math.max(i, selAct!.startIdx) + 1;
-                selAct!.moveBorder();
+                glb.textSel!.endIdx = Math.max(idx, glb.textSel!.startIdx) + 1;
+                glb.textSel!.moveBorder();
             }
 
 
@@ -656,7 +655,7 @@ export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | Mouse
 }
 
 export function onPointerMove(act:TextBlockWidget, ev: PointerEvent){
-    if(selAct == null){
+    if(glb.textSel == null){
         return;
     }
     onClickPointerMove(act, ev, false);

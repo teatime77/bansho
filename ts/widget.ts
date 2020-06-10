@@ -119,7 +119,7 @@ export class ShapeSelection extends Widget {
     }
 }
 
-export class SelectionWidget extends Widget {
+export class TextSelection extends Widget {
     textAct: TextBlockWidget;
     startIdx: number = -1;
     endIdx: number = -1;
