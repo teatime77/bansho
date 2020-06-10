@@ -139,8 +139,8 @@ export class Glb {
     resetWidget(){
         let selIdx = glb.timeline.valueAsNumber;
 
-        const act = glb.widgets[selIdx] as TextBlockWidget;
-        if(act instanceof TextBlockWidget){
+        const act = glb.widgets[selIdx] as TextBlock;
+        if(act instanceof TextBlock){
 
             glb.board.removeChild(act.div);
         }
@@ -165,7 +165,7 @@ export class Glb {
             refActs.forEach(x => fnc(x));
 
             act.disable();
-            if(act instanceof TextBlockWidget){
+            if(act instanceof TextBlock){
 
                 glb.board.removeChild(act.div);
             }
@@ -210,7 +210,7 @@ export class Glb {
         this.prevTimePos = pos;
     
         let act = this.currentWidget();
-        if(act instanceof SpeechWidget){
+        if(act instanceof Speech){
             
             let [caption, speech] = act.getCaptionSpeech();
             glb.caption.textContent = caption;
@@ -221,12 +221,12 @@ export class Glb {
             glb.caption.textContent = "";
         }
 
-        if(act instanceof TextBlockWidget){
+        if(act instanceof TextBlock){
 
             this.lineFeedChk.parentElement!.style.display = "inline";
             this.lineFeedChk.checked = act.lineFeed;
         }
-        else if(act instanceof SpeechWidget){
+        else if(act instanceof Speech){
 
         }
         else{
@@ -249,7 +249,7 @@ export class Glb {
 
                 this.textArea.value = act.text;
 
-                if(act instanceof SpeechWidget){
+                if(act instanceof Speech){
                     this.textArea.style.backgroundColor = "ivory";
                 }
             }
@@ -262,7 +262,7 @@ export class Glb {
         const text = this.textArea.value.trim();
         const act = this.currentWidget()!;
 
-        if(act instanceof TextBlockWidget){
+        if(act instanceof TextBlock){
 
             const html = makeHtmlLines(text);
             act.div.innerHTML = html;
@@ -276,7 +276,7 @@ export class Glb {
 
     updateTextMath(){
         const act = this.currentWidget();
-        if(act == undefined || act instanceof SpeechWidget){
+        if(act == undefined || act instanceof Speech){
             return;
         }
         
@@ -289,19 +289,19 @@ export class Glb {
 
                 if(glb.speechInput){
 
-                    const newAct = new SpeechWidget(text);
+                    const newAct = new Speech(text);
                     this.setWidget(newAct);    
                 }
                 else{
 
-                    const newAct = new TextBlockWidget(text);
+                    const newAct = new TextBlock(text);
                     
                     this.setWidget(newAct);
                     newAct.enable();
                 }
             }
         }
-        else if(act instanceof TextBlockWidget){
+        else if(act instanceof TextBlock){
 
             if(text == ""){
                 // テキストが削除された場合
@@ -346,7 +346,7 @@ export class Glb {
 
             this.updateTextMath();
 
-            if(act instanceof SpeechWidget){
+            if(act instanceof Speech){
                 runGenerator( act.play() );
             }
 
@@ -464,11 +464,11 @@ export function parseObject(obj: any) : any {
     }
 
     switch(obj.typeName){
-    case TextBlockWidget.name:
-        return new TextBlockWidget("").make(obj);
+    case TextBlock.name:
+        return new TextBlock("").make(obj);
 
-    case SpeechWidget.name:
-        return new SpeechWidget("").make(obj);
+    case Speech.name:
+        return new Speech("").make(obj);
 
     case View.name:
         return new View(obj);
@@ -600,7 +600,7 @@ export function initPlayer(){
     }
 }
 
-export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | MouseEvent, is_click: boolean){
+export function onClickPointerMove(act:TextBlock, ev: PointerEvent | MouseEvent, is_click: boolean){
     for(let ele = ev.srcElement as HTMLElement; ele; ele = ele.parentElement!){
         if([ "MJX-MI", "MJX-MN", "MJX-MO" ].includes(ele.tagName)){
 
@@ -654,14 +654,14 @@ export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | Mouse
     }
 }
 
-export function onPointerMove(act:TextBlockWidget, ev: PointerEvent){
+export function onPointerMove(act:TextBlock, ev: PointerEvent){
     if(glb.textSel == null){
         return;
     }
     onClickPointerMove(act, ev, false);
 }
 
-export function onClickBlock(act:TextBlockWidget, ev:MouseEvent){
+export function onClickBlock(act:TextBlock, ev:MouseEvent){
     msg("clicked");
     ev.stopPropagation();
     onClickPointerMove(act, ev, true);

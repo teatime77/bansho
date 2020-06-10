@@ -38,7 +38,7 @@ export function initSpeech(){
     };
 }
 
-export function* speak(act: SpeechWidget) : any {
+export function* speak(act: Speech) : any {
     if(voiceList == null){
         setVoice();
     }

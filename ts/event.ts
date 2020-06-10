@@ -60,7 +60,7 @@ export function setUIEditEventListener(){
     // 改行 チェックボックス
     glb.lineFeedChk.addEventListener("change", (ev: Event)=>{
         let act = glb.currentWidget();
-        if(act instanceof TextBlockWidget){
+        if(act instanceof TextBlock){
 
             act.lineFeed = glb.lineFeedChk.checked;
             act.updateLineFeed();
@@ -91,7 +91,7 @@ export function setUIEditEventListener(){
     }, 500);
 }
 
-export function setTextBlockEventListener(act: TextBlockWidget){
+export function setTextBlockEventListener(act: TextBlock){
     // テキストブロック クリック
     act.div.addEventListener("click", (ev:MouseEvent)=>{
         onClickBlock(act, ev);
@@ -232,7 +232,7 @@ function popQue(){
 
             MathJax.typesetPromise([div])
             .then(() => {
-                if(typesetAct instanceof TextBlockWidget){
+                if(typesetAct instanceof TextBlock){
                     typesetAct.updateLineFeed();
                 }
                 typesetAct = null;

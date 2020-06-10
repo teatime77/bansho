@@ -120,13 +120,13 @@ export class ShapeSelection extends Widget {
 }
 
 export class TextSelection extends Widget {
-    textAct: TextBlockWidget;
+    textAct: TextBlock;
     startIdx: number = -1;
     endIdx: number = -1;
     type: number;
     border: HTMLDivElement | null = null;
 
-    constructor(textAct: TextBlockWidget, startIdx: number, endIdx: number, type: SelectionType){
+    constructor(textAct: TextBlock, startIdx: number, endIdx: number, type: SelectionType){
         super();
 
         this.textAct  = textAct;
@@ -246,7 +246,7 @@ export class TextWidget extends Widget {
 
 }
 
-export class SpeechWidget extends TextWidget {
+export class Speech extends TextWidget {
 
     constructor(text: string){
         super(text);
@@ -306,7 +306,7 @@ export class SpeechWidget extends TextWidget {
     }
 }
 
-export class TextBlockWidget extends TextWidget {
+export class TextBlock extends TextWidget {
     div: HTMLDivElement;
     lineFeed: boolean = false;
     initialize = false;
@@ -319,7 +319,7 @@ export class TextBlockWidget extends TextWidget {
         if(glb.timeline.valueAsNumber != -1){
 
             for(let act of glb.widgets.slice(glb.timeline.valueAsNumber + 1)){
-                if(act instanceof TextBlockWidget){
+                if(act instanceof TextBlock){
                     nextEle = act.div;
                     break;
                 }
