@@ -3,25 +3,25 @@ namespace bansho {
 let prevCharIndex = 0;
 export let TemporarySelections: SelectionWidget[] = [];
 
-export function setEventListener(ui: UI){
+export function setEventListener(){
     // 再生 / 停止ボタン
-    ui.btnPlayPause.addEventListener("click", (ev: MouseEvent)=>{
-        ui.clickPlayPause();
+    glb.btnPlayPause.addEventListener("click", (ev: MouseEvent)=>{
+        glb.clickPlayPause();
     });
 
     // タイムライン
     glb.timeline.addEventListener("change", (ev: Event)=>{
-        ui.rngTimelineChange();
+        glb.rngTimelineChange();
     });
 
     // ➕ ウイジェットの追加
     document.getElementById("add-empty-action")!.addEventListener("click", (ev: MouseEvent)=>{
-        ui.addEmptyWidget();
+        glb.addEmptyWidget();
     });
 
     // ⏮
     document.getElementById("update-time-pos")!.addEventListener("click", (ev: MouseEvent)=>{
-        ui.updateTimePos(-1);
+        glb.updateTimePos(-1);
     });
 
     // 開くボタン
@@ -31,7 +31,7 @@ export function setEventListener(ui: UI){
 
     // 削除ボタン
     document.getElementById("delete-action")!.addEventListener("click", (ev: MouseEvent)=>{
-        ui.deleteWidget();
+        glb.deleteWidget();
     });
 
     // 保存ボタン
@@ -41,28 +41,28 @@ export function setEventListener(ui: UI){
 }
     
 
-export function setUIEditEventListener(ui: UI){
+export function setUIEditEventListener(){
 
     // BODY キーダウン
     document.body.addEventListener("keydown", (ev: KeyboardEvent)=>{
         if(ev.key == "Insert" && ! ev.ctrlKey && ! ev.shiftKey){
             glb.speechInput = ! glb.speechInput;
             if(glb.speechInput){
-                ui.textArea.style.backgroundColor = "ivory";
+                glb.textArea.style.backgroundColor = "ivory";
             }
             else{
 
-                ui.textArea.style.backgroundColor = "white";
+                glb.textArea.style.backgroundColor = "white";
             }
         }
     });
 
     // 改行 チェックボックス
-    ui.lineFeedChk.addEventListener("change", (ev: Event)=>{
-        let act = ui.currentWidget();
+    glb.lineFeedChk.addEventListener("change", (ev: Event)=>{
+        let act = glb.currentWidget();
         if(act instanceof TextBlockWidget){
 
-            act.lineFeed = ui.lineFeedChk.checked;
+            act.lineFeed = glb.lineFeedChk.checked;
             act.updateLineFeed();
         }
         else{
@@ -71,23 +71,23 @@ export function setUIEditEventListener(ui: UI){
     })
 
     // TEXTAREA キー ダウン
-    ui.textArea.addEventListener("keydown", (ev: KeyboardEvent)=>{
-        ui.textAreaKeyDown(ev);
+    glb.textArea.addEventListener("keydown", (ev: KeyboardEvent)=>{
+        glb.textAreaKeyDown(ev);
     })
 
     // TEXTAREA キー プレス
-    ui.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
-        ui.textAreaKeyPress(ev);
+    glb.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
+        glb.textAreaKeyPress(ev);
     });
 
     // TEXTAREA BLUR
-    ui.textArea.addEventListener("blur", (ev: FocusEvent)=>{
-        ui.textAreaBlur(ev);
+    glb.textArea.addEventListener("blur", (ev: FocusEvent)=>{
+        glb.textAreaBlur(ev);
     });
 
     // タイマー処理
     setInterval(()=>{
-        ui.updateTextMath();
+        glb.updateTextMath();
     }, 500);
 }
 

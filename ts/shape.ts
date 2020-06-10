@@ -318,7 +318,7 @@ export function svgClick(ev: MouseEvent){
                 const selAct = new ShapeSelection(clicked_shape);
                 selAct.enable();
         
-                glb.ui.addWidget(selAct);
+                glb.addWidget(selAct);
             }
         }
         else{

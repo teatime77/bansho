@@ -1,43 +1,32 @@
 namespace bansho {
 
+export let glb: Glb;
+
 export class Glb {
     widgets : Widget[] = [];
     allWidgets : Widget[] = [];
-    caption: HTMLHeadingElement;
-    timeline : HTMLInputElement;
-    board : HTMLDivElement;
-    speechInput : boolean = false;
-    ui: UI;
     widgetMap : Widget[] = [];
     refMap = new Map<number, Widget>();
 
-    constructor(ui: UI){
-        this.ui = ui;
-
-        this.caption  = document.getElementById("caption") as HTMLHeadingElement;
-        this.timeline = document.getElementById("timeline") as HTMLInputElement;
-        this.board    = document.getElementById("board") as HTMLDivElement;
-    }
-}
-
-export let glb: Glb;
-
-
-export class UI {
-    prevTimePos : number;
-    pauseFlag : boolean;
-
+    caption: HTMLHeadingElement;
     btnPlayPause: HTMLButtonElement;
-
-    isPlaying = false;
-
+    timeline : HTMLInputElement;
+    board : HTMLDivElement;
     lineFeedChk : HTMLInputElement;
     textArea : HTMLTextAreaElement;
     txtTitle: HTMLInputElement;
     summary : HTMLSpanElement;
 
+    isPlaying = false;
+    pauseFlag : boolean;
+    speechInput : boolean = false;
+
+    prevTimePos : number;
+
     constructor(){
-        glb = new Glb(this);
+        this.caption  = document.getElementById("caption") as HTMLHeadingElement;
+        this.timeline = document.getElementById("timeline") as HTMLInputElement;
+        this.board    = document.getElementById("board") as HTMLDivElement;
 
         this.prevTimePos = -1;
         this.pauseFlag = false;
@@ -48,10 +37,6 @@ export class UI {
         this.lineFeedChk = document.getElementById("line-feed") as HTMLInputElement;
         this.summary = document.getElementById("spn-summary") as HTMLSpanElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
-
-        this.updateSummaryTextArea();
-
-        this.addEmptyWidget();
     }
         
     onOpenDocComplete = ()=>{
@@ -63,7 +48,7 @@ export class UI {
         if(this.isPlaying){
     
             this.btnPlayPause.disabled = true;
-            pauseWidget(this, ()=>{
+            pauseWidget(()=>{
                 this.btnPlayPause.disabled = false;
                 this.btnPlayPause.innerHTML = "▶️";
             });
@@ -102,22 +87,22 @@ export class UI {
     }
     
     playWidgets(oncomplete:()=>void){
-        function* fnc(ui: UI){
+        function* fnc(){
             let startPos = Math.max(0, glb.timeline.valueAsNumber);
     
             for(let pos = startPos; pos < glb.widgets.length; pos++){
                 let act = glb.widgets[pos];
                 yield* act.play();
-                ui.updateTimePos(pos);
+                glb.updateTimePos(pos);
     
-                if(ui.pauseFlag){
+                if(glb.pauseFlag){
                     break;
                 }
             }
     
-            if(ui.pauseFlag){
+            if(glb.pauseFlag){
     
-                ui.pauseFlag = false;
+                glb.pauseFlag = false;
             }
             else{
     
@@ -128,7 +113,7 @@ export class UI {
             }
         }
         
-        runGenerator( fnc(this) );
+        runGenerator( fnc() );
     }
 
     addWidget(act: Widget){
@@ -541,19 +526,22 @@ export function parseObject(obj: any) : any {
 export function bodyOnload(){
     console.log("body load");
 
+    glb = new Glb();
+
+    glb.updateSummaryTextArea();
+    glb.addEmptyWidget();
+
     initSpeech();
 
-    let ui = new UI();
-
-    setEventListener(ui);
-    setUIEditEventListener(ui);
+    setEventListener();
+    setUIEditEventListener();
 
     initDraw();
 }
 
 export function getData(){
     let path  = (document.getElementById("txt-path") as HTMLInputElement).value.trim();
-    glb.ui.openDoc(path);
+    glb.openDoc(path);
 }
 
 function getAll() : Widget[] {
@@ -578,7 +566,7 @@ export function putData(){
 
     glb.widgetMap = [];
     let obj = {
-        title: glb.ui.txtTitle.value.trim(),
+        title: glb.txtTitle.value.trim(),
         widgets : glb.widgets.map(x => x.toObj())
     }
 
@@ -586,9 +574,8 @@ export function putData(){
 
     let path  = (document.getElementById("txt-path") as HTMLInputElement).value.trim();
 
-    glb.ui.writeTextFile(path, text);
+    glb.writeTextFile(path, text);
 }
-
 
 export function initPlayer(){
     initSpeech();
@@ -611,8 +598,6 @@ export function initPlayer(){
         }
     }
 }
-
-
 
 let selAct: SelectionWidget | null = null;
 
@@ -644,7 +629,7 @@ export function onClickPointerMove(act:TextBlockWidget, ev: PointerEvent | Mouse
                     selAct = new SelectionWidget(act, i, i + 1, type);
                     selAct.enable();
 
-                    glb.ui.addWidget(selAct);
+                    glb.addWidget(selAct);
                 }
                 else{
                     selAct = null;
@@ -683,12 +668,12 @@ export function onClickBlock(act:TextBlockWidget, ev:MouseEvent){
     onClickPointerMove(act, ev, true);
 }
 
-export function pauseWidget(ui: UI, fnc:()=>void){
-    ui.pauseFlag = true;
+export function pauseWidget(fnc:()=>void){
+    glb.pauseFlag = true;
     cancelSpeech();
 
     const id = setInterval(function(){
-        if(! ui.pauseFlag && ! isSpeaking){
+        if(! glb.pauseFlag && ! isSpeaking){
 
             clearInterval(id);
             msg("停止しました。");
