@@ -564,16 +564,12 @@ export function getData(){
     glb.openDoc(path);
 }
 
-function getAll() : Widget[] {
+export function getAll() : Widget[] {
     let v: Widget[] = [];
 
     glb.widgets.forEach(x => x.all(v));
 
     return v;
-}
-
-export function allShapes() : Shape[] {
-    return getAll().filter(x => x instanceof Shape) as Shape[];
 }
 
 export function putData(){

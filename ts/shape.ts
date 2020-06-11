@@ -52,11 +52,6 @@ export function setSvgImg(img: SVGImageElement, fileName: string){
     });
 }
 
-export function arrayLast<T>(arr:T[]) : T{
-    console.assert(arr.length != 0);
-    return arr[arr.length - 1];
-}
-
 function toSvgRatio() : Vec2 {
     const rc1 = view.svg.getBoundingClientRect() as DOMRect;
     const rc2 = view.div.getBoundingClientRect() as DOMRect;
@@ -266,6 +261,8 @@ function showProperty(act: Widget){
 
 
 export function svgClick(ev: MouseEvent){
+    const pt1 = getSvgPoint(ev, null);
+    msg(`click ${pt1.x} ${pt1.y}`)
     if(view.capture != null){
         return;
     }
@@ -537,7 +534,7 @@ export class View extends ShapeWidget {
     G1 : SVGGElement;
     G2 : SVGGElement;
     CTMInv : DOMMatrix | null = null;
-    svgRatio: number;
+    svgRatio: number = NaN;
     shapes: Shape[]= [];
     toolType = "";
     tool : Shape | null = null;
@@ -579,18 +576,10 @@ export class View extends ShapeWidget {
         this.svg.style.height = `${this.Height}px`;
         this.svg.style.margin = "0px";
 
-        // viewBox="-10 -10 20 20"
-        this.svg.setAttribute("viewBox", this.ViewBox);
-
         this.svg.setAttribute("preserveAspectRatio", "none");
         //---------- 
         glb.board.appendChild(this.div);
         this.div.appendChild(this.svg);
-
-        this.setCTMInv();
-    
-        const rc = this.svg.getBoundingClientRect() as DOMRect;
-        this.svgRatio = this.svg.viewBox.baseVal.width / rc.width;
     
         this.defs = document.createElementNS("http://www.w3.org/2000/svg","defs") as SVGDefsElement;
         this.svg.appendChild(this.defs);
@@ -603,18 +592,11 @@ export class View extends ShapeWidget {
         this.G1 = document.createElementNS("http://www.w3.org/2000/svg","g");
         this.G2 = document.createElementNS("http://www.w3.org/2000/svg","g");
     
-        if(this.FlipY){
-            
-            const transform = this.getTransform();
-            this.G0.setAttribute("transform", transform);
-            this.G1.setAttribute("transform", transform);
-            this.G2.setAttribute("transform", transform);
-        }
-    
         this.svg.appendChild(this.G0);
         this.svg.appendChild(this.G1);
         this.svg.appendChild(this.G2);
 
+        this.setViewBox(this.ViewBox);
         this.setShowXAxis(this.ShowXAxis);
         this.setShowYAxis(this.ShowYAxis);
     
@@ -682,7 +664,24 @@ export class View extends ShapeWidget {
 
         this.setCTMInv();
 
-        this.setGridBgBox();
+        if(this.FlipY){
+            
+            const transform = this.getTransform();
+            this.G0.setAttribute("transform", transform);
+            this.G1.setAttribute("transform", transform);
+            this.G2.setAttribute("transform", transform);
+        }
+
+        const rc = this.svg.getBoundingClientRect() as DOMRect;
+        this.svgRatio = this.svg.viewBox.baseVal.width / rc.width;
+
+        this.setGridPattern();
+        if(! this.ShowGrid){
+            this.gridBg.setAttribute("fill", "transparent");
+        }
+
+        const text_boxes = this.allShapes().filter(x => x instanceof TextBox) as TextBox[];
+        text_boxes.forEach(x => x.setDomPosByHandle());
     }
 
     setShowGrid(value: boolean){
@@ -693,12 +692,11 @@ export class View extends ShapeWidget {
         this.ShowGrid = value;
 
         if(this.ShowGrid){
-            this.setGridBgBox();
             this.setGridPattern();
         }
         else{
 
-        this.gridBg.setAttribute("fill", "transparent");
+            this.gridBg.setAttribute("fill", "transparent");
         }
     }
 
@@ -767,17 +765,6 @@ export class View extends ShapeWidget {
         return line;
     }
 
-    setGridBgBox(){
-        // viewBoxを得る。
-        const vb = this.svg.viewBox.baseVal;
-
-        // グリッドの背景の矩形をviewBoxに合わせる。
-        this.gridBg.setAttribute("x", `${vb.x}`);
-        this.gridBg.setAttribute("y", `${vb.y}`);
-        this.gridBg.setAttribute("width", `${vb.width}`);
-        this.gridBg.setAttribute("height", `${vb.height}`);
-    }
-
     setGridPattern(){
         // 現在のパターンを削除する。
         while(this.defs.childNodes.length != 0){
@@ -816,6 +803,12 @@ export class View extends ShapeWidget {
         rect.setAttribute("stroke-width", `${this.toSvg2(gridLineWidth)}`);
     
         pattern.appendChild(rect);
+
+        // グリッドの背景の矩形をviewBoxに合わせる。
+        this.gridBg.setAttribute("x", `${vb.x}`);
+        this.gridBg.setAttribute("y", `${vb.y}`);
+        this.gridBg.setAttribute("width", `${vb.width}`);
+        this.gridBg.setAttribute("height", `${vb.height}`);
     
         this.gridBg.setAttribute("fill", `url(#${patternId})`);
     }
@@ -885,6 +878,12 @@ export class View extends ShapeWidget {
             }
         }
     }
+
+
+    allShapes() : Shape[] {
+        return getAll().filter(x => x instanceof Shape && x.parentView == this) as Shape[];
+    }
+    
 }
 
 export abstract class Shape extends ShapeWidget {
@@ -923,7 +922,7 @@ export abstract class Shape extends ShapeWidget {
     finishTool(){
         this.parentView.G0toG1();
     
-        let selected_shapes = allShapes().filter(x => x.parentView == this.parentView && x.selected);
+        let selected_shapes = this.parentView.allShapes().filter(x => x.selected);
         selected_shapes.forEach(x => x.select(false));
     
         console.assert(this.parentView.tool != null);
@@ -1969,7 +1968,7 @@ export class Triangle extends CompositeShape {
         }
         else{
 
-            const lastLine = arrayLast(this.lines);
+            const lastLine = last(this.lines);
             const handle = clickHandle(ev, pt);
             lastLine.addHandle(handle);
             lastLine.updatePos();
@@ -1993,7 +1992,7 @@ export class Triangle extends CompositeShape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        const lastLine = arrayLast(this.lines);
+        const lastLine = last(this.lines);
         lastLine.pointermove(ev);
     }
 }
@@ -2053,6 +2052,10 @@ export class TextBox extends CompositeShape {
         console.assert(sources.length == 1 && sources[0] == this.handles[0]);
         msg(`text pos ${this.handles[0].pos.x} ${this.handles[0].pos.y} `);
 
+        this.setDomPosByHandle();
+    }
+
+    setDomPosByHandle(){
         this.domPos = this.parentView.SvgToDomPos(this.handles[0].pos);
         this.updatePos();
     }
