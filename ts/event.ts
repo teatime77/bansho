@@ -272,4 +272,23 @@ export function reprocessMathJax(act: Widget, div: HTMLDivElement | HTMLSpanElem
     popQue();
 }
 
+export function fetchFileList(){
+    let k = window.location.href.lastIndexOf("/");
+
+    const url = `${window.location.href.substring(0, k)}/list`;
+    const url2 = encodeURI(url);
+    msg(`fetch-file names:${url} ${url2}`);
+    fetch(url2)
+    .then((res: Response) => {
+        return res.json();
+    })
+    .then(obj => {
+        showFileList(obj);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+
+}
+
 }

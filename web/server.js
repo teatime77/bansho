@@ -10,8 +10,11 @@ var server = http.createServer(function(req, res) {
             fs.readdir('json', function(err, files){
                 if (err) throw err;
                 console.log(files);
-                res.write("json-list");
-                res.end();
+
+                files = files.filter(x => x.endsWith(".json")).map(x => x.replace(".json", ""));
+                
+                res.writeHead(200, {"Content-Type": "application/json"});
+                res.end(JSON.stringify({ files: files }));
             });
         }
         else if(req.url.startsWith("/")){

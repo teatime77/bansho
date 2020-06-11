@@ -14,6 +14,7 @@ export class Glb {
     board : HTMLDivElement;
     lineFeedChk : HTMLInputElement;
     textArea : HTMLTextAreaElement;
+    selFile  : HTMLSelectElement;
     txtTitle: HTMLInputElement;
     summary : HTMLSpanElement;
 
@@ -36,6 +37,7 @@ export class Glb {
 
         this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
 
+        this.selFile  = document.getElementById("sel-file") as HTMLSelectElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.lineFeedChk = document.getElementById("line-feed") as HTMLInputElement;
         this.summary = document.getElementById("spn-summary") as HTMLSpanElement;
@@ -530,10 +532,21 @@ export function parseObject(obj: any) : any {
     }
 }
 
+export function showFileList(obj: any){    
+    for(let file of obj.files){
+        let opt = document.createElement("option");
+        opt.value = file;
+        opt.textContent = file;
+        glb.selFile.add(opt);
+    }
+}
+
 export function bodyOnload(){
     console.log("body load");
-
+    
     glb = new Glb();
+
+    fetchFileList()    
 
     glb.updateSummaryTextArea();
     glb.addEmptyWidget();
@@ -547,7 +560,7 @@ export function bodyOnload(){
 }
 
 export function getData(){
-    let path  = (document.getElementById("txt-path") as HTMLInputElement).value.trim();
+    let path  = glb.selFile.value.trim();
     glb.openDoc(path);
 }
 
