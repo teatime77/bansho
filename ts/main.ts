@@ -18,9 +18,11 @@ export class Glb {
     summary : HTMLSpanElement;
 
     textSel: TextSelection | null = null;
+    speechInput : boolean = false;
+
     isPlaying = false;
     pauseFlag : boolean;
-    speechInput : boolean = false;
+    isSpeaking = false;
 
     prevTimePos : number;
 
@@ -40,30 +42,35 @@ export class Glb {
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
     }
         
-    onOpenDocComplete = ()=>{
+    showPlayButton = ()=>{
         this.btnPlayPause.disabled = false;
         this.btnPlayPause.innerHTML = "▶️";
-    }  
+    }
 
     clickPlayPause(){
         if(this.isPlaying){
     
-            this.btnPlayPause.disabled = true;
-            pauseWidget(()=>{
-                this.btnPlayPause.disabled = false;
-                this.btnPlayPause.innerHTML = "▶️";
-            });
+            if(glb.isSpeaking){
+                glb.pauseFlag = true;
+                this.btnPlayPause.disabled = true;
+                speechSynthesis.cancel();
+            }
+            else{
+
+                this.showPlayButton();
+            }
         }
         else{
     
             this.btnPlayPause.innerHTML = "⏸";
-            this.playWidgets(()=>{
-    
-                this.btnPlayPause.innerHTML = "▶️";
-                this.isPlaying = false;
-            });
+            this.playWidgets();
         }
         this.isPlaying = ! this.isPlaying;
+    }
+
+    onPlayComplete = ()=>{
+        this.btnPlayPause.innerHTML = "▶️";
+        this.isPlaying = false;
     }
 
     rngTimelineChange(){
@@ -87,34 +94,19 @@ export class Glb {
         }
     }
     
-    playWidgets(oncomplete:()=>void){
-        function* fnc(){
-            let startPos = Math.max(0, glb.timeline.valueAsNumber);
-    
-            for(let pos = startPos; pos < glb.widgets.length; pos++){
-                let act = glb.widgets[pos];
-                yield* act.play();
-                glb.updateTimePos(pos);
-    
-                if(glb.pauseFlag){
-                    break;
-                }
-            }
-    
-            if(glb.pauseFlag){
-    
-                glb.pauseFlag = false;
-            }
-            else{
-    
-                if(oncomplete != undefined){
-    
-                    oncomplete();
-                }
+    playWidgets(){
+        for(let pos = glb.timeline.valueAsNumber + 1; pos < glb.widgets.length; pos++){
+            let act = glb.widgets[pos];
+            act.enable();
+            glb.updateTimePos(pos);
+
+            if(act instanceof Speech){
+                speak(act);
+                return;
             }
         }
         
-        runGenerator( fnc() );
+        glb.onPlayComplete();
     }
 
     addWidget(act: Widget){
@@ -276,7 +268,7 @@ export class Glb {
 
     updateTextMath(){
         const act = this.currentWidget();
-        if(act == undefined || act instanceof Speech){
+        if(act == undefined){
             return;
         }
         
@@ -301,7 +293,7 @@ export class Glb {
                 }
             }
         }
-        else if(act instanceof TextBlock){
+        else if(act instanceof TextWidget){
 
             if(text == ""){
                 // テキストが削除された場合
@@ -312,17 +304,20 @@ export class Glb {
                 // テキストがある場合
 
                 let changed = (act.text != text);
+                act.text = text;
 
-                if(act.lineFeed != (act.div.getElementsByClassName("line-feed").length != 0)){
+                if(act instanceof TextBlock){
 
-                    changed = true;
-                }
+                    if(act.lineFeed != (act.div.getElementsByClassName("line-feed").length != 0)){
 
-                if(changed){
-                    // テキストか改行が変更された場合
+                        changed = true;
+                    }
 
-                    act.text = text;
-                    this.updateFocusedTextBlock();
+                    if(changed){
+                        // テキストか改行が変更された場合
+
+                        this.updateFocusedTextBlock();
+                    }
                 }
             }
         }
@@ -335,6 +330,16 @@ export class Glb {
 
                 this.textArea.value = "$$\n\\frac{1}{2 \\pi \\sigma^2} \\int_{-\\infty}^\\infty \\exp^{ - \\frac{{(x - \\mu)}^2}{2 \\sigma^2}  } dx\n$$";
             }
+            else if(! ev.shiftKey){
+                glb.speechInput = ! glb.speechInput;
+                if(glb.speechInput){
+                    glb.textArea.style.backgroundColor = "ivory";
+                }
+                else{
+    
+                    glb.textArea.style.backgroundColor = "white";
+                }
+            }
         }
     }
 
@@ -342,18 +347,19 @@ export class Glb {
         msg(`key press ${ev.ctrlKey} ${ev.key}`);
         if((ev.ctrlKey || ev.shiftKey) && ev.code == "Enter"){
 
+            ev.stopPropagation();
+            ev.preventDefault();
+
             let act = this.currentWidget();
 
             this.updateTextMath();
 
             if(act instanceof Speech){
-                runGenerator( act.play() );
+                glb.pauseFlag = true;
+                act.play();
             }
 
             this.addEmptyWidget();
-
-            ev.stopPropagation();
-            ev.preventDefault();
         }
     }
 
@@ -441,7 +447,7 @@ export class Glb {
         glb.timeline.valueAsNumber = glb.widgets.length - 1;
 
         this.updateTimePos(-1);    
-        this.onOpenDocComplete();
+        this.showPlayButton();
     }
 
 }
@@ -665,20 +671,6 @@ export function onClickBlock(act:TextBlock, ev:MouseEvent){
     msg("clicked");
     ev.stopPropagation();
     onClickPointerMove(act, ev, true);
-}
-
-export function pauseWidget(fnc:()=>void){
-    glb.pauseFlag = true;
-    cancelSpeech();
-
-    const id = setInterval(function(){
-        if(! glb.pauseFlag && ! isSpeaking){
-
-            clearInterval(id);
-            msg("停止しました。");
-            fnc();
-        }
-    },10);
 }
 
 }

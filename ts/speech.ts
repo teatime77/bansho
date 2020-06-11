@@ -1,5 +1,4 @@
 namespace bansho {
-export let isSpeaking = false;
 let voiceList: string[]|null = null;
 let jpVoice : SpeechSynthesisVoice|null = null;
 let voiceName = "Google 日本語";
@@ -38,7 +37,7 @@ export function initSpeech(){
     };
 }
 
-export function* speak(act: Speech) : any {
+export function speak(act: Speech) : any {
     if(voiceList == null){
         setVoice();
     }
@@ -56,20 +55,10 @@ export function* speak(act: Speech) : any {
         uttr.voice = jpVoice;
     }
 
-    isSpeaking = true;
+    glb.isSpeaking = true;
     setSpeechEventListener(uttr);
 
     speechSynthesis.speak(uttr);
-
-    while(isSpeaking){
-        yield;
-    }
-}
-
-export function cancelSpeech(){
-    if(isSpeaking){
-        speechSynthesis.cancel();
-    }
 }
 
 }

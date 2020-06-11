@@ -42,21 +42,6 @@ export function setEventListener(){
     
 
 export function setUIEditEventListener(){
-
-    // BODY キーダウン
-    document.body.addEventListener("keydown", (ev: KeyboardEvent)=>{
-        if(ev.key == "Insert" && ! ev.ctrlKey && ! ev.shiftKey){
-            glb.speechInput = ! glb.speechInput;
-            if(glb.speechInput){
-                glb.textArea.style.backgroundColor = "ivory";
-            }
-            else{
-
-                glb.textArea.style.backgroundColor = "white";
-            }
-        }
-    });
-
     // 改行 チェックボックス
     glb.lineFeedChk.addEventListener("change", (ev: Event)=>{
         let act = glb.currentWidget();
@@ -80,15 +65,30 @@ export function setUIEditEventListener(){
         glb.textAreaKeyPress(ev);
     });
 
+    let timeout_id: number = -1;
+
     // TEXTAREA BLUR
     glb.textArea.addEventListener("blur", (ev: FocusEvent)=>{
+        if(timeout_id != -1){
+
+            clearTimeout(timeout_id);
+            timeout_id = -1;
+        }
+
         glb.textAreaBlur(ev);
     });
 
-    // タイマー処理
-    setInterval(()=>{
-        glb.updateTextMath();
-    }, 500);
+    // TEXTAREA INPUT
+    glb.textArea.addEventListener("input", (ev: Event)=>{
+        if(timeout_id != -1){
+            clearTimeout(timeout_id);
+        }
+
+        timeout_id = setTimeout(()=>{
+            timeout_id = -1;
+            glb.updateTextMath();
+        }, 500);
+    });
 }
 
 export function setTextBlockEventListener(act: TextBlock){
@@ -119,16 +119,26 @@ export function setTextBlockEventListener(act: TextBlock){
 export function setSpeechEventListener(uttr: SpeechSynthesisUtterance){
     // スピーチ 終了
     uttr.onend = function(ev: SpeechSynthesisEvent ) {
-        isSpeaking = false;
-        msg(`end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
+        glb.isSpeaking = false;
+        msg(`speech end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
 
         Array.from(TemporarySelections).forEach(x => x.disable());
         console.assert(TemporarySelections.length == 0);
+
+        if(glb.pauseFlag){
+    
+            glb.pauseFlag = false;
+            glb.showPlayButton();
+        }
+        else{
+
+            glb.playWidgets();
+        }
     };
 
     // スピーチ 境界
     uttr.onboundary = function(ev: SpeechSynthesisEvent ) { 
-        msg(`bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
+        msg(`speech bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
         prevCharIndex = ev.charIndex;
     };
 }
@@ -159,7 +169,7 @@ export function setPropertyCheckboxEventListener(obj: Widget, inp: HTMLInputElem
 
 
 /**
- * プロパティのブール値のイベント処理
+ * プロパティの列挙型のイベント処理
  */
 export function setPropertySelectEventListener(obj: Widget, sel: HTMLSelectElement, setter: Function){
     sel.addEventListener("change",  (function(sel, setter){
@@ -230,8 +240,11 @@ function popQue(){
 
         if(text.includes("$")){
 
+            msg("typeset 開始");
             MathJax.typesetPromise([div])
             .then(() => {
+                msg("typeset 終了");
+
                 if(typesetAct instanceof TextBlock){
                     typesetAct.updateLineFeed();
                 }

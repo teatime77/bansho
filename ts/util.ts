@@ -1,7 +1,6 @@
 namespace bansho {
 
 export const padding = 10;
-let stopPlaying: boolean = false;
 export let textMsg : HTMLDivElement;
 
 export function msg(text: string){
@@ -149,19 +148,6 @@ export function fetchText(path:string, fnc:(text: string)=>void){
     .catch(error => {
         console.error('Error:', error);
     });
-}
-
-export function runGenerator(gen: IterableIterator<any>){
-    stopPlaying = false;
-
-    const id = setInterval(function(){
-        const ret = gen.next();
-        if(ret.done || stopPlaying){        
-
-            clearInterval(id);
-            msg("停止しました。");
-        }
-    },10);
 }
 
 

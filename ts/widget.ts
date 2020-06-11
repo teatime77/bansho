@@ -64,9 +64,8 @@ export class Widget{
         }
     }
 
-    *play() : any {
+    play() : any {
         this.enable();
-        yield;
     }
 
     summary() : string {
@@ -252,9 +251,9 @@ export class Speech extends TextWidget {
         super(text);
     }
 
-    *play(){
+    play(){
         this.enable();
-        yield* speak(this);
+        speak(this);
     }
 
     summary() : string {
