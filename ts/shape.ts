@@ -615,6 +615,11 @@ export class View extends ShapeWidget {
         return this;
     }
 
+    all(v: Widget[]){
+        super.all(v);
+        this.xyAxis.filter(x => x != null).forEach(x => x!.all(v));
+    }
+
     getTransform(){
         const f = 2 * this.svg.viewBox.baseVal.y + this.svg.viewBox.baseVal.height;
         return `matrix(1, 0, 0, -1, 0, ${f})`;
@@ -645,6 +650,12 @@ export class View extends ShapeWidget {
 
             this.CTMInv = CTM.inverse();
         }
+
+        const rc = this.svg.getBoundingClientRect() as DOMRect;
+        this.svgRatio = this.svg.viewBox.baseVal.width / rc.width;
+
+        msg(`\n${"-".repeat(10)} update Ratio ${"-".repeat(10)}\n`);
+        this.allShapes().forEach(x => x.updateRatio());
     }
 
     calcHeight(){
@@ -744,9 +755,6 @@ export class View extends ShapeWidget {
             this.G1.setAttribute("transform", transform);
             this.G2.setAttribute("transform", transform);
         }
-
-        const rc = this.svg.getBoundingClientRect() as DOMRect;
-        this.svgRatio = this.svg.viewBox.baseVal.width / rc.width;
 
         this.setGridPattern();
         if(! this.ShowGrid){
@@ -952,11 +960,9 @@ export class View extends ShapeWidget {
         }
     }
 
-
     allShapes() : Shape[] {
         return getAll().filter(x => x instanceof Shape && x.parentView == this) as Shape[];
     }
-    
 }
 
 export abstract class Shape extends ShapeWidget {
@@ -1019,7 +1025,9 @@ export abstract class Shape extends ShapeWidget {
 
     toSvg(x:number) : number{
         return x * this.parentView.svgRatio;
-    }    
+    }
+
+    updateRatio(){}
 }
 
 export abstract class CompositeShape extends Shape {
@@ -1066,17 +1074,21 @@ export class Point extends Shape {
         console.assert(! isNaN(this.pos.x));
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        this.circle.setAttribute("r", `${this.toSvg(5)}`);
-        this.circle.setAttribute("fill", "blue");
+        this.circle.setAttribute("fill", "blue");        
         setPointEventListener(this);
 
         this.circle.style.cursor = "pointer";
+        this.updateRatio();
 
         this.setPos();
     
         this.parentView.G2.appendChild(this.circle);
 
         return this;
+    }
+
+    updateRatio(){
+        this.circle.setAttribute("r", `${this.toSvg(5)}`);
     }
 
     propertyNames() : string[] {
@@ -1241,9 +1253,13 @@ export class LineSegment extends CompositeShape {
         //---------- 
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", "navy");
-        this.line.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);
+        this.updateRatio();
 
         this.parentView.G0.appendChild(this.line);
+    }
+
+    updateRatio(){
+        this.line.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);
     }
 
     make(obj: any) : Widget {
@@ -1781,10 +1797,14 @@ export class Circle extends CompositeShape {
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("fill", "none");// "transparent");
         this.circle.setAttribute("stroke", "navy");
-        this.circle.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);     
         this.circle.setAttribute("fill-opacity", "0");
+        this.updateRatio();
         
         this.parentView.G0.appendChild(this.circle);    
+    }
+
+    updateRatio(){
+        this.circle.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);
     }
 
     makeObj() : any {
@@ -1920,7 +1940,6 @@ export class DimensionLine extends CompositeShape {
 
             arc.setAttribute("fill", "none");
             arc.setAttribute("stroke", "red");
-            arc.setAttribute("stroke-width", `${this.toSvg(thisStrokeWidth)}`);
             arc.style.cursor = "pointer";
             arc.style.zIndex = "-2";
 
@@ -1930,11 +1949,21 @@ export class DimensionLine extends CompositeShape {
 
             const line = document.createElementNS("http://www.w3.org/2000/svg","line");
             line.setAttribute("stroke", "red");
-            line.setAttribute("stroke-width", `${this.toSvg(thisStrokeWidth)}`);
     
             this.parentView.G0.appendChild(line);
     
             this.lines.push(line);
+        }
+
+        this.updateRatio();
+    }
+
+    updateRatio(){
+        for(let arc of this.arcs){
+            arc.setAttribute("stroke-width", `${this.toSvg(thisStrokeWidth)}`);
+        }
+        for(let line of this.lines){
+            line.setAttribute("stroke-width", `${this.toSvg(thisStrokeWidth)}`);
         }
     }
 
@@ -2461,6 +2490,15 @@ export class Angle extends CompositeShape {
         }
     }
 
+    updateRatio(){
+        for(let arc of this.arcs){
+            arc.setAttribute("stroke-width", `${this.toSvg(angleStrokeWidth)}`);
+        }
+        for(let prime of this.primes){
+            prime.setAttribute("stroke-width", `${this.toSvg(angleStrokeWidth)}`);
+        }
+    }
+
     matchArcs(){
         let num_arc = this.numArc();
         while(num_arc < this.arcs.length){
@@ -2669,6 +2707,12 @@ export class Label extends CompositeShape {
         });
     }
 
+    updateRatio(){
+        const p = toSvgRatio();
+        this.svgText.setAttribute("font-size", `${16 * p.y}`);
+        this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
+    }
+
     make(obj: any):ShapeWidget{
         super.make(obj);
 
@@ -2677,9 +2721,7 @@ export class Label extends CompositeShape {
             this.svgText.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
         }
 
-        const p = toSvgRatio();
-        this.svgText.setAttribute("font-size", `${16 * p.y}`);
-        this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
+        this.updateRatio();
 
         this.svgText.textContent = this.Text;
 

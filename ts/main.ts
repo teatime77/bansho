@@ -427,7 +427,7 @@ export class Glb {
             glb.widgets.push(act);
         }
 
-        let v = getAll();
+        let v = Array.from( glb.refMap.values() );
         for(let x of v){
             if(x instanceof Shape && x.listeners.length != 0){
                 x.listeners = parseObject(x.listeners);
@@ -471,6 +471,13 @@ export function parseObject(obj: any) : any {
         return o;
     }
 
+    if(obj.typeName == Vec2.name){
+        return new Vec2(obj.x, obj.y);
+    }
+
+    console.assert(obj.id != undefined);
+    console.assert(glb.refMap.get(parseInt(obj.id)) == undefined);
+
     switch(obj.typeName){
     case TextBlock.name:
         return new TextBlock("").make(obj);
@@ -483,9 +490,6 @@ export function parseObject(obj: any) : any {
 
     case Point.name:
         return new Point(obj);
-
-    case Vec2.name:
-        return new Vec2(obj.x, obj.y);
 
     case LineSegment.name:
         return new LineSegment().make(obj);
@@ -588,7 +592,7 @@ export function putData(){
 
     const text = JSON.stringify(obj, null, 4);
 
-    let path  = (document.getElementById("txt-path") as HTMLInputElement).value.trim();
+    let path  = glb.selFile.value.trim();
 
     glb.writeTextFile(path, text);
 }
