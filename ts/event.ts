@@ -38,6 +38,12 @@ export function setEventListener(){
     document.getElementById("put-data")!.addEventListener("click", (ev: MouseEvent)=>{
         putData();
     });
+
+    // ファイルリスト
+    glb.selFile.addEventListener("change", (ev: Event)=>{
+        glb.txtFile.value = glb.selFile.value;
+    })
+
 }
     
 

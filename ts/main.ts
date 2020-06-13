@@ -14,6 +14,7 @@ export class Glb {
     board : HTMLDivElement;
     lineFeedChk : HTMLInputElement;
     textArea : HTMLTextAreaElement;
+    txtFile : HTMLInputElement;
     selFile  : HTMLSelectElement;
     txtTitle: HTMLInputElement;
     summary : HTMLSpanElement;
@@ -37,6 +38,7 @@ export class Glb {
 
         this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
 
+        this.txtFile  = document.getElementById("txt-file") as HTMLInputElement;
         this.selFile  = document.getElementById("sel-file") as HTMLSelectElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.lineFeedChk = document.getElementById("line-feed") as HTMLInputElement;
@@ -592,7 +594,7 @@ export function putData(){
 
     const text = JSON.stringify(obj, null, 4);
 
-    let path  = glb.selFile.value.trim();
+    let path  = glb.txtFile.value.trim();
 
     glb.writeTextFile(path, text);
 }
