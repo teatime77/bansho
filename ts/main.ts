@@ -19,6 +19,8 @@ export class Glb {
     txtTitle: HTMLInputElement;
     summary : HTMLSpanElement;
 
+    toolType = "";
+    view: View | null = null;
     textSel: TextSelection | null = null;
     speechInput : boolean = false;
 

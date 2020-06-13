@@ -8,7 +8,6 @@ const gridLineWidth = 1;
 
 declare let MathJax:any;
 let tblProperty : HTMLTableElement;
-let view : View;
 
 export let focusedActionIdx : number;
 
@@ -52,81 +51,6 @@ export function setSvgImg(img: SVGImageElement, fileName: string){
     });
 }
 
-function toSvgRatio() : Vec2 {
-    const rc1 = view.svg.getBoundingClientRect() as DOMRect;
-    const rc2 = view.div.getBoundingClientRect() as DOMRect;
-
-    console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
-
-    return new Vec2(view.svg.viewBox.baseVal.width / rc1.width, view.svg.viewBox.baseVal.height / rc1.height) ;
-}
-
-
-export function getSvgPoint(ev: MouseEvent | PointerEvent, draggedPoint: Point|null){
-
-    const p = view.DomToSvgPos(ev.offsetX, ev.offsetY);
-
-    if(view.SnapToGrid){
-
-        const ele = document.elementFromPoint(ev.clientX, ev.clientY);
-        if(ele == view.svg || ele == view.gridBg || (draggedPoint != null && ele == draggedPoint.circle)){
-            p.x = Math.round(p.x / view.GridWidth ) * view.GridWidth;
-            p.y = Math.round(p.y / view.GridHeight) * view.GridHeight;
-        }
-    }
-
-    return new Vec2(p.x, p.y);
-}
-
-function clickHandle(ev: MouseEvent, pt:Vec2) : Point{
-    let handle = getPoint(ev);
-    if(handle == null){
-
-        const line = getLine(ev);
-        if(line != null){
-
-            handle = new Point({pos:pt});
-            line.adjust(handle);
-
-            line.bind(handle)
-        }
-        else{
-            const circle = getCircle(ev);
-            if(circle != null){
-
-                handle = new Point({pos:pt});
-                circle.adjust(handle);
-
-                circle.bind(handle)
-            }
-            else{
-
-                handle = new Point({pos:pt});
-            }
-        }
-    }
-    else{
-        handle.select(true);
-    }
-
-    return handle;
-}
-
-function getPoint(ev: MouseEvent) : Point | null{
-    const pt = view.shapes.find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
-    return pt == undefined ? null : pt;
-}
-
-function getLine(ev: MouseEvent) : LineSegment | null{
-    const line = view.shapes.find(x => x instanceof LineSegment && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
-    return line == undefined ? null : line;
-}
-
-function getCircle(ev: MouseEvent) : Circle | null{
-    const circle = view.shapes.find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
-    return circle == undefined ? null : circle;
-}
-
 function linesIntersection(l1:LineSegment, l2:LineSegment) : Vec2 {
     l1.setVecs();
     l2.setVecs();
@@ -165,7 +89,7 @@ function calcFootOfPerpendicular(pos:Vec2, line: LineSegment) : Vec2 {
 
 
 export function setToolType(){
-    view.toolType = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;
+    glb.toolType = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;
 }
 
 function makeToolByType(toolType: string): Shape|undefined {
@@ -261,78 +185,6 @@ function showProperty(act: Widget){
         tr.appendChild(valueTd);
 
         tblProperty.appendChild(tr);
-    }
-}
-
-
-export function svgClick(ev: MouseEvent){
-    const pt1 = getSvgPoint(ev, null);
-    msg(`click ${pt1.x} ${pt1.y}`)
-    if(view.capture != null){
-        return;
-    }
-
-    if(ev.ctrlKey || view.toolType == "select"){
-
-        // for(let ele = ev.srcElement; obj; obj = ob)
-        let clicked_shape : Shape|null = null;
-        for(let shape of view.shapes.values()){
-            if(shape instanceof TextBox && shape.handles[0].circle == ev.srcElement){
-                clicked_shape = shape;
-                break;
-            }
-            if(Object.values(shape).includes(ev.srcElement)){
-                clicked_shape = shape;
-                break;
-            }
-            if(shape instanceof Angle && (shape.arcs as any[]).concat(shape.primes).includes(ev.srcElement as any)){
-                clicked_shape = shape;
-                break;
-            }
-        }
-
-        if(ev.ctrlKey){
-            if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment){
-
-                const act = new ShapeSelection(clicked_shape);
-                act.enable();
-        
-                glb.addWidget(act);
-            }
-        }
-        else{
-            
-            if(clicked_shape == null){
-                showProperty(view);
-            }
-            else{
-                showProperty(clicked_shape);
-            }    
-        }
-        
-        return;
-    }
-
-    const pt = getSvgPoint(ev, null);
-
-    if(view.tool == null){
-        view.tool = makeToolByType(view.toolType)!;
-        console.assert(view.tool.getTypeName() == view.toolType.split('.')[0]);
-    }
-
-    if(view.tool != null){
-
-        view.tool.click(ev, pt);
-    }
-}
-
-export function svgPointermove(ev: PointerEvent){
-    if(view.capture != null){
-        return;
-    }
-
-    if(view.tool != null){
-        view.tool.pointermove(ev);
     }
 }
 
@@ -541,7 +393,6 @@ export class View extends ShapeWidget {
     CTMInv : DOMMatrix | null = null;
     svgRatio: number = NaN;
     shapes: Shape[]= [];
-    toolType = "";
     tool : Shape | null = null;
     eventQueue : EventQueue = new EventQueue();
     capture: Point|null = null;
@@ -568,7 +419,7 @@ export class View extends ShapeWidget {
         if(this.AutoHeight){
             this.calcHeight();
         }
-        view = this;
+        glb.view = this;
 
         this.div = document.createElement("div");
 
@@ -945,10 +796,126 @@ export class View extends ShapeWidget {
         return new Vec2(x, y);
     }
 
+
+    getSvgPoint(ev: MouseEvent | PointerEvent, draggedPoint: Point|null){
+
+        const p = this.DomToSvgPos(ev.offsetX, ev.offsetY);
+    
+        if(this.SnapToGrid){
+    
+            const ele = document.elementFromPoint(ev.clientX, ev.clientY);
+            if(ele == this.svg || ele == this.gridBg || (draggedPoint != null && ele == draggedPoint.circle)){
+                p.x = Math.round(p.x / this.GridWidth ) * this.GridWidth;
+                p.y = Math.round(p.y / this.GridHeight) * this.GridHeight;
+            }
+        }
+    
+        return new Vec2(p.x, p.y);
+    }
+    
+    svgClick = (ev: MouseEvent)=>{
+        glb.view = this;
+        const pt1 = this.getSvgPoint(ev, null);
+        msg(`click ${pt1.x} ${pt1.y}`)
+        if(this.capture != null){
+            return;
+        }
+    
+        if(ev.ctrlKey || glb.toolType == "select"){
+    
+            // for(let ele = ev.srcElement; obj; obj = ob)
+            let clicked_shape : Shape|null = null;
+            for(let shape of this.shapes.values()){
+                if(shape instanceof TextBox && shape.handles[0].circle == ev.srcElement){
+                    clicked_shape = shape;
+                    break;
+                }
+                if(Object.values(shape).includes(ev.srcElement)){
+                    clicked_shape = shape;
+                    break;
+                }
+                if(shape instanceof Angle && (shape.arcs as any[]).concat(shape.primes).includes(ev.srcElement as any)){
+                    clicked_shape = shape;
+                    break;
+                }
+            }
+    
+            if(ev.ctrlKey){
+                if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment){
+    
+                    const act = new ShapeSelection(clicked_shape);
+                    act.enable();
+            
+                    glb.addWidget(act);
+                }
+            }
+            else{
+                
+                if(clicked_shape == null){
+                    showProperty(this);
+                }
+                else{
+                    showProperty(clicked_shape);
+                }    
+            }
+            
+            return;
+        }
+    
+        const pt = this.getSvgPoint(ev, null);
+    
+        if(this.tool == null){
+            this.tool = makeToolByType(glb.toolType)!;
+            console.assert(this.tool.getTypeName() == glb.toolType.split('.')[0]);
+        }
+    
+        if(this.tool != null){
+    
+            this.tool.click(ev, pt);
+        }
+    }
+
+
+    svgPointermove = (ev: PointerEvent)=>{
+        if(this.capture != null){
+            return;
+        }
+    
+        if(this.tool != null){
+            this.tool.pointermove(ev);
+        }
+    }
+    
+    getPoint(ev: MouseEvent) : Point | null{
+        const pt = this.shapes.find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
+        return pt == undefined ? null : pt;
+    }
+    
+    getLine(ev: MouseEvent) : LineSegment | null{
+        const line = this.shapes.find(x => x instanceof LineSegment && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
+        return line == undefined ? null : line;
+    }
+    
+    getCircle(ev: MouseEvent) : Circle | null{
+        const circle = this.shapes.find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
+        return circle == undefined ? null : circle;
+    }
+        
+
+
     toSvg2(x:number) : number{
         return x * this.svgRatio;
     }
 
+    toSvgRatio() : Vec2 {
+        const rc1 = this.svg.getBoundingClientRect() as DOMRect;
+        const rc2 = this.div.getBoundingClientRect() as DOMRect;
+    
+        console.assert(rc1.x == rc2.x && rc1.y == rc2.y && rc1.width == rc2.width && rc1.height == rc2.height);
+    
+        return new Vec2(this.svg.viewBox.baseVal.width / rc1.width, this.svg.viewBox.baseVal.height / rc1.height) ;
+    }
+    
     G0toG1(){
         const v = Array.from(this.G0.childNodes.values());
         for(let x of v){
@@ -982,7 +949,7 @@ export abstract class Shape extends ShapeWidget {
     constructor(){
         super();
 
-        this.parentView = view;
+        this.parentView = glb.view!;
         this.parentView.shapes.push(this);
     }
 
@@ -1058,6 +1025,42 @@ export abstract class CompositeShape extends Shape {
             x.delete();
         }
     }
+
+
+    clickHandle(ev: MouseEvent, pt:Vec2) : Point{
+        let handle = this.parentView.getPoint(ev);
+        if(handle == null){
+    
+            const line = this.parentView.getLine(ev);
+            if(line != null){
+    
+                handle = new Point({pos:pt});
+                line.adjust(handle);
+    
+                line.bind(handle)
+            }
+            else{
+                const circle = this.parentView.getCircle(ev);
+                if(circle != null){
+    
+                    handle = new Point({pos:pt});
+                    circle.adjust(handle);
+    
+                    circle.bind(handle)
+                }
+                else{
+    
+                    handle = new Point({pos:pt});
+                }
+            }
+        }
+        else{
+            handle.select(true);
+        }
+    
+        return handle;
+    }
+    
 }
 
 export class Point extends Shape {
@@ -1132,7 +1135,7 @@ export class Point extends Shape {
     click =(ev: MouseEvent, pt:Vec2): void => {
         this.pos = pt;
 
-        const line = getLine(ev);
+        const line = this.parentView.getLine(ev);
 
         if(line == null){
 
@@ -1166,7 +1169,7 @@ export class Point extends Shape {
     }
 
     private dragPoint(ev: PointerEvent){
-        this.pos = getSvgPoint(ev, this);
+        this.pos = this.parentView.getSvgPoint(ev, this);
         if(this.bindTo != undefined){
 
             if(this.bindTo instanceof LineSegment){
@@ -1198,7 +1201,7 @@ export class Point extends Shape {
     }
 
     pointerdown =(ev: PointerEvent)=>{
-        if(this.parentView.toolType != "select"){
+        if(glb.toolType != "select"){
             return;
         }
 
@@ -1207,7 +1210,7 @@ export class Point extends Shape {
     }
 
     pointermove =(ev: PointerEvent)=>{
-        if(this.parentView.toolType != "select"){
+        if(glb.toolType != "select"){
             return;
         }
 
@@ -1222,7 +1225,7 @@ export class Point extends Shape {
     }
 
     pointerup =(ev: PointerEvent)=>{
-        if(this.parentView.toolType != "select"){
+        if(glb.toolType != "select"){
             return;
         }
 
@@ -1367,7 +1370,7 @@ export class LineSegment extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
 
         this.line.setAttribute("x2", "" + pt.x);
         this.line.setAttribute("y2", "" + pt.y);
@@ -1385,7 +1388,7 @@ export class LineSegment extends CompositeShape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        const pt = getSvgPoint(ev, null);
+        const pt = this.parentView.getSvgPoint(ev, null);
 
         this.line!.setAttribute("x2", "" + pt.x);
         this.line!.setAttribute("y2", "" + pt.y);
@@ -1465,9 +1468,9 @@ export class BSpline extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
 
-        this.points.push( getSvgPoint(ev, null) );
+        this.points.push( this.parentView.getSvgPoint(ev, null) );
 
         if(this.handles.length == 2){
 
@@ -1478,7 +1481,7 @@ export class BSpline extends CompositeShape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        const pt = getSvgPoint(ev, null);
+        const pt = this.parentView.getSvgPoint(ev, null);
 
         this.points.push(pt);
         this.drawPath();
@@ -1761,7 +1764,7 @@ export class Rect extends CompositeShape {
             }
         }
 
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
 
         this.setRectPos(pt, -1, true);
 
@@ -1776,7 +1779,7 @@ export class Rect extends CompositeShape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        const pt = getSvgPoint(ev, null);
+        const pt = this.parentView.getSvgPoint(ev, null);
 
         this.setRectPos(pt, -1, false);
     }
@@ -1881,7 +1884,7 @@ export class Circle extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
 
         if(this.handles.length == 1){
 
@@ -1905,7 +1908,7 @@ export class Circle extends CompositeShape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        const pt = getSvgPoint(ev, null);
+        const pt = this.parentView.getSvgPoint(ev, null);
 
         if(this.byDiameter){
 
@@ -1979,7 +1982,7 @@ export class DimensionLine extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
 
         if(this.handles.length == 3){
     
@@ -1992,7 +1995,7 @@ export class DimensionLine extends CompositeShape {
             return;
         }
 
-        this.drawPath(getSvgPoint(ev, null));
+        this.drawPath(this.parentView.getSvgPoint(ev, null));
     }
 
     drawPath(p3: Vec2){
@@ -2066,12 +2069,12 @@ export class Triangle extends CompositeShape {
         const line = new LineSegment();
 
         if(this.lines.length == 0){
-            line.addHandle(clickHandle(ev, pt));
+            line.addHandle(this.clickHandle(ev, pt));
         }
         else{
 
             const lastLine = last(this.lines);
-            const handle = clickHandle(ev, pt);
+            const handle = this.clickHandle(ev, pt);
             lastLine.addHandle(handle);
             lastLine.updatePos();
             lastLine.line.style.cursor = "move";
@@ -2163,7 +2166,7 @@ export class TextBox extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2) : void =>{
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
         this.domPos = new Vec2(ev.offsetX, ev.offsetY);
 
         this.updatePos();
@@ -2211,7 +2214,7 @@ export class Midpoint extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
 
         if(this.handles.length == 2){
 
@@ -2267,11 +2270,11 @@ export class Perpendicular extends CompositeShape {
     click =(ev: MouseEvent, pt:Vec2): void => {
         if(this.handles.length == 0){
 
-            this.addHandle(clickHandle(ev, pt));
+            this.addHandle(this.clickHandle(ev, pt));
         }
         else {
 
-            this.line = getLine(ev);
+            this.line = this.parentView.getLine(ev);
             if(this.line == null){
                 return;
             }
@@ -2333,7 +2336,7 @@ export class ParallelLine extends CompositeShape {
     click =(ev: MouseEvent, pt:Vec2): void => {
         if(this.line1 == null){
 
-            this.line1 = getLine(ev);
+            this.line1 = this.parentView.getLine(ev);
             if(this.line1 == null){
                 return;
             }
@@ -2343,7 +2346,7 @@ export class ParallelLine extends CompositeShape {
         }
         else {
 
-            this.point = getPoint(ev);
+            this.point = this.parentView.getPoint(ev);
             if(this.point == null){
                 return;
             }
@@ -2394,7 +2397,7 @@ export class Intersection extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        const line = getLine(ev);
+        const line = this.parentView.getLine(ev);
         
         if(line != null){
             this.lines.push(line);
@@ -2650,7 +2653,7 @@ export class Angle extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        const line = getLine(ev);
+        const line = this.parentView.getLine(ev);
         
         if(line != null){
             this.lines.push(line);
@@ -2708,7 +2711,7 @@ export class Label extends CompositeShape {
     }
 
     updateRatio(){
-        const p = toSvgRatio();
+        const p = this.parentView.toSvgRatio();
         this.svgText.setAttribute("font-size", `${16 * p.y}`);
         this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
     }
@@ -2766,7 +2769,7 @@ export class Label extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
 
         this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
         this.svgText.setAttribute("y", `${this.getY()}`);
@@ -2889,7 +2892,7 @@ export class Image extends CompositeShape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.addHandle(clickHandle(ev, pt));
+        this.addHandle(this.clickHandle(ev, pt));
 
         this.image.setAttribute("x", "" + this.handles[0].pos.x);
         this.image.setAttribute("y", "" + this.handles[0].pos.y);

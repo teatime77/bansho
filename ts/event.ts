@@ -202,8 +202,8 @@ export function setToolTypeEventListener(){
  * Viewのイベント処理
  */
 export function setViewEventListener(view: View){
-    view.svg.addEventListener("click", svgClick);
-    view.svg.addEventListener("pointermove", svgPointermove);  
+    view.svg.addEventListener("click", view.svgClick);
+    view.svg.addEventListener("pointermove", view.svgPointermove);  
 }
 
 /**
