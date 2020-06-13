@@ -45,6 +45,22 @@ export class Widget{
         return [];
     }
 
+    getValue(name: string){
+        let value;
+
+        let getter = (this as any)["get" + name] as Function;
+        if(getter == undefined){
+            value = (this as any)[name];
+        }
+        else{
+            console.assert(getter.length == 0);
+            value = getter.apply(this);
+        }
+        console.assert(value != undefined);
+
+        return value;
+    }
+
     getTypeName(){
         return this.constructor.name;
     }

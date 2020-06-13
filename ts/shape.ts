@@ -192,6 +192,21 @@ function makeToolByType(toolType: string): Shape|undefined {
     } 
 }
 
+export function updateProperty(act: Widget){
+    for(let [idx, name] of act.propertyNames().entries()){
+        let value = act.getValue(name);
+
+        let tr = tblProperty.rows[idx];
+        let valueTd = tr.cells[1];
+        let inp = valueTd.firstElementChild;
+        if(inp instanceof HTMLInputElement && inp.value != `${value}`){
+            msg(`changed ${name} : ${inp.value} -> ${value}`)
+
+            inp.value = value;
+        }
+    }
+}
+
 function showProperty(act: Widget){
     tblProperty.innerHTML = "";
 
@@ -204,17 +219,7 @@ function showProperty(act: Widget){
 
         const valueTd = document.createElement("td");
 
-        let value;
-
-        let getter = (act as any)["get" + name] as Function;
-        if(getter == undefined){
-            value = (act as any)[name];
-        }
-        else{
-            console.assert(getter.length == 0);
-            value = getter.apply(act);
-        }
-        console.assert(value != undefined);
+        let value = act.getValue(name);
         
         const setter = (act as any)["set" + name] as Function;
         console.assert(setter.length == 1);
@@ -540,6 +545,7 @@ export class View extends ShapeWidget {
     tool : Shape | null = null;
     eventQueue : EventQueue = new EventQueue();
     capture: Point|null = null;
+    AutoHeight: boolean = true;
     ShowGrid : boolean = false;
     GridWidth : number = 1;
     GridHeight : number = 1;
@@ -559,12 +565,13 @@ export class View extends ShapeWidget {
 
         console.assert(obj.Width != undefined && obj.Height != undefined && obj.ViewBox != undefined);
         super.make(obj);
+        if(this.AutoHeight){
+            this.calcHeight();
+        }
         view = this;
 
         this.div = document.createElement("div");
 
-        this.div.style.width  = `${this.Width}px`;
-        this.div.style.height = `${this.Height}px`;
         this.div.style.position = "relative";
         this.div.style.padding = "0px";
         this.div.style.zIndex = "1";
@@ -572,14 +579,15 @@ export class View extends ShapeWidget {
 
         this.svg = document.createElementNS("http://www.w3.org/2000/svg","svg") as SVGSVGElement;
 
-        this.svg.style.width  = `${this.Width}px`;
-        this.svg.style.height = `${this.Height}px`;
         this.svg.style.margin = "0px";
 
         this.svg.setAttribute("preserveAspectRatio", "none");
         //---------- 
         glb.board.appendChild(this.div);
         this.div.appendChild(this.svg);
+
+        this.updateWidth();
+        this.updateHeight();
     
         this.defs = document.createElementNS("http://www.w3.org/2000/svg","defs") as SVGDefsElement;
         this.svg.appendChild(this.defs);
@@ -596,7 +604,7 @@ export class View extends ShapeWidget {
         this.svg.appendChild(this.G1);
         this.svg.appendChild(this.G2);
 
-        this.setViewBox(this.ViewBox);
+        this.updateViewBox();
         this.setShowXAxis(this.ShowXAxis);
         this.setShowYAxis(this.ShowYAxis);
     
@@ -613,7 +621,7 @@ export class View extends ShapeWidget {
     }
 
     propertyNames() : string[] {
-        return [ "Width", "Height", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY", "ShowXAxis", "ShowYAxis" ];
+        return [ "Width", "Height", "AutoHeight", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY", "ShowXAxis", "ShowYAxis" ];
     }
 
     makeObj() : any {
@@ -639,26 +647,91 @@ export class View extends ShapeWidget {
         }
     }
 
-    setWidth(value: number){
-        this.Width = value;
+    calcHeight(){
+        let [x1, y1, w, h] = this.parseViewBox1()
+        this.Height = this.Width * h / w;
+    }
 
+    updateWidth(){
         this.div.style.width = `${this.Width}px`;
         this.svg.style.width = `${this.Width}px`;
+    }
+
+    setWidth(value: number){
+        this.Width = value;
+        this.updateWidth();
+
+        if(this.AutoHeight){
+            this.calcHeight();
+            this.updateHeight();
+        }
 
         this.setCTMInv();
+    }
+
+    setAutoHeight(value: boolean){
+        if(this.AutoHeight == value){
+            return;
+        }
+
+        this.AutoHeight = value;
+        if(this.AutoHeight){
+            this.calcHeight();
+            this.updateHeight();
+            this.setCTMInv();
+        }
     }
 
     setHeight(value: number){
         this.Height = value;
-
-        this.div.style.height = `${this.Height}px`;
-        this.svg.style.height = `${this.Height}px`;
-
+        this.updateHeight();
         this.setCTMInv();
     }
 
+    updateHeight(){
+        this.div.style.height = `${this.Height}px`;
+        this.svg.style.height = `${this.Height}px`;
+    }
+
+    parseViewBox1(){
+        const v = this.ViewBox.split(' ').map(x => x.trim());
+        console.assert(v.length == 4);
+
+        const x1 = parseFloat(v[0]);
+        const y1 = parseFloat(v[1]);
+        const w  = parseFloat(v[2]);
+        const h  = parseFloat(v[3]);
+
+        return [x1, y1, w, h];
+    }
+
+    getViewBox() : string{
+        let [x1, y1, w, h] = this.parseViewBox1()
+
+        return `${x1}, ${y1}, ${x1 + w}, ${y1 + h}`;
+    }
+
+    parseViewBox2(value: string){
+        const v = value.split(',').map(x => x.trim());
+        console.assert(v.length == 4);
+        const x1 = parseFloat(v[0]);
+        const y1 = parseFloat(v[1]);
+        const x2 = parseFloat(v[2]);
+        const y2 = parseFloat(v[3]);
+
+        return `${x1} ${y1} ${x2 - x1} ${y2 - y1}`;
+    }
+
     setViewBox(value: string){
-        this.ViewBox = value;
+        this.ViewBox = this.parseViewBox2(value);
+        this.updateViewBox();
+    }
+
+    updateViewBox(){
+        if(this.AutoHeight){
+            this.calcHeight();
+            this.updateHeight();
+        }
 
         this.svg.setAttribute("viewBox", this.ViewBox);
 

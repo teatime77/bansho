@@ -147,9 +147,10 @@ export function setSpeechEventListener(uttr: SpeechSynthesisUtterance){
  * プロパティのテキストのイベント処理
  */
 export function setPropertyTextEventListener(obj: Widget, inp: HTMLInputElement, setter: Function){
-    inp.addEventListener("blur", function(obj, inp, setter){
+    inp.addEventListener("blur", function(act, inp, setter){
         return function(ev: FocusEvent){
-            setter.apply(obj, [ inp.value ]);
+            setter.apply(act, [ inp.value ]);
+            updateProperty(act);
         };
     
     }(obj, inp, setter));
@@ -159,11 +160,12 @@ export function setPropertyTextEventListener(obj: Widget, inp: HTMLInputElement,
  * プロパティのブール値のイベント処理
  */
 export function setPropertyCheckboxEventListener(obj: Widget, inp: HTMLInputElement, setter: Function){
-    inp.addEventListener("click", (function(inp, setter){
+    inp.addEventListener("click", (function(act, inp, setter){
         return function(ev: MouseEvent){
-            setter.apply(obj, [ inp.checked ]);
+            setter.apply(act, [ inp.checked ]);
+            updateProperty(act);
         };
-    })(inp, setter));
+    })(obj, inp, setter));
 
 }
 
