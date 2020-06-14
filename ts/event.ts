@@ -131,15 +131,7 @@ export function setSpeechEventListener(uttr: SpeechSynthesisUtterance){
         Array.from(TemporarySelections).forEach(x => x.disable());
         console.assert(TemporarySelections.length == 0);
 
-        // 手前のウイジェット
-        let prev_acts = glb.widgets.slice(0, glb.timeline.valueAsNumber);
-
-        // 手前の選択を無効にする。
-        prev_acts.forEach(x => {
-            if(x instanceof ShapeSelection){
-                x.shape.select(false);
-            } 
-        });
+        deselectShape();
 
         if(glb.pauseFlag){
     

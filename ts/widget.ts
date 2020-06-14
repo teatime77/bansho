@@ -128,12 +128,17 @@ export class ShapeSelection extends Widget {
         });
     }
 
-    enable(){
-        this.shape.select(true);
-    }
+    setEnable(enable: boolean){        
+        if(enable){
 
-    disable(){
-        this.shape.select(false);
+            msg(`select   ${this.id}`);
+            this.shape.select(true);
+        }
+        else{
+
+            msg(`deselect ${this.id}`);
+            this.shape.select(false);    
+        }
     }
 }
 

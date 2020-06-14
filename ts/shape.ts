@@ -193,6 +193,18 @@ export function addShape(){
     glb.widgets.push(view1);
 }
 
+export function deselectShape(){
+    // 手前のウイジェット
+    let prev_acts = glb.widgets.slice(0, glb.timeline.valueAsNumber);
+
+    // 手前の選択を無効にする。
+    prev_acts.forEach(x => {
+        if(x instanceof ShapeSelection){
+            x.shape.select(false);
+        } 
+    });
+}
+
 export function initDraw(){
     tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
     setToolTypeEventListener();
@@ -972,7 +984,7 @@ export abstract class Shape extends Widget {
         selected_shapes.forEach(x => x.select(false));
     
         console.assert(this.parentView.tool != null);
-        glb.widgets.push(this.parentView.tool!);
+        glb.addWidget(this.parentView.tool!);
         this.parentView.tool = null;
     }
 

@@ -274,32 +274,10 @@ export class Glb {
 
     updateTextMath(){
         const act = this.currentWidget();
-        if(act == undefined){
-            return;
-        }
         
         let text = this.textArea.value.trim();
 
-        if(act instanceof EmptyWidget){
-            // 空のアクションの場合
-
-            if(text != ""){
-
-                if(glb.speechInput){
-
-                    const newAct = new Speech(text);
-                    this.setWidget(newAct);    
-                }
-                else{
-
-                    const newAct = new TextBlock(text);
-                    
-                    this.setWidget(newAct);
-                    newAct.enable();
-                }
-            }
-        }
-        else if(act instanceof TextWidget){
+        if(act instanceof TextWidget){
 
             if(text == ""){
                 // テキストが削除された場合
@@ -327,6 +305,32 @@ export class Glb {
                 }
             }
         }
+        else{
+            if(text == ""){
+                return;
+            }
+
+            let newAct;
+            if(glb.speechInput){
+
+                newAct = new Speech(text);
+            }
+            else{
+
+                newAct = new TextBlock(text);
+                newAct.enable();
+            }
+
+            if(act instanceof EmptyWidget){
+                // 空のアクションの場合
+    
+                this.setWidget(newAct);    
+            }
+            else{
+
+                this.addWidget(newAct);
+            }
+        }
     }
 
     textAreaKeyDown(ev: KeyboardEvent){
@@ -339,11 +343,11 @@ export class Glb {
             else if(! ev.shiftKey){
                 glb.speechInput = ! glb.speechInput;
                 if(glb.speechInput){
-                    glb.textArea.style.backgroundColor = "ivory";
+                    glb.textArea.style.borderColor = "blue";
                 }
                 else{
     
-                    glb.textArea.style.backgroundColor = "white";
+                    glb.textArea.style.borderColor = "grey";
                 }
             }
         }
@@ -451,6 +455,7 @@ export class Glb {
     
         glb.timeline.max = `${glb.widgets.length - 1}`;
         glb.timeline.valueAsNumber = glb.widgets.length - 1;
+        this.prevTimePos = glb.widgets.length - 1;
 
         this.updateTimePos(-1);    
         this.showPlayButton();
