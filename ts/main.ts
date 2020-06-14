@@ -534,6 +534,9 @@ export function parseObject(obj: any) : any {
     case Image.name:
         return new Image(obj);
 
+    case ShapeSelection.name:
+        return new ShapeSelection(obj);
+
     default:
         console.assert(false);
         return null as any as Widget;

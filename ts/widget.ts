@@ -108,11 +108,18 @@ export class EmptyWidget extends Widget {
 }
 
 export class ShapeSelection extends Widget {
-    shape: Point|LineSegment;
+    shape!: Point|LineSegment;
 
-    constructor(shape: Point|LineSegment) {
+    constructor(shape: Point|LineSegment|any) {
         super();
-        this.shape = shape;
+        if(shape instanceof Point || shape instanceof LineSegment){
+
+            this.shape = shape;
+        }
+        else{
+            super.make(shape);
+            console.assert(this.shape != undefined);
+        }
     }
 
     makeObj() : any {
