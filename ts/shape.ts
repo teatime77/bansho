@@ -361,28 +361,7 @@ export class EventQueue {
     }
 }
 
-export class ShapeWidget extends Widget {
-    constructor(){
-        super();
-    }
-
-    getTypeName(){
-        return this.constructor.name;
-    }
-
-    enable(){
-    }
-
-    disable(){
-    }
-
-    summary() : string {
-        return this.getTypeName();
-    }
-}
-
-
-export class View extends ShapeWidget {
+export class View extends Widget {
     div : HTMLDivElement;
     svg : SVGSVGElement;
     defs : SVGDefsElement;
@@ -391,7 +370,7 @@ export class View extends ShapeWidget {
     G1 : SVGGElement;
     G2 : SVGGElement;
     CTMInv : DOMMatrix | null = null;
-    svgRatio: number = NaN;
+    svgRatio: number = 0;
     shapes: Shape[]= [];
     tool : Shape | null = null;
     eventQueue : EventQueue = new EventQueue();
@@ -691,8 +670,7 @@ export class View extends ShapeWidget {
                 // 軸の線分がある場合
 
                 this.xyAxis[idx]!.setColor("black")
-            }
-    
+            }    
         }
         else{
             // 軸を表示しない場合
@@ -954,7 +932,7 @@ export class View extends ShapeWidget {
     }
 }
 
-export abstract class Shape extends ShapeWidget {
+export abstract class Shape extends Widget {
     parentView : View;
     selected: boolean = false;
 
@@ -1049,6 +1027,10 @@ export abstract class CompositeShape extends Shape {
     }
 
 
+    setEnable(enable: boolean){
+        this.handles.forEach(x => x.setEnable(enable));
+    }
+
     clickHandle(ev: MouseEvent, pt:Vec2) : Point{
         let handle = this.parentView.getPoint(ev);
         if(handle == null){
@@ -1110,6 +1092,10 @@ export class Point extends Shape {
         this.parentView.G2.appendChild(this.circle);
 
         return this;
+    }
+
+    setEnable(enable: boolean){
+        this.circle.setAttribute("visibility", (enable ? "visible" : "hidden"));
     }
 
     updateRatio(){
@@ -1189,8 +1175,6 @@ export class Point extends Shape {
             }
         }
     }
-
-
 
     private dragPoint(){
         if(this.bindTo != undefined){
@@ -1292,6 +1276,11 @@ export class LineSegment extends CompositeShape {
         return Object.assign(super.makeObj(), {
             "Color"    : this.Color
         });
+    }
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        this.line.setAttribute("visibility", (enable ? "visible" : "hidden"));
     }
 
     updateRatio(){
@@ -1605,9 +1594,17 @@ export class BSpline extends CompositeShape {
     }
 }
 
-export class Rect extends CompositeShape {
-    isSquare: boolean = true;
+export class Polygon extends CompositeShape {
     lines : Array<LineSegment> = [];
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        this.lines.forEach(x => x.setEnable(enable));
+    }
+}
+
+export class Rect extends Polygon {
+    isSquare: boolean = true;
     h : number = -1;
     inSetRectPos : boolean = false;
 
@@ -1819,6 +1816,7 @@ export class Circle extends CompositeShape {
     byDiameter:boolean;
     center: Vec2|null = null;
     radius: number = this.toSvg(1);
+    Color: string = "navy";
     
     circle: SVGCircleElement;
 
@@ -1829,11 +1827,16 @@ export class Circle extends CompositeShape {
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("fill", "none");// "transparent");
-        this.circle.setAttribute("stroke", "navy");
+        this.circle.setAttribute("stroke", this.Color);
         this.circle.setAttribute("fill-opacity", "0");
         this.updateRatio();
         
         this.parentView.G0.appendChild(this.circle);    
+    }
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        this.circle.setAttribute("visibility", (enable ? "visible" : "hidden"));
     }
 
     updateRatio(){
@@ -1844,7 +1847,8 @@ export class Circle extends CompositeShape {
         return Object.assign(super.makeObj(), {
             byDiameter: this.byDiameter,
             center: this.center,
-            radius: this.radius
+            radius: this.radius,
+            Color : this.Color
         });
     }
 
@@ -1862,12 +1866,9 @@ export class Circle extends CompositeShape {
         return this;
     }
 
-    getColor(){
-        return this.circle.getAttribute("stroke")!;
-    }
-
     setColor(c:string){
-        this.circle.setAttribute("stroke", c);
+        this.Color = c;
+        this.circle.setAttribute("stroke", this.Color);
     }
 
     setCenter(pt: Vec2){
@@ -1972,7 +1973,7 @@ export class DimensionLine extends CompositeShape {
             const arc = document.createElementNS("http://www.w3.org/2000/svg","path");
 
             arc.setAttribute("fill", "none");
-            arc.setAttribute("stroke", "red");
+            arc.setAttribute("stroke", "navy");
             arc.style.cursor = "pointer";
             arc.style.zIndex = "-2";
 
@@ -1981,7 +1982,7 @@ export class DimensionLine extends CompositeShape {
             this.arcs.push(arc);
 
             const line = document.createElementNS("http://www.w3.org/2000/svg","line");
-            line.setAttribute("stroke", "red");
+            line.setAttribute("stroke", "navy");
     
             this.parentView.G0.appendChild(line);
     
@@ -1989,6 +1990,14 @@ export class DimensionLine extends CompositeShape {
         }
 
         this.updateRatio();
+    }
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+
+        const visibility = (enable ? "visible" : "hidden");
+        this.arcs.forEach(x => x.setAttribute("visibility", visibility));
+        this.lines.forEach(x => x.setAttribute("visibility", visibility));
     }
 
     updateRatio(){
@@ -2072,18 +2081,16 @@ export class DimensionLine extends CompositeShape {
             this.lines[1].setAttribute("x2", "" + p6.x);
             this.lines[1].setAttribute("y2", "" + p6.y);
 
-            this.lines.forEach(x => x.style.visibility = "visible");
+            this.lines.forEach(x => x.setAttribute("visibility", "visible"));
         }
         else{
-            this.lines.forEach(x => x.style.visibility = "hidden");
+            this.lines.forEach(x => x.setAttribute("visibility", "hidden") );
         }
 
     }
 }
 
-export class Triangle extends CompositeShape {
-    lines : Array<LineSegment> = [];
-
+export class Triangle extends Polygon {
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             lines: this.lines.map(x => x.toObj()) 
@@ -2176,6 +2183,11 @@ export class TextBox extends CompositeShape {
         return [ "Text" ];
     }
 
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        this.div.style.visibility = (enable ? "visible" : "hidden");
+    }
+
     setText(text: string){
         this.Text = text;
 
@@ -2223,6 +2235,10 @@ export class Midpoint extends CompositeShape {
         super.all(v);
         console.assert(this.midpoint != null);
         this.midpoint!.all(v);
+    }
+
+    setEnable(enable: boolean){
+        this.midpoint!.setEnable(enable);
     }
 
     calcMidpoint(){
@@ -2275,6 +2291,13 @@ export class Perpendicular extends CompositeShape {
         this.line!.all(v);
         this.foot!.all(v);
         this.perpendicular!.all(v);
+    }
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+
+        this.foot!.setEnable(enable);
+        this.perpendicular!.setEnable(enable);
     }
 
     makeEventGraph(src:Shape|null){
@@ -2346,6 +2369,12 @@ export class ParallelLine extends CompositeShape {
         });
     }
 
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        
+        this.line2!.setEnable(enable);
+    }
+
     calcParallelLine(){
         const p1 = this.point!.pos.add(this.line1!.e.mul(infinity));
         const p2 = this.point!.pos.sub(this.line1!.e.mul(infinity));
@@ -2413,6 +2442,12 @@ export class Intersection extends CompositeShape {
         super.all(v);
         this.lines.forEach(x => x.all(v));
         this.intersection!.all(v);
+    }
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        
+        this.intersection!.setEnable(enable);
     }
 
     makeEventGraph(src:Shape|null){
@@ -2504,8 +2539,12 @@ export class Angle extends CompositeShape {
         return [ "Mark", "Color" ];
     }
 
-    *restore(){
-        this.drawArc();
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+
+        const visibility = (enable ? "visible" : "hidden");
+        this.arcs.forEach(x => x.setAttribute("visibility", visibility));
+        this.primes.forEach(x => x.setAttribute("visibility", visibility));
     }
 
     setMark(mark: AngleMark){
@@ -2559,7 +2598,7 @@ export class Angle extends CompositeShape {
 
         while(this.primes.length < num_prime){
             let prime = document.createElementNS("http://www.w3.org/2000/svg","line");
-            prime.setAttribute("stroke", "navy");
+            prime.setAttribute("stroke", this.Color);
             prime.setAttribute("stroke-width", `${this.toSvg(angleStrokeWidth)}`);
             prime.style.cursor = "pointer";
     
@@ -2740,13 +2779,19 @@ export class Label extends CompositeShape {
         });
     }
 
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+
+        this.svgText.setAttribute("visibility", (enable ? "visible" : "hidden"));
+    }
+
     updateRatio(){
         const p = this.parentView.toSvgRatio();
         this.svgText.setAttribute("font-size", `${16 * p.y}`);
         this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
     }
 
-    make(obj: any):ShapeWidget{
+    make(obj: any):Widget{
         super.make(obj);
 
         if(this.parentView.FlipY){
@@ -2776,10 +2821,6 @@ export class Label extends CompositeShape {
     setText(text: string){
         this.Text = text;
         this.svgText.textContent = text;
-    }
-
-    *restore(){
-        this.processEvent([this.handles[0]]);
     }
 
     getY() : number {
@@ -2835,6 +2876,11 @@ export class Image extends CompositeShape {
         return Object.assign(super.makeObj(), {
             fileName: this.fileName
         });
+    }
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        this.image.setAttribute("visibility", (enable ? "visible" : "hidden"));
     }
 
     load =(ev:Event)=>{

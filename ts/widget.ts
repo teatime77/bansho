@@ -66,18 +66,14 @@ export class Widget{
     }
 
     enable(){
+        this.setEnable(true);
     }
 
     disable(){
+        this.setEnable(false);
     }
 
-    setEnable(enable: boolean){
-        if(enable){
-            this.enable();
-        }
-        else{
-            this.disable();
-        }
+    setEnable(enable: boolean){        
     }
 
     play() : any {
