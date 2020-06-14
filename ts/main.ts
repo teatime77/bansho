@@ -490,7 +490,7 @@ export function parseObject(obj: any) : any {
         return new Speech("").make(obj);
 
     case View.name:
-        return new View(obj);
+        return new View().make(obj);
 
     case Point.name:
         return new Point(obj);

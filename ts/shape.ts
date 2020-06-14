@@ -189,7 +189,7 @@ function showProperty(act: Widget){
 }
 
 export function addShape(){
-    const view1 = new View({ Width: 500, Height: 500, ViewBox: "-5 -15 20 20" });
+    const view1 = new View().make({ Width: 500, Height: 500, ViewBox: "-5 -15 20 20" });
     glb.widgets.push(view1);
 }
 
@@ -411,14 +411,8 @@ export class View extends ShapeWidget {
 
     xyAxis : (LineSegment|null)[] = [ null, null];
 
-    constructor(obj: any = {}){
+    constructor(){
         super();
-
-        console.assert(obj.Width != undefined && obj.Height != undefined && obj.ViewBox != undefined);
-        super.make(obj);
-        if(this.AutoHeight){
-            this.calcHeight();
-        }
         glb.view = this;
 
         this.div = document.createElement("div");
@@ -436,9 +430,6 @@ export class View extends ShapeWidget {
         //---------- 
         glb.board.appendChild(this.div);
         this.div.appendChild(this.svg);
-
-        this.updateWidth();
-        this.updateHeight();
     
         this.defs = document.createElementNS("http://www.w3.org/2000/svg","defs") as SVGDefsElement;
         this.svg.appendChild(this.defs);
@@ -454,10 +445,23 @@ export class View extends ShapeWidget {
         this.svg.appendChild(this.G0);
         this.svg.appendChild(this.G1);
         this.svg.appendChild(this.G2);
+    }
+
+    make(obj: any) : Widget {
+        console.assert(obj.Width != undefined && obj.Height != undefined && obj.ViewBox != undefined);
+        super.make(obj);
+        if(this.AutoHeight){
+            this.calcHeight();
+        }
+
+        this.updateWidth();
+        this.updateHeight();
 
         this.updateViewBox();
         this.setShowXAxis(this.ShowXAxis);
         this.setShowYAxis(this.ShowYAxis);
+
+        this.xyAxis.forEach(x => { if(x != null){ x.updateRatio(); }});
     
         setViewEventListener(this);
 
@@ -482,12 +486,13 @@ export class View extends ShapeWidget {
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            "Width"   : this.Width,
-            "Height"  : this.Height,
-            "ViewBox" : this.svg.getAttribute("viewBox"),
-            "FlipY"   : this.FlipY,
+            "Width"    : this.Width,
+            "Height"   : this.Height,
+            "ViewBox"  : this.svg.getAttribute("viewBox"),
+            "FlipY"    : this.FlipY,
             "ShowXAxis": this.ShowXAxis,
             "ShowYAxis": this.ShowYAxis,
+            "xyAxis"   : this.xyAxis.map(x => (x == null ? null : x.toObj()))
         });
     }
 
@@ -665,20 +670,37 @@ export class View extends ShapeWidget {
     setShowXYAxis(show_axis: boolean, idx: number){
         const big_value = Math.max(this.svg.viewBox.baseVal.width, this.svg.viewBox.baseVal.height) * 10000;
 
-        if(show_axis != (this.xyAxis[idx] != null)){
-            if(show_axis){
+        if(show_axis){
+            // 軸を表示する場合
+
+            if(this.xyAxis[idx] == null){
+                // 軸の線分がない場合
+
                 if(idx == 0){
+                    // X軸の場合
 
                     this.xyAxis[idx] = new LineSegment().makeByPos(-big_value, 0, big_value, 0);
                 }
                 else{
+                    // Y軸の場合
 
                     this.xyAxis[idx] = new LineSegment().makeByPos(0, -big_value, 0, big_value);
                 }
             }
             else{
-                this.xyAxis[idx]!.delete();
-                this.xyAxis[idx] = null;
+                // 軸の線分がある場合
+
+                this.xyAxis[idx]!.setColor("black")
+            }
+    
+        }
+        else{
+            // 軸を表示しない場合
+
+            if(this.xyAxis[idx] != null){
+                // 軸の線分がある場合
+
+                this.xyAxis[idx]!.setColor("transparent")
             }
         }
     }
@@ -1119,8 +1141,8 @@ export class Point extends Shape {
     }
 
     setX(value:any){
-        this.pos.x =  parseInt(value);
-        this.setPos();
+        this.pos.x =  parseFloat(value);
+        this.updatePos();
     }
 
     getY(){
@@ -1128,8 +1150,8 @@ export class Point extends Shape {
     }
 
     setY(value:any){
-        this.pos.y =  parseInt(value);
-        this.setPos();
+        this.pos.y =  parseFloat(value);
+        this.updatePos();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -1168,8 +1190,9 @@ export class Point extends Shape {
         }
     }
 
-    private dragPoint(ev: PointerEvent){
-        this.pos = this.parentView.getSvgPoint(ev, this);
+
+
+    private dragPoint(){
         if(this.bindTo != undefined){
 
             if(this.bindTo instanceof LineSegment){
@@ -1200,6 +1223,12 @@ export class Point extends Shape {
         }
     }
 
+    updatePos(){
+        this.dragPoint();
+        this.makeEventGraph(null);
+        this.parentView.eventQueue.processQueue();
+    }
+
     pointerdown =(ev: PointerEvent)=>{
         if(glb.toolType != "select"){
             return;
@@ -1218,10 +1247,9 @@ export class Point extends Shape {
             return;
         }
 
-        this.dragPoint(ev);
-
-        this.makeEventGraph(null);
-        this.parentView.eventQueue.processQueue();
+        this.pos = this.parentView.getSvgPoint(ev, this);
+        
+        this.updatePos();
     }
 
     pointerup =(ev: PointerEvent)=>{
@@ -1232,10 +1260,8 @@ export class Point extends Shape {
         this.circle.releasePointerCapture(ev.pointerId);
         this.parentView.capture = null;
 
-        this.dragPoint(ev);
-
-        this.makeEventGraph(null);
-        this.parentView.eventQueue.processQueue();
+        this.pos = this.parentView.getSvgPoint(ev, this);
+        this.updatePos();
     }
 
     delete(){
@@ -1250,15 +1276,22 @@ export class LineSegment extends CompositeShape {
     p12: Vec2 = new Vec2(0,0);
     e: Vec2 = new Vec2(0,0);
     len: number = 0;
+    Color: string = "navy";
 
     constructor(){
         super();
         //---------- 
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
-        this.line.setAttribute("stroke", "navy");
+        this.line.setAttribute("stroke", this.Color);
         this.updateRatio();
 
         this.parentView.G0.appendChild(this.line);
+    }
+
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            "Color"    : this.Color
+        });
     }
 
     updateRatio(){
@@ -1289,11 +1322,8 @@ export class LineSegment extends CompositeShape {
         return [ "Color" ];
     }
 
-    getColor(){
-        return this.line.getAttribute("stroke")!;
-    }
-
     setColor(c:string){
+        this.Color = c;
         this.line.setAttribute("stroke", c);
     }
     
