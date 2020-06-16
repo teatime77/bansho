@@ -76,10 +76,6 @@ export class Widget{
     setEnable(enable: boolean){        
     }
 
-    play() : any {
-        this.enable();
-    }
-
     summary() : string {
         return this.getTypeName();
     }
@@ -108,36 +104,24 @@ export class EmptyWidget extends Widget {
 }
 
 export class ShapeSelection extends Widget {
-    shape!: Point|LineSegment;
+    shapes: (Point|LineSegment)[] = [];
 
-    constructor(shape: Point|LineSegment|any) {
+    constructor(obj: any) {
         super();
-        if(shape instanceof Point || shape instanceof LineSegment){
-
-            this.shape = shape;
-        }
-        else{
-            super.make(shape);
-            console.assert(this.shape != undefined);
-        }
+        super.make(obj);
+        console.assert(this.shapes.length != 0);
     }
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            shape: this.shape.toObj()
+            shapes: this.shapes.map(x => x.toObj())
         });
     }
 
-    setEnable(enable: boolean){        
-        if(enable){
-
-            msg(`select   ${this.id}`);
-            this.shape.select(true);
-        }
-        else{
-
-            msg(`deselect ${this.id}`);
-            this.shape.select(false);    
+    setEnable(enable: boolean){   
+        msg(`set enable   ${this.id} ${enable}`);
+        for(let shape of this.shapes){
+            shape.select(enable);
         }
     }
 }
@@ -273,11 +257,6 @@ export class Speech extends TextWidget {
 
     constructor(text: string){
         super(text);
-    }
-
-    play(){
-        this.enable();
-        speak(this);
     }
 
     summary() : string {

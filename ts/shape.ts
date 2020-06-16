@@ -200,8 +200,8 @@ export function deselectShape(){
     // 手前の選択を無効にする。
     prev_acts.forEach(x => {
         if(x instanceof ShapeSelection){
-            x.shape.select(false);
-        } 
+            x.setEnable(false);
+        }
     });
 }
 
@@ -855,7 +855,7 @@ export class View extends Widget {
             if(ev.ctrlKey){
                 if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment){
     
-                    const act = new ShapeSelection(clicked_shape);
+                    const act = new ShapeSelection( { shapes :[clicked_shape] } );
                     act.enable();
             
                     glb.addWidget(act);

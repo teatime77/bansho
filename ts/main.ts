@@ -366,7 +366,7 @@ export class Glb {
 
             if(act instanceof Speech){
                 glb.pauseFlag = true;
-                act.play();
+                speak(act);
             }
 
             this.addEmptyWidget();
