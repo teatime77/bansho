@@ -106,12 +106,6 @@ export class EmptyWidget extends Widget {
 export class ShapeSelection extends Widget {
     shapes: (Point|LineSegment)[] = [];
 
-    constructor(obj: any) {
-        super();
-        super.make(obj);
-        console.assert(this.shapes.length != 0);
-    }
-
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             shapes: this.shapes.map(x => x.toObj())

@@ -855,10 +855,19 @@ export class View extends Widget {
             if(ev.ctrlKey){
                 if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment){
     
-                    const act = new ShapeSelection( { shapes :[clicked_shape] } );
-                    act.enable();
-            
-                    glb.addWidget(act);
+                    let act1 = glb.currentWidget();
+                    if(act1 instanceof ShapeSelection){
+
+                        act1.shapes.push(clicked_shape);
+                        act1.enable();
+                    }
+                    else{
+
+                        let act2 = new ShapeSelection();
+                        act2.shapes.push(clicked_shape);
+                
+                        glb.addWidget(act2);
+                    }
                 }
             }
             else{

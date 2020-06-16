@@ -21,7 +21,7 @@ export function setEventListener(){
 
     // ⏮
     document.getElementById("update-time-pos")!.addEventListener("click", (ev: MouseEvent)=>{
-        glb.updateTimePos(-1);
+        glb.updateTimePos(-1, false);
     });
 
     // 開くボタン

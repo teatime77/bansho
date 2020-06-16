@@ -28,14 +28,13 @@ export class Glb {
     pauseFlag : boolean;
     isSpeaking = false;
 
-    prevTimePos : number;
+    prevTimePos : number = -1;
 
     constructor(){
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
         this.board    = document.getElementById("board") as HTMLDivElement;
 
-        this.prevTimePos = -1;
         this.pauseFlag = false;
 
         this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
@@ -86,9 +85,8 @@ export class Glb {
             glb.widgets.splice(idx, 1);
         }
     
-        this.prevTimePos = Math.min(this.prevTimePos, glb.widgets.length - 1);
         glb.timeline.max = `${glb.widgets.length - 1}`;
-        this.updateTimePos(glb.timeline.valueAsNumber);
+        this.updateTimePos(glb.timeline.valueAsNumber, false);
     }
 
     currentWidget() : Widget | undefined {
@@ -104,7 +102,7 @@ export class Glb {
         for(let pos = glb.timeline.valueAsNumber + 1; pos < glb.widgets.length; pos++){
             let act = glb.widgets[pos];
             act.enable();
-            glb.updateTimePos(pos);
+            glb.updateTimePos(pos, true);
 
             if(act instanceof Speech){
                 speak(act);
@@ -121,7 +119,7 @@ export class Glb {
         glb.widgets.splice(selIdx, 0, act);
     
         glb.timeline.max = `${glb.widgets.length - 1}`;
-        this.updateTimePos(selIdx);
+        this.updateTimePos(selIdx, false);
     
         this.textArea.focus();
     }
@@ -182,10 +180,14 @@ export class Glb {
             glb.widgets[selIdx].enable();
         }
 
-        this.updateTimePos( Math.min(selIdx, glb.widgets.length - 1) );
+        this.updateTimePos( Math.min(selIdx, glb.widgets.length - 1), false );
     }
 
-    updateTimePos(pos: number){
+    /**
+     * ⏮, rngTimelineChange, playWidgets, addWidget, deleteWidget, deserializeDoc
+     * @param pos 
+     */
+    updateTimePos(pos: number, playing: boolean){
         if(this.prevTimePos < pos){
             for(let i = this.prevTimePos + 1; i <= pos; i++){
                 glb.widgets[i].enable();
@@ -200,13 +202,9 @@ export class Glb {
         glb.board.scrollTop = glb.board.scrollHeight;
         window.scrollTo(0,document.body.scrollHeight);
     
-        if(glb.timeline.valueAsNumber != pos){
-    
-            glb.timeline.valueAsNumber = pos;
-        }
-    
-        this.prevTimePos = pos;
-    
+        glb.timeline.valueAsNumber = pos;
+        glb.prevTimePos            = pos;
+        
         let act = this.currentWidget();
         if(act instanceof Speech){
             
@@ -226,6 +224,9 @@ export class Glb {
         }
         else if(act instanceof Speech){
 
+            if(!playing){
+                deselectShape();
+            }    
         }
         else{
 
@@ -454,10 +455,9 @@ export class Glb {
         this.summary.textContent = last(glb.widgets).summary();
     
         glb.timeline.max = `${glb.widgets.length - 1}`;
-        glb.timeline.valueAsNumber = glb.widgets.length - 1;
-        this.prevTimePos = glb.widgets.length - 1;
+        glb.prevTimePos = glb.widgets.length - 1;
 
-        this.updateTimePos(-1);    
+        this.updateTimePos(-1, false);    
         this.showPlayButton();
     }
 
@@ -540,7 +540,7 @@ export function parseObject(obj: any) : any {
         return new Image(obj);
 
     case ShapeSelection.name:
-        return new ShapeSelection(obj);
+        return new ShapeSelection().make(obj);
 
     default:
         console.assert(false);
