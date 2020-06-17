@@ -4,7 +4,6 @@ export let glb: Glb;
 
 export class Glb {
     widgets : Widget[] = [];
-    allWidgets : Widget[] = [];
     widgetMap : Widget[] = [];
     refMap = new Map<number, Widget>();
 
@@ -25,7 +24,7 @@ export class Glb {
     speechInput : boolean = false;
 
     isPlaying = false;
-    pauseFlag : boolean;
+    pauseFlag = false;
     isSpeaking = false;
 
     prevTimePos : number = -1;
@@ -34,8 +33,6 @@ export class Glb {
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
         this.board    = document.getElementById("board") as HTMLDivElement;
-
-        this.pauseFlag = false;
 
         this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
 
@@ -189,13 +186,21 @@ export class Glb {
      */
     updateTimePos(pos: number, playing: boolean){
         if(this.prevTimePos < pos){
+            // 現在位置が右に動いた場合
+
             for(let i = this.prevTimePos + 1; i <= pos; i++){
                 glb.widgets[i].enable();
             }
         }
         else if(pos < this.prevTimePos){
+            // 現在位置が左に動いた場合
+
             for(let i = Math.min(this.prevTimePos, glb.widgets.length - 1); pos < i; i--){
                 glb.widgets[i].disable();
+            }
+
+            if(pos != -1){
+                glb.widgets[pos].enable();
             }
         }
     
@@ -216,6 +221,8 @@ export class Glb {
 
             glb.caption.textContent = "";
         }
+
+        glb.setspeechInput(act instanceof Speech);
 
         if(act instanceof TextBlock){
 
@@ -334,6 +341,17 @@ export class Glb {
         }
     }
 
+    setspeechInput(is_speech: boolean){
+        glb.speechInput = is_speech;
+
+        if(glb.speechInput){
+            glb.textArea.style.borderColor = "blue";
+        }
+        else{
+            glb.textArea.style.borderColor = "grey";
+        }
+    }
+
     textAreaKeyDown(ev: KeyboardEvent){
         msg(`key down ${ev.key}`);
         if(ev.key == "Insert"){
@@ -342,14 +360,7 @@ export class Glb {
                 this.textArea.value = "$$\n\\frac{1}{2 \\pi \\sigma^2} \\int_{-\\infty}^\\infty \\exp^{ - \\frac{{(x - \\mu)}^2}{2 \\sigma^2}  } dx\n$$";
             }
             else if(! ev.shiftKey){
-                glb.speechInput = ! glb.speechInput;
-                if(glb.speechInput){
-                    glb.textArea.style.borderColor = "blue";
-                }
-                else{
-    
-                    glb.textArea.style.borderColor = "grey";
-                }
+                this.setspeechInput(! glb.speechInput)
             }
         }
     }
@@ -419,6 +430,8 @@ export class Glb {
     
     deserializeDoc(text: string){
         glb.widgets = [];
+        glb.timeline.max = "-1";
+        glb.timeline.valueAsNumber = -1;
     
         glb.board.innerHTML = "";
     
@@ -484,9 +497,6 @@ export function parseObject(obj: any) : any {
         return new Vec2(obj.x, obj.y);
     }
 
-    console.assert(obj.id != undefined);
-    console.assert(glb.refMap.get(parseInt(obj.id)) == undefined);
-
     switch(obj.typeName){
     case TextBlock.name:
         return new TextBlock("").make(obj);
@@ -541,6 +551,9 @@ export function parseObject(obj: any) : any {
 
     case ShapeSelection.name:
         return new ShapeSelection().make(obj);
+
+    case TextSelection.name:
+        return new TextSelection().make(obj);
 
     default:
         console.assert(false);
@@ -656,10 +669,18 @@ export function onClickPointerMove(act:TextBlock, ev: PointerEvent | MouseEvent,
                         type = SelectionType.second;
                     }
 
-                    glb.textSel = new TextSelection(act, idx, idx + 1, type);
-                    glb.textSel.enable();
+                    let txtSel = new TextSelection();
 
-                    glb.addWidget(glb.textSel);
+                    txtSel.textAct  = act;
+                    txtSel.startIdx = idx;
+                    txtSel.endIdx   = idx + 1;
+                    txtSel.type     = type;
+                    
+                    txtSel.enable();
+
+                    glb.addWidget(txtSel);
+
+                    glb.textSel = txtSel;
                 }
                 else{
                     glb.textSel = null;

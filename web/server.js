@@ -67,6 +67,7 @@ var server = http.createServer(function(req, res) {
 
             let data = JSON.parse(body);
 
+            backup(data.path);
             write(`json/${data.path}.json`, data.text);
 
             res.write(JSON.stringify({ "status": "ok"}));
@@ -104,4 +105,21 @@ function write(filePath, stream) {
     } catch(err) {
         return false;
     }
+}
+
+function backup(name){
+    let path1 = `json/${name}.json`;
+    if(! check(path1)){
+        return;
+    }
+
+    for(let i = 1; ; i++){
+        let path2 = `json/save/${name}-${i}.json`;
+        if(! check(path2)){
+            fs.renameSync(path1, path2);
+            return;
+        }
+    
+    }
+
 }

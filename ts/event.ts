@@ -243,7 +243,7 @@ function popQue(){
 
     while(typesetQue.length != 0){
         [typesetAct, div, text] = typesetQue.shift()!;
-        div.textContent = text;
+        div.innerHTML = text;
 
         let selections = glb.widgets.filter(x => x instanceof TextSelection && x.textAct == typesetAct) as TextSelection[];
         selections.forEach(x => { x.border = null; });

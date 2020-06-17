@@ -5,19 +5,6 @@ export let textMsg : HTMLDivElement;
 
 export function msg(text: string){
     console.log(text);
-
-    if(window.location.search.includes("debug=1")){
-
-        // <textarea id="txt-msg" rows="15" style="display: none; width: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; " spellcheck="false" ></textarea>
-    }
-
-    // if(textMsg == undefined){
-
-    //     textMsg      = document.getElementById("txt-msg") as HTMLDivElement;
-    //     textMsg.style.display = "inline-block";
-    // }
-    // textMsg.textContent = textMsg.textContent + "\n" + text;
-    // textMsg.scrollTop = textMsg.scrollHeight;
 }
 
 export function range(n: number) : number[]{
@@ -72,7 +59,14 @@ export function makeHtmlLines(text: string){
 
         if(currentLineTrim == "$$"){
             inMath = ! inMath;
-            htmlLines.push(currentLine);
+            if(inMath){
+                htmlLines.push('<div style="display: inline-block">');
+                htmlLines.push('$$');
+            }
+            else{
+                htmlLines.push('$$');
+                htmlLines.push('</div>');
+            }
         }
         else{
             if(inMath){

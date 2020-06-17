@@ -4,6 +4,8 @@ const infinity = 20;
 const strokeWidth = 4;
 const thisStrokeWidth = 2;
 const angleStrokeWidth = 2;
+const angleRadius = 40;
+const rightAngleLength = 20;
 const gridLineWidth = 1;
 
 declare let MathJax:any;
@@ -846,14 +848,14 @@ export class View extends Widget {
                     clicked_shape = shape;
                     break;
                 }
-                if(shape instanceof Angle && (shape.arcs as any[]).concat(shape.primes).includes(ev.srcElement as any)){
+                if(shape instanceof Angle && shape.svgElements().includes(ev.srcElement as any)){
                     clicked_shape = shape;
                     break;
                 }
             }
     
             if(ev.ctrlKey){
-                if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment){
+                if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment || clicked_shape instanceof Angle){
     
                     let act1 = glb.currentWidget();
                     if(act1 instanceof ShapeSelection){
@@ -2556,6 +2558,10 @@ export class Angle extends CompositeShape {
         this.lines.forEach(x => x.all(v));
     }
 
+    svgElements(){
+        return (this.arcs as SVGGraphicsElement[]).concat(this.primes)
+    }
+
     propertyNames() : string[] {
         return [ "Mark", "Color" ];
     }
@@ -2580,6 +2586,15 @@ export class Angle extends CompositeShape {
         for(let arc of this.arcs){
 
             arc.setAttribute("stroke", c);
+        }
+    }
+
+    select(selected: boolean){
+        if(this.selected != selected){
+            this.selected = selected;
+
+            let color = (this.selected ? "orange" : this.Color);
+            this.svgElements().forEach(x => x.setAttribute("stroke", color));
         }
     }
 
@@ -2631,7 +2646,7 @@ export class Angle extends CompositeShape {
     }
 
     drawRightAngle(p: Vec2, q1: Vec2, q2: Vec2){
-        const r = this.toSvg(40);
+        const r = this.toSvg(rightAngleLength);
         const p1 = p.add(q1.mul(r));
         const p2 = p.add(q2.mul(r));
         const p3 = p1.add(q2.mul(r));
@@ -2685,7 +2700,7 @@ export class Angle extends CompositeShape {
 
         for(let [i, arc] of this.arcs.entries()){
 
-            const r = this.toSvg(40) * (1 + 0.1 * i);
+            const r = this.toSvg(angleRadius) * (1 + 0.1 * i);
             const p1 = p.add(q1.mul(r));
             const p2 = p.add(q2.mul(r));
 
@@ -2697,7 +2712,7 @@ export class Angle extends CompositeShape {
         for(let [i, prime] of this.primes.entries()){
             let theta = theta1 + deltaTheta * (i + 1) / (num_prime + 1);
 
-            const r = this.toSvg(40);
+            const r = this.toSvg(angleRadius);
 
             const x1 = p.x + r * 0.9 * Math.cos(theta);
             const y1 = p.y + r * 0.9 * Math.sin(theta);

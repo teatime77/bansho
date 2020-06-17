@@ -104,7 +104,7 @@ export class EmptyWidget extends Widget {
 }
 
 export class ShapeSelection extends Widget {
-    shapes: (Point|LineSegment)[] = [];
+    shapes: (Point|LineSegment|Angle)[] = [];
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
@@ -121,20 +121,11 @@ export class ShapeSelection extends Widget {
 }
 
 export class TextSelection extends Widget {
-    textAct: TextBlock;
+    textAct!: TextBlock;
     startIdx: number = -1;
     endIdx: number = -1;
-    type: number;
+    type!: number;
     border: HTMLDivElement | null = null;
-
-    constructor(textAct: TextBlock, startIdx: number, endIdx: number, type: SelectionType){
-        super();
-
-        this.textAct  = textAct;
-        this.startIdx = startIdx;
-        this.endIdx   = endIdx;
-        this.type    = type;
-    }
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
@@ -232,13 +223,6 @@ export class TextWidget extends Widget {
         this.text = text;
     }
 
-    make(obj: any) : Widget {
-        console.assert(obj.text != undefined);
-        this.text = obj.text;
-    
-        return this;
-    }
-
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             text: this.text
@@ -333,14 +317,6 @@ export class TextBlock extends TextWidget {
         this.div.tabIndex = 0;
         
         setTextBlockEventListener(this);
-    }
-
-    make(obj: any) : Widget {
-        super.make(obj);
-        console.assert(obj.lineFeed != undefined);
-        this.lineFeed = obj.lineFeed;
-
-        return this;
     }
 
     enable(){
