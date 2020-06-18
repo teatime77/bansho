@@ -20,8 +20,13 @@ export function setEventListener(){
     });
 
     // ⏮
-    document.getElementById("update-time-pos")!.addEventListener("click", (ev: MouseEvent)=>{
+    document.getElementById("fast-reverse")!.addEventListener("click", (ev: MouseEvent)=>{
         glb.updateTimePos(-1, false);
+    });
+
+    // ⏭
+    document.getElementById("fast-forward")!.addEventListener("click", (ev: MouseEvent)=>{
+        glb.updateTimePos(glb.widgets.length - 1, false);
     });
 
     // 開くボタン
@@ -214,7 +219,16 @@ export function setViewEventListener(view: View){
 export function setPointEventListener(point: Point){
     point.circle.addEventListener("pointerdown", point.pointerdown);
     point.circle.addEventListener("pointermove", point.pointermove);
-    point.circle.addEventListener("pointerup", point.pointerup);
+    point.circle.addEventListener("pointerup"  , point.pointerup);
+}
+
+/**
+ * Pointのテキストのイベント処理
+ */
+export function setPointNameEventListener(point: Point){
+    point.svgName!.addEventListener("pointerdown", point.namePointerdown);
+    point.svgName!.addEventListener("pointermove", point.namePointermove);
+    point.svgName!.addEventListener("pointerup"  , point.namePointerup);
 }
 
 /**

@@ -543,9 +543,6 @@ export function parseObject(obj: any) : any {
     case Angle.name:
         return new Angle().make(obj);
 
-    case Label.name:
-        return new Label().make(obj);
-
     case Image.name:
         return new Image(obj);
 

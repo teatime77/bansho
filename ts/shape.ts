@@ -113,7 +113,6 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "Intersection":  return new Intersection();
         case "Angle":         return new Angle();
         case "TextBox":       return new TextBox().make({ Text: "$\\int_{-\\infty}^\\infty$" });
-        case "Label":         return new Label().make({Text:"こんにちは"}) as Shape;
         case "Image":         return new Image({fileName:"./img/teatime77.png"});
     } 
 }
@@ -491,6 +490,11 @@ export class View extends Widget {
 
     summary() : string {
         return "view";
+    }
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        this.div.style.visibility = (enable ? "visible" : "hidden");
     }
 
     setCTMInv(){
@@ -1087,7 +1091,6 @@ export abstract class CompositeShape extends Shape {
     
         return handle;
     }
-    
 }
 
 export class Point extends Shape {
@@ -1095,6 +1098,12 @@ export class Point extends Shape {
     bindTo: Shape|undefined;    //!!! リネーム注意 !!!
 
     circle : SVGCircleElement;
+
+    Name: string = "";
+    namePos = new Vec2(0,0);
+    svgName: SVGTextElement | null = null;
+
+    eventPos!: Vec2;
 
     constructor(obj: any){
         super();
@@ -1108,6 +1117,9 @@ export class Point extends Shape {
         setPointEventListener(this);
 
         this.circle.style.cursor = "pointer";
+
+        this.updateName();
+
         this.updateRatio();
 
         this.setPos();
@@ -1119,20 +1131,35 @@ export class Point extends Shape {
 
     setEnable(enable: boolean){
         this.circle.setAttribute("visibility", (enable ? "visible" : "hidden"));
+
+        if(this.svgName != null){
+            this.svgName.setAttribute("visibility", (enable ? "visible" : "hidden"));
+        }
     }
 
     updateRatio(){
         this.circle.setAttribute("r", `${this.toSvg(5)}`);
+
+        if(this.svgName != null){
+            const p = this.parentView.toSvgRatio();
+            this.svgName.setAttribute("font-size", `${16 * p.y}`);
+            this.svgName.setAttribute("stroke-width", `${0.2 * p.y}`);
+        }
     }
 
     propertyNames() : string[] {
-        return [ "X", "Y" ];
+        return [ "X", "Y", "Name" ];
     }
 
     makeObj() : any {
         let obj = Object.assign(super.makeObj(), {
-             pos: this.pos 
+             pos: this.pos
         });
+
+        if(this.Name != ""){
+            obj.Name    = this.Name,
+            obj.namePos = this.namePos
+        }
 
         if(this.bindTo != undefined){
             obj.bindTo = { ref: this.bindTo.id };
@@ -1163,6 +1190,47 @@ export class Point extends Shape {
         this.updatePos();
     }
 
+    setName(text: string){
+        this.Name = text;
+        this.updateName();
+    }
+
+    updateName(){
+
+        if(this.Name == ""){
+            if(this.svgName != null){
+
+                this.svgName.removeEventListener("pointerdown", this.pointerdown);
+                this.svgName.removeEventListener("pointermove", this.pointermove);
+                this.svgName.removeEventListener("pointerup"  , this.pointerup);
+
+                this.svgName.parentElement!.removeChild(this.svgName);
+                this.svgName = null;
+            }
+        }
+        else{
+            if(this.svgName == null){
+
+                this.svgName = document.createElementNS("http://www.w3.org/2000/svg","text");
+                this.svgName.setAttribute("stroke", "navy");
+                this.svgName.style.cursor = "pointer";
+                this.parentView.G0.appendChild(this.svgName);
+
+                if(this.parentView.FlipY){            
+                    this.svgName.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
+                }
+
+                this.updateNamePos();
+                this.updateRatio();
+        
+                setPointNameEventListener(this);
+
+            }
+
+            this.svgName.textContent = this.Name;
+        }
+    }
+
     click =(ev: MouseEvent, pt:Vec2): void => {
         this.pos = pt;
 
@@ -1184,6 +1252,8 @@ export class Point extends Shape {
     setPos(){
         this.circle.setAttribute("cx", "" + this.pos.x);
         this.circle.setAttribute("cy", "" + this.pos.y);
+
+        this.updateNamePos();
     }
 
     select(selected: boolean){
@@ -1271,8 +1341,70 @@ export class Point extends Shape {
         this.updatePos();
     }
 
+    namePointerdown =(ev: PointerEvent)=>{
+        if(glb.toolType != "select"){
+            return;
+        }
+
+        this.eventPos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
+        this.parentView.capture = this;
+        this.svgName!.setPointerCapture(ev.pointerId);
+    }
+
+    namePointermove =(ev: PointerEvent)=>{
+        if(glb.toolType != "select" || this.parentView.capture != this){
+            return;
+        }
+        
+        this.setNamePos(ev);
+    }
+
+    namePointerup =(ev: PointerEvent)=>{
+        if(glb.toolType != "select"){
+            return;
+        }
+
+        this.svgName!.releasePointerCapture(ev.pointerId);
+        this.parentView.capture = null;
+
+        this.setNamePos(ev);
+    }
+
+    getNameY() : number {
+        let y = this.pos.y + this.namePos.y;
+
+        if(this.parentView.FlipY){
+            return - y;
+        }
+        else{
+
+            return   y;
+        }
+    }
+
+    setNamePos(ev: MouseEvent | PointerEvent){
+        let pos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
+
+        this.namePos.x += pos.x - this.eventPos.x;
+        this.namePos.y += pos.y - this.eventPos.y;
+        this.eventPos = pos;
+
+        this.updateNamePos();
+    }
+
+    updateNamePos(){
+        if(this.svgName != null){
+
+            this.svgName.setAttribute("x", `${this.pos.x + this.namePos.x}`);
+            this.svgName.setAttribute("y", `${this.getNameY()}`);
+        }
+    }
+
     delete(){
         this.circle.parentElement!.removeChild(this.circle);
+        if(this.svgName != null){
+            this.svgName.parentElement!.removeChild(this.svgName);
+        }
     }
 }
 
@@ -2795,95 +2927,6 @@ export class Angle extends CompositeShape {
     pointermove = (ev: PointerEvent) : void => {
     }
 }
-
-
-export class Label extends CompositeShape {
-    Text: string = "ラベル";
-
-    svgText: SVGTextElement;
-
-    constructor(){
-        super();
-
-        this.svgText = document.createElementNS("http://www.w3.org/2000/svg","text");
-        this.svgText.setAttribute("stroke", "navy");
-    }
-
-    makeObj() : any {
-        return Object.assign(super.makeObj(), {
-            Text: this.Text
-        });
-    }
-
-    setEnable(enable: boolean){
-        super.setEnable(enable);
-
-        this.svgText.setAttribute("visibility", (enable ? "visible" : "hidden"));
-    }
-
-    updateRatio(){
-        const p = this.parentView.toSvgRatio();
-        this.svgText.setAttribute("font-size", `${16 * p.y}`);
-        this.svgText.setAttribute("stroke-width", `${0.2 * p.y}`);
-    }
-
-    make(obj: any):Widget{
-        super.make(obj);
-
-        if(this.parentView.FlipY){
-            
-            this.svgText.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
-        }
-
-        this.updateRatio();
-
-        this.svgText.textContent = this.Text;
-
-        if(this.handles.length != 0){
-
-            this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
-            this.svgText.setAttribute("y", `${this.getY()}`);
-        }
-
-        this.parentView.G0.appendChild(this.svgText);
-
-        return this;
-    }
-
-    propertyNames() : string[] {
-        return [ "Text" ];
-    }
-
-    setText(text: string){
-        this.Text = text;
-        this.svgText.textContent = text;
-    }
-
-    getY() : number {
-        if(this.parentView.FlipY){
-            return - this.handles[0].pos.y;
-        }
-        else{
-
-            return   this.handles[0].pos.y;
-        }
-    }
-
-    processEvent =(sources: Shape[])=>{
-        console.assert(sources.length == 1 && sources[0] == this.handles[0]);
-        this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
-        this.svgText.setAttribute("y", `${this.getY()}`);
-    }
-
-    click =(ev: MouseEvent, pt:Vec2): void => {
-        this.addHandle(this.clickHandle(ev, pt));
-
-        this.svgText.setAttribute("x", "" + this.handles[0].pos.x);
-        this.svgText.setAttribute("y", `${this.getY()}`);
-        this.finishTool();
-    }
-}
-
 
 export class Image extends CompositeShape {
     fileName: string = "";
