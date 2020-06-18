@@ -2004,6 +2004,8 @@ export class Circle extends CompositeShape {
         this.circle.setAttribute("fill", "none");// "transparent");
         this.circle.setAttribute("stroke", this.Color);
         this.circle.setAttribute("fill-opacity", "0");
+        this.circle.style.cursor = "move";
+
         this.updateRatio();
         
         this.parentView.G0.appendChild(this.circle);    
@@ -2108,7 +2110,6 @@ export class Circle extends CompositeShape {
             }
     
             this.setRadius(pt);
-            this.circle.style.cursor = "move";
     
             this.finishTool();
         }

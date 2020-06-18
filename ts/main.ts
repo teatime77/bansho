@@ -555,11 +555,17 @@ export function parseObject(obj: any) : any {
 }
 
 export function showFileList(obj: any){    
-    for(let file of obj.files){
-        let opt = document.createElement("option");
-        opt.value = file;
-        opt.textContent = file;
-        glb.selFile.add(opt);
+    if(obj.files.length != 0){
+
+        for(let file of obj.files){
+            let opt = document.createElement("option");
+            opt.value = file;
+            opt.textContent = file;
+            glb.selFile.add(opt);
+        }
+
+        glb.selFile.selectedIndex = 0;
+        glb.txtFile.value = obj.files[0];
     }
 }
 
