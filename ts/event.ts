@@ -225,10 +225,10 @@ export function setPointEventListener(point: Point){
 /**
  * Pointのテキストのイベント処理
  */
-export function setPointNameEventListener(point: Point){
-    point.svgName!.addEventListener("pointerdown", point.namePointerdown);
-    point.svgName!.addEventListener("pointermove", point.namePointermove);
-    point.svgName!.addEventListener("pointerup"  , point.namePointerup);
+export function setPointNameEventListener(shape: Shape){
+    shape.svgName!.addEventListener("pointerdown", shape.namePointerdown);
+    shape.svgName!.addEventListener("pointermove", shape.namePointermove);
+    shape.svgName!.addEventListener("pointerup"  , shape.namePointerup);
 }
 
 /**

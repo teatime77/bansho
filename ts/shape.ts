@@ -387,7 +387,7 @@ export class View extends Widget {
     shapes: Shape[]= [];
     tool : Shape | null = null;
     eventQueue : EventQueue = new EventQueue();
-    capture: Point|null = null;
+    capture: Shape|null = null;
     AutoHeight: boolean = true;
     ShowGrid : boolean = false;
     GridWidth : number = 1;
@@ -963,6 +963,11 @@ export abstract class Shape extends Widget {
     parentView : View;
     selected: boolean = false;
 
+    Name: string = "";
+    namePos = new Vec2(0,0);
+    svgName: SVGTextElement | null = null;
+    eventPos!: Vec2;
+
     processEvent(sources: Shape[]){}
     listeners:Shape[] = [];     //!!! リネーム注意 !!!
 
@@ -985,11 +990,31 @@ export abstract class Shape extends Widget {
             parentView : this.parentView.toObj()
         });
 
+        if(this.Name != ""){
+            obj.Name    = this.Name,
+            obj.namePos = this.namePos
+        }
+
         if(this.listeners.length != 0){
             obj.listeners = this.listeners.map(x => ({ ref: x.id }) );
         }
 
         return obj;
+    }
+
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        if(this.svgName != null){
+            this.svgName.setAttribute("visibility", (enable ? "visible" : "hidden"));
+        }
+    }
+
+    delete(){
+        super.delete();
+        if(this.svgName != null){
+            this.svgName.parentElement!.removeChild(this.svgName);
+        }
     }
 
     finishTool(){
@@ -1021,7 +1046,107 @@ export abstract class Shape extends Widget {
         return x * this.parentView.svgRatio;
     }
 
-    updateRatio(){}
+    updateRatio(){
+        if(this.svgName != null){
+            const p = this.parentView.toSvgRatio();
+            this.svgName.setAttribute("font-size", `${16 * p.y}`);
+            this.svgName.setAttribute("stroke-width", `${0.2 * p.y}`);
+        }
+    }
+
+    setName(text: string){
+        this.Name = text;
+        this.updateName();
+    }
+
+    updateName(){
+
+        if(this.Name == ""){
+            if(this.svgName != null){
+
+                this.svgName.removeEventListener("pointerdown", this.namePointerdown);
+                this.svgName.removeEventListener("pointermove", this.namePointermove);
+                this.svgName.removeEventListener("pointerup"  , this.namePointerup);
+
+                this.svgName.parentElement!.removeChild(this.svgName);
+                this.svgName = null;
+            }
+        }
+        else{
+            if(this.svgName == null){
+
+                this.svgName = document.createElementNS("http://www.w3.org/2000/svg","text");
+                this.svgName.setAttribute("stroke", "navy");
+                this.svgName.style.cursor = "pointer";
+                this.parentView.G0.appendChild(this.svgName);
+
+                if(this.parentView.FlipY){            
+                    this.svgName.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
+                }
+
+                this.updateNamePos();
+                this.updateRatio();
+        
+                setPointNameEventListener(this);
+
+            }
+
+            this.svgName.textContent = this.Name;
+        }
+    }
+
+    namePointerdown =(ev: PointerEvent)=>{
+        if(glb.toolType != "select"){
+            return;
+        }
+
+        this.eventPos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
+        this.parentView.capture = this;
+        this.svgName!.setPointerCapture(ev.pointerId);
+    }
+
+    namePointermove =(ev: PointerEvent)=>{
+        if(glb.toolType != "select" || this.parentView.capture != this){
+            return;
+        }
+        
+        this.setNamePos(ev);
+    }
+
+    namePointerup =(ev: PointerEvent)=>{
+        if(glb.toolType != "select"){
+            return;
+        }
+
+        this.svgName!.releasePointerCapture(ev.pointerId);
+        this.parentView.capture = null;
+
+        this.setNamePos(ev);
+    }
+
+    getNameXY(){
+        console.assert(false);
+        return [0, 0];
+    }
+
+    setNamePos(ev: MouseEvent | PointerEvent){
+        let pos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
+
+        this.namePos.x += pos.x - this.eventPos.x;
+        this.namePos.y += pos.y - this.eventPos.y;
+        this.eventPos = pos;
+
+        this.updateNamePos();
+    }
+
+    updateNamePos(){
+        if(this.svgName != null){
+
+            let [x, y] = this.getNameXY();
+            this.svgName.setAttribute("x", `${x}`);
+            this.svgName.setAttribute("y", `${y}`);
+        }
+    }
 }
 
 export abstract class CompositeShape extends Shape {
@@ -1048,6 +1173,7 @@ export abstract class CompositeShape extends Shape {
     }
 
     delete(){
+        super.delete();
         for(let x of this.handles){
             x.delete();
         }
@@ -1055,6 +1181,7 @@ export abstract class CompositeShape extends Shape {
 
 
     setEnable(enable: boolean){
+        super.setEnable(enable);
         this.handles.forEach(x => x.setEnable(enable));
     }
 
@@ -1099,12 +1226,6 @@ export class Point extends Shape {
 
     circle : SVGCircleElement;
 
-    Name: string = "";
-    namePos = new Vec2(0,0);
-    svgName: SVGTextElement | null = null;
-
-    eventPos!: Vec2;
-
     constructor(obj: any){
         super();
 
@@ -1130,21 +1251,13 @@ export class Point extends Shape {
     }
 
     setEnable(enable: boolean){
+        super.setEnable(enable);
         this.circle.setAttribute("visibility", (enable ? "visible" : "hidden"));
-
-        if(this.svgName != null){
-            this.svgName.setAttribute("visibility", (enable ? "visible" : "hidden"));
-        }
     }
 
     updateRatio(){
+        super.updateRatio();
         this.circle.setAttribute("r", `${this.toSvg(5)}`);
-
-        if(this.svgName != null){
-            const p = this.parentView.toSvgRatio();
-            this.svgName.setAttribute("font-size", `${16 * p.y}`);
-            this.svgName.setAttribute("stroke-width", `${0.2 * p.y}`);
-        }
     }
 
     propertyNames() : string[] {
@@ -1155,11 +1268,6 @@ export class Point extends Shape {
         let obj = Object.assign(super.makeObj(), {
              pos: this.pos
         });
-
-        if(this.Name != ""){
-            obj.Name    = this.Name,
-            obj.namePos = this.namePos
-        }
 
         if(this.bindTo != undefined){
             obj.bindTo = { ref: this.bindTo.id };
@@ -1190,47 +1298,6 @@ export class Point extends Shape {
         this.updatePos();
     }
 
-    setName(text: string){
-        this.Name = text;
-        this.updateName();
-    }
-
-    updateName(){
-
-        if(this.Name == ""){
-            if(this.svgName != null){
-
-                this.svgName.removeEventListener("pointerdown", this.pointerdown);
-                this.svgName.removeEventListener("pointermove", this.pointermove);
-                this.svgName.removeEventListener("pointerup"  , this.pointerup);
-
-                this.svgName.parentElement!.removeChild(this.svgName);
-                this.svgName = null;
-            }
-        }
-        else{
-            if(this.svgName == null){
-
-                this.svgName = document.createElementNS("http://www.w3.org/2000/svg","text");
-                this.svgName.setAttribute("stroke", "navy");
-                this.svgName.style.cursor = "pointer";
-                this.parentView.G0.appendChild(this.svgName);
-
-                if(this.parentView.FlipY){            
-                    this.svgName.setAttribute("transform", `matrix(1, 0, 0, -1, 0, 0)`);
-                }
-
-                this.updateNamePos();
-                this.updateRatio();
-        
-                setPointNameEventListener(this);
-
-            }
-
-            this.svgName.textContent = this.Name;
-        }
-    }
-
     click =(ev: MouseEvent, pt:Vec2): void => {
         this.pos = pt;
 
@@ -1254,6 +1321,19 @@ export class Point extends Shape {
         this.circle.setAttribute("cy", "" + this.pos.y);
 
         this.updateNamePos();
+    }
+
+    getNameXY(){
+        let x = this.pos.x + this.namePos.x;
+        let y = this.pos.y + this.namePos.y;
+
+        if(this.parentView.FlipY){
+            return [x, - y];
+        }
+        else{
+
+            return [x, y];
+        }
     }
 
     select(selected: boolean){
@@ -1341,70 +1421,9 @@ export class Point extends Shape {
         this.updatePos();
     }
 
-    namePointerdown =(ev: PointerEvent)=>{
-        if(glb.toolType != "select"){
-            return;
-        }
-
-        this.eventPos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
-        this.parentView.capture = this;
-        this.svgName!.setPointerCapture(ev.pointerId);
-    }
-
-    namePointermove =(ev: PointerEvent)=>{
-        if(glb.toolType != "select" || this.parentView.capture != this){
-            return;
-        }
-        
-        this.setNamePos(ev);
-    }
-
-    namePointerup =(ev: PointerEvent)=>{
-        if(glb.toolType != "select"){
-            return;
-        }
-
-        this.svgName!.releasePointerCapture(ev.pointerId);
-        this.parentView.capture = null;
-
-        this.setNamePos(ev);
-    }
-
-    getNameY() : number {
-        let y = this.pos.y + this.namePos.y;
-
-        if(this.parentView.FlipY){
-            return - y;
-        }
-        else{
-
-            return   y;
-        }
-    }
-
-    setNamePos(ev: MouseEvent | PointerEvent){
-        let pos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
-
-        this.namePos.x += pos.x - this.eventPos.x;
-        this.namePos.y += pos.y - this.eventPos.y;
-        this.eventPos = pos;
-
-        this.updateNamePos();
-    }
-
-    updateNamePos(){
-        if(this.svgName != null){
-
-            this.svgName.setAttribute("x", `${this.pos.x + this.namePos.x}`);
-            this.svgName.setAttribute("y", `${this.getNameY()}`);
-        }
-    }
-
     delete(){
+        super.delete();
         this.circle.parentElement!.removeChild(this.circle);
-        if(this.svgName != null){
-            this.svgName.parentElement!.removeChild(this.svgName);
-        }
     }
 }
 
@@ -1439,6 +1458,7 @@ export class LineSegment extends CompositeShape {
     }
 
     updateRatio(){
+        super.updateRatio();
         this.line.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);
     }
 
@@ -1995,6 +2015,7 @@ export class Circle extends CompositeShape {
     }
 
     updateRatio(){
+        super.updateRatio();
         this.circle.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);
     }
 
@@ -2156,6 +2177,7 @@ export class DimensionLine extends CompositeShape {
     }
 
     updateRatio(){
+        super.updateRatio();
         for(let arc of this.arcs){
             arc.setAttribute("stroke-width", `${this.toSvg(thisStrokeWidth)}`);
         }
@@ -2393,6 +2415,7 @@ export class Midpoint extends CompositeShape {
     }
 
     setEnable(enable: boolean){
+        super.setEnable(enable);
         this.midpoint!.setEnable(enable);
     }
 
@@ -2680,6 +2703,9 @@ export class Angle extends CompositeShape {
 
     make(obj: any) : Widget {
         super.make(obj);
+        this.updateName();
+        this.updateRatio();
+
         this.drawArc();
 
         return this;
@@ -2695,15 +2721,17 @@ export class Angle extends CompositeShape {
     }
 
     propertyNames() : string[] {
-        return [ "Mark", "Color" ];
+        return [ "Mark", "Color", "Name" ];
     }
 
     setEnable(enable: boolean){
         super.setEnable(enable);
+        this.svgElements().forEach(x => x.setAttribute("visibility", (enable ? "visible" : "hidden")));
+    }
 
-        const visibility = (enable ? "visible" : "hidden");
-        this.arcs.forEach(x => x.setAttribute("visibility", visibility));
-        this.primes.forEach(x => x.setAttribute("visibility", visibility));
+    delete(){        
+        super.delete();
+        this.svgElements().forEach(x => x.parentElement!.removeChild(x));
     }
 
     setMark(mark: AngleMark){
@@ -2731,11 +2759,28 @@ export class Angle extends CompositeShape {
     }
 
     updateRatio(){
+        super.updateRatio();
         for(let arc of this.arcs){
             arc.setAttribute("stroke-width", `${this.toSvg(angleStrokeWidth)}`);
         }
         for(let prime of this.primes){
             prime.setAttribute("stroke-width", `${this.toSvg(angleStrokeWidth)}`);
+        }
+    }
+
+    getNameXY(){
+        // 交点
+        const p = linesIntersection(this.lines[0], this.lines[1]);
+
+        let x = p.x + this.namePos.x;
+        let y = p.y + this.namePos.y;
+
+        if(this.parentView.FlipY){
+            return [x, - y];
+        }
+        else{
+
+            return [x, y];
         }
     }
 
@@ -2887,6 +2932,7 @@ export class Angle extends CompositeShape {
 
     processEvent =(sources: Shape[])=>{
         this.drawArc();
+        this.updateNamePos();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {

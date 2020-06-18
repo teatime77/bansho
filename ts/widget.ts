@@ -73,6 +73,9 @@ export class Widget{
         this.setEnable(false);
     }
 
+    delete(){        
+    }
+
     setEnable(enable: boolean){        
     }
 
@@ -332,6 +335,10 @@ export class TextBlock extends TextWidget {
 
     disable(){
         this.div.style.display = "none";
+    }
+
+    delete(){
+        glb.board.removeChild(this.div);
     }
 
     makeObj() : any {

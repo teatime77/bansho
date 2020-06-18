@@ -157,11 +157,7 @@ export class Glb {
 
             refActs.forEach(x => fnc(x));
 
-            act.disable();
-            if(act instanceof TextBlock){
-
-                glb.board.removeChild(act.div);
-            }
+            act.delete();
         
             let idx = glb.widgets.indexOf(act);
             console.assert(idx != -1);
