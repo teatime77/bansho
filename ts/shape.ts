@@ -189,7 +189,7 @@ function showProperty(act: Widget){
 }
 
 export function addShape(){
-    const view1 = new View().make({ Width: 500, Height: 500, ViewBox: "-5 -15 20 20" });
+    const view1 = new View().make({ Width: 500, Height: 500, ViewBox: "-2 -2 4 4" });
     glb.widgets.push(view1);
 }
 
@@ -1575,6 +1575,9 @@ export class LineSegment extends CompositeShape {
     len: number = 0;
     Color: string = "navy";
 
+    Arrow = 0;
+    svgArrow : SVGPathElement | null = null;
+
     constructor(){
         super();
         //---------- 
@@ -1586,9 +1589,15 @@ export class LineSegment extends CompositeShape {
     }
 
     makeObj() : any {
-        return Object.assign(super.makeObj(), {
+        let obj = Object.assign(super.makeObj(), {
             "Color"    : this.Color
         });
+
+        if(this.Arrow != 0){
+            obj.Arrow = this.Arrow;
+        }
+
+        return obj;
     }
 
     setEnable(enable: boolean){
@@ -1609,6 +1618,8 @@ export class LineSegment extends CompositeShape {
 
         this.updateRatio();
 
+        this.setVecs();
+        this.updateArrow();
         this.updateLinePos();
         this.line.style.cursor = "move";
 
@@ -1643,12 +1654,56 @@ export class LineSegment extends CompositeShape {
     }
 
     propertyNames() : string[] {
-        return [ "Color", "Name" ];
+        return [ "Color", "Name", "Arrow" ];
     }
 
     setColor(c:string){
         this.Color = c;
         this.line.setAttribute("stroke", c);
+    }
+
+    setArrow(n: number){
+        this.Arrow = n;
+        this.updateArrow();
+    }
+
+    updateArrow(){
+        if(this.Arrow == 0){
+            if(this.svgArrow != null){
+
+                this.svgArrow.parentElement!.removeChild(this.svgArrow);
+                this.svgArrow = null;
+            }
+        }
+        else{
+
+            if(this.svgArrow == null){
+                this.svgArrow = document.createElementNS("http://www.w3.org/2000/svg","path");
+                this.svgArrow.setAttribute("fill", this.Color);
+
+                this.parentView.G0.appendChild(this.svgArrow);
+
+                this.updateArrowPos();
+            }
+        }
+    }
+
+    updateArrowPos(){
+        if(this.svgArrow != null){
+            let p1 = this.handles[1].pos;
+
+            let sz = this.toSvg(10);
+            let n = new Vec2(this.e.y, - this.e.x);
+
+            let a1 = p1.add(this.e.mul( sz));
+            let a2 = p1.add(this.e.mul(-sz));
+
+            let b1 = a2.add(n.mul( sz));
+            let b2 = a2.add(n.mul(-sz));
+
+            let d = `M${a1.x} ${a1.y} L${b1.x} ${b1.y} L${b2.x} ${b2.y} Z`;
+            this.svgArrow.setAttribute("d", d);
+        }
     }
     
     select(selected: boolean){
@@ -1723,6 +1778,7 @@ export class LineSegment extends CompositeShape {
         this.setVecs();
 
         this.updateNamePos();
+        this.updateArrowPos();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
