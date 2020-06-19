@@ -12,9 +12,17 @@ var server = http.createServer(function(req, res) {
                 console.log(files);
 
                 files = files.filter(x => x.endsWith(".json")).map(x => x.replace(".json", ""));
+
+                let name_titles = [];
+                for(let name of files){
+                    let text = fs.readFileSync(`json/${name}.json`, 'utf8');
+                    let title = JSON.parse(text).title;
+
+                    name_titles.push( { name: name, title: title })
+                }
                 
                 res.writeHead(200, {"Content-Type": "application/json"});
-                res.end(JSON.stringify({ files: files }));
+                res.end(JSON.stringify({ files: name_titles }));
             });
         }
         else if(req.url.startsWith("/")){

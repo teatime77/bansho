@@ -569,13 +569,13 @@ export function showFileList(obj: any){
 
         for(let file of obj.files){
             let opt = document.createElement("option");
-            opt.value = file;
-            opt.textContent = file;
+            opt.value = file.name;
+            opt.textContent = file.title;
             glb.selFile.add(opt);
         }
 
         glb.selFile.selectedIndex = 0;
-        glb.txtFile.value = obj.files[0];
+        glb.txtFile.value = obj.files[0].name;
     }
 }
 
