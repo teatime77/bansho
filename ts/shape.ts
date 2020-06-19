@@ -112,7 +112,6 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "ParallelLine":  return new ParallelLine()
         case "Intersection":  return new Intersection();
         case "Angle":         return new Angle();
-        case "TextBox":       return new TextBox().make({ Text: "$\\int_{-\\infty}^\\infty$" });
         case "Image":         return new Image({fileName:"./img/teatime77.png"});
     } 
 }
@@ -219,6 +218,10 @@ export class Vec2 {
     constructor(x:number, y: number){
         this.x = x;
         this.y = y;
+    }
+
+    copy(){
+        return new Vec2(this.x, this.y);
     }
 
     equals(pt: Vec2): boolean {
@@ -377,6 +380,7 @@ export class EventQueue {
 export class View extends Widget {
     div : HTMLDivElement;
     svg : SVGSVGElement;
+    div2 : HTMLDivElement;
     defs : SVGDefsElement;
     gridBg : SVGRectElement;
     G0 : SVGGElement;
@@ -422,7 +426,16 @@ export class View extends Widget {
         //---------- 
         glb.board.appendChild(this.div);
         this.div.appendChild(this.svg);
-    
+
+        this.div2 = document.createElement("div");
+        this.div2.style.position = "absolute";
+        this.div2.style.left = "0px";
+        this.div2.style.top = "0px";
+        this.div2.style.backgroundColor = "transparent";
+        this.div2.style.pointerEvents = "none";
+
+        this.div.appendChild(this.div2);
+
         this.defs = document.createElementNS("http://www.w3.org/2000/svg","defs") as SVGDefsElement;
         this.svg.appendChild(this.defs);
 
@@ -517,8 +530,9 @@ export class View extends Widget {
     }
 
     updateWidth(){
-        this.div.style.width = `${this.Width}px`;
-        this.svg.style.width = `${this.Width}px`;
+        this.div.style.width  = `${this.Width}px`;
+        this.svg.style.width  = `${this.Width}px`;
+        this.div2.style.width = `${this.Width}px`;
     }
 
     setWidth(value: number){
@@ -553,8 +567,9 @@ export class View extends Widget {
     }
 
     updateHeight(){
-        this.div.style.height = `${this.Height}px`;
-        this.svg.style.height = `${this.Height}px`;
+        this.div.style.height  = `${this.Height}px`;
+        this.svg.style.height  = `${this.Height}px`;
+        this.div2.style.height = `${this.Height}px`;
     }
 
     parseViewBox1(){
@@ -613,9 +628,6 @@ export class View extends Widget {
         if(! this.ShowGrid){
             this.gridBg.setAttribute("fill", "transparent");
         }
-
-        const text_boxes = this.allShapes().filter(x => x instanceof TextBox) as TextBox[];
-        text_boxes.forEach(x => x.setDomPosByHandle());
     }
 
     setShowGrid(value: boolean){
@@ -843,10 +855,6 @@ export class View extends Widget {
             // for(let ele = ev.srcElement; obj; obj = ob)
             let clicked_shape : Shape|null = null;
             for(let shape of this.shapes.values()){
-                if(shape instanceof TextBox && shape.handles[0].circle == ev.srcElement){
-                    clicked_shape = shape;
-                    break;
-                }
                 if(Object.values(shape).includes(ev.srcElement)){
                     clicked_shape = shape;
                     break;
@@ -926,8 +934,6 @@ export class View extends Widget {
         const circle = this.shapes.find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
         return circle == undefined ? null : circle;
     }
-        
-
 
     toSvg2(x:number) : number{
         return x * this.svgRatio;
@@ -965,7 +971,10 @@ export abstract class Shape extends Widget {
     Name: string = "";
     namePos = new Vec2(0,0);
     svgName: SVGTextElement | null = null;
-    eventPos!: Vec2;
+
+    Caption: string = "";
+    captionPos = new Vec2(0, 0);
+    divCaption : HTMLDivElement | null = null;
 
     processEvent(sources: Shape[]){}
     listeners:Shape[] = [];     //!!! リネーム注意 !!!
@@ -990,8 +999,13 @@ export abstract class Shape extends Widget {
         });
 
         if(this.Name != ""){
-            obj.Name    = this.Name,
-            obj.namePos = this.namePos
+            obj.Name    = this.Name;
+            obj.namePos = this.namePos;
+        }
+
+        if(this.Caption != ""){
+            obj.Caption    = this.Caption;
+            obj.captionPos = this.captionPos;
         }
 
         if(this.listeners.length != 0){
@@ -1004,6 +1018,7 @@ export abstract class Shape extends Widget {
     make(obj: any) : Widget {
         super.make(obj);
         this.updateName();
+        this.updateCaption();
 
         return this;
     }
@@ -1013,12 +1028,21 @@ export abstract class Shape extends Widget {
         if(this.svgName != null){
             this.svgName.setAttribute("visibility", (enable ? "visible" : "hidden"));
         }
+
+        if(this.divCaption != null){
+            this.divCaption.style.visibility = (enable ? "visible" : "hidden");
+        }
     }
 
     delete(){
         super.delete();
+
         if(this.svgName != null){
             this.svgName.parentElement!.removeChild(this.svgName);
+        }
+
+        if(this.divCaption != null){
+            this.divCaption.parentElement!.removeChild(this.divCaption);
         }
     }
 
@@ -1074,8 +1098,12 @@ export abstract class Shape extends Widget {
         this.updateName();
     }
 
-    updateName(){
+    setCaption(text: string){
+        this.Caption = text;
+        this.updateCaption();
+    }
 
+    updateName(){
         if(this.Name == ""){
             if(this.svgName != null){
 
@@ -1102,10 +1130,46 @@ export abstract class Shape extends Widget {
                 this.updateNamePos();
                 this.updateRatio();
         
-                setPointNameEventListener(this);
+                setNameEventListener(this);
             }
 
             this.svgName.textContent = this.Name;
+        }
+    }
+
+    updateCaption(){
+        if(this.Caption == ""){
+
+            if(this.divCaption != null){
+                
+                this.divCaption.removeEventListener("pointerdown", this.captionPointerdown);
+                this.divCaption.removeEventListener("pointermove", this.captionPointermove);
+                this.divCaption.removeEventListener("pointerup"  , this.captionPointerup);
+
+                this.divCaption.parentElement!.removeChild(this.divCaption);
+                this.divCaption = null;
+            }
+        }
+        else{
+
+            if(this.divCaption == null){
+
+                this.divCaption = document.createElement("div");
+                this.divCaption.style.position = "absolute";
+                this.divCaption.style.backgroundColor = "transparent";
+                this.divCaption.style.cursor = "move";
+                this.divCaption.style.pointerEvents = "all";
+        
+                this.parentView.div2.appendChild(this.divCaption);
+
+                this.updateCaptionPos();
+
+                setCaptionEventListener(this);
+            }
+
+            this.divCaption.textContent = "$$\n" + this.Caption + "\$$";
+
+            MathJax.typesetPromise([this.divCaption]);
         }
     }
 
@@ -1114,7 +1178,7 @@ export abstract class Shape extends Widget {
             return;
         }
 
-        this.eventPos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
+        glb.eventPos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
         this.parentView.capture = this;
         this.svgName!.setPointerCapture(ev.pointerId);
     }
@@ -1138,7 +1202,43 @@ export abstract class Shape extends Widget {
         this.setNamePos(ev);
     }
 
+    captionPointerdown =(ev: PointerEvent)=>{
+        if(glb.toolType != "select"){
+            return;
+        }
+
+        glb.eventPos = new Vec2(ev.screenX, ev.screenY);
+        glb.orgPos   = this.captionPos.copy();
+
+        this.parentView.capture = this;
+        this.divCaption!.setPointerCapture(ev.pointerId);
+    }
+
+    captionPointermove =(ev: PointerEvent)=>{
+        if(glb.toolType != "select" || this.parentView.capture != this){
+            return;
+        }
+        
+        this.setCaptionPos(ev);
+    }
+
+    captionPointerup =(ev: PointerEvent)=>{
+        if(glb.toolType != "select"){
+            return;
+        }
+
+        this.divCaption!.releasePointerCapture(ev.pointerId);
+        this.parentView.capture = null;
+
+        this.setCaptionPos(ev);
+    }
+
     getNameXY(){
+        console.assert(false);
+        return [0, 0];
+    }
+
+    getCaptionXY(){
         console.assert(false);
         return [0, 0];
     }
@@ -1146,9 +1246,9 @@ export abstract class Shape extends Widget {
     setNamePos(ev: MouseEvent | PointerEvent){
         let pos = this.parentView.DomToSvgPos(ev.offsetX, ev.offsetY);
 
-        this.namePos.x += pos.x - this.eventPos.x;
-        this.namePos.y += pos.y - this.eventPos.y;
-        this.eventPos = pos;
+        this.namePos.x += pos.x - glb.eventPos.x;
+        this.namePos.y += pos.y - glb.eventPos.y;
+        glb.eventPos = pos;
 
         this.updateNamePos();
     }
@@ -1159,6 +1259,22 @@ export abstract class Shape extends Widget {
             let [x, y] = this.getNameXY();
             this.svgName.setAttribute("x", `${x}`);
             this.svgName.setAttribute("y", `${y}`);
+        }
+    }
+
+    setCaptionPos(ev: MouseEvent | PointerEvent){
+        this.captionPos.x = glb.orgPos.x + (ev.screenX - glb.eventPos.x);
+        this.captionPos.y = glb.orgPos.y + (ev.screenY - glb.eventPos.y);
+
+        this.updateCaptionPos();
+    }
+
+    updateCaptionPos(){
+        if(this.divCaption != null){
+
+            let [x, y] = this.getCaptionXY();
+            this.divCaption.style.left  = `${x}px`;
+            this.divCaption.style.top   = `${y}px`;
         }
     }
 }
@@ -1254,6 +1370,7 @@ export class Point extends Shape {
         setPointEventListener(this);
 
         this.updateName();
+        this.updateCaption();
 
         this.updateRatio();
 
@@ -1275,7 +1392,7 @@ export class Point extends Shape {
     }
 
     propertyNames() : string[] {
-        return [ "X", "Y", "Name" ];
+        return [ "X", "Y", "Name", "Caption" ];
     }
 
     makeObj() : any {
@@ -1335,6 +1452,7 @@ export class Point extends Shape {
         this.circle.setAttribute("cy", "" + this.pos.y);
 
         this.updateNamePos();
+        this.updateCaptionPos();
     }
 
     getNameXY(){
@@ -1348,6 +1466,13 @@ export class Point extends Shape {
 
             return [x, y];
         }
+    }
+
+
+    getCaptionXY(){
+        let p = this.parentView.SvgToDomPos(this.pos);
+
+        return [p.x + this.captionPos.x, p.y + this.captionPos.y];
     }
 
     select(selected: boolean){
@@ -2351,89 +2476,6 @@ export class Triangle extends Polygon {
     pointermove =(ev: PointerEvent) : void =>{
         const lastLine = last(this.lines);
         lastLine.pointermove(ev);
-    }
-}
-
-export class TextBox extends CompositeShape {   
-    domPos: Vec2 | null = null;
-    Text: string = "テキスト";
-
-    div : HTMLDivElement;
-
-    constructor(){
-        super();
-
-        this.div = document.createElement("div");
-        this.div.style.position = "absolute";
-        this.div.style.backgroundColor = "cornsilk";
-        this.div.style.cursor = "move";
-        this.div.style.zIndex = "-1";
-
-        this.parentView.div.appendChild(this.div);
-    }
-
-    makeObj() : any {
-        return Object.assign(super.makeObj(), {
-            domPos: this.domPos,
-            Text: this.Text
-        });
-    }
-
-    make(obj: any) : TextBox {
-        super.make(obj);
-
-        this.div.id = getBlockId(this);
-        this.div.innerHTML = bansho.makeHtmlLines(this.Text);
-
-        if(this.domPos != null){
-            this.updatePos();
-        }
-
-        MathJax.typesetPromise([this.div]);
-
-        return this;
-    }
-
-    propertyNames() : string[] {
-        return [ "Text" ];
-    }
-
-    setEnable(enable: boolean){
-        super.setEnable(enable);
-        this.div.style.visibility = (enable ? "visible" : "hidden");
-    }
-
-    setText(text: string){
-        this.Text = text;
-
-        this.div.innerHTML = bansho.makeHtmlLines(this.Text);
-        MathJax.typesetPromise([this.div]);
-    }
-
-    processEvent =(sources: Shape[])=>{
-        console.assert(sources.length == 1 && sources[0] == this.handles[0]);
-        msg(`text pos ${this.handles[0].pos.x} ${this.handles[0].pos.y} `);
-
-        this.setDomPosByHandle();
-    }
-
-    setDomPosByHandle(){
-        this.domPos = this.parentView.SvgToDomPos(this.handles[0].pos);
-        this.updatePos();
-    }
-
-    click =(ev: MouseEvent, pt:Vec2) : void =>{
-        this.addHandle(this.clickHandle(ev, pt));
-        this.domPos = new Vec2(ev.offsetX, ev.offsetY);
-
-        this.updatePos();
-
-        this.finishTool();
-    }
-
-    updatePos(){
-        this.div.style.left  = `${this.domPos!.x}px`;
-        this.div.style.top   = `${this.domPos!.y}px`;
     }
 }
 

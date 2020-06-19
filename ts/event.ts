@@ -223,12 +223,21 @@ export function setPointEventListener(point: Point){
 }
 
 /**
- * Pointのテキストのイベント処理
+ * ShapeのNameのイベント処理
  */
-export function setPointNameEventListener(shape: Shape){
+export function setNameEventListener(shape: Shape){
     shape.svgName!.addEventListener("pointerdown", shape.namePointerdown);
     shape.svgName!.addEventListener("pointermove", shape.namePointermove);
     shape.svgName!.addEventListener("pointerup"  , shape.namePointerup);
+}
+
+/**
+ * ShapeのCaptionのイベント処理
+ */
+export function setCaptionEventListener(shape: Shape){
+    shape.divCaption!.addEventListener("pointerdown", shape.captionPointerdown);
+    shape.divCaption!.addEventListener("pointermove", shape.captionPointermove);
+    shape.divCaption!.addEventListener("pointerup"  , shape.captionPointerup);
 }
 
 /**

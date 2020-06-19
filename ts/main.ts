@@ -29,6 +29,9 @@ export class Glb {
 
     prevTimePos : number = -1;
 
+    eventPos!: Vec2;
+    orgPos!: Vec2;
+
     constructor(){
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
@@ -440,6 +443,10 @@ export class Glb {
         glb.board.appendChild(h1);
     
         for(let obj of doc.widgets){
+            if(obj.typeName == "TextBox"){
+                msg(`SKIP Text-Box`);
+                continue;
+            }
             let act = parseObject(obj);
         
             glb.widgets.push(act);
@@ -526,9 +533,6 @@ export function parseObject(obj: any) : any {
 
     case Triangle.name:
         return new Triangle().make(obj);
-
-    case TextBox.name:
-        return new TextBox().make(obj);
 
     case Midpoint.name:
         return new Midpoint().make(obj);
