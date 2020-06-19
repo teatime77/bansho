@@ -115,8 +115,7 @@ export class ShapeSelection extends Widget {
         });
     }
 
-    setEnable(enable: boolean){   
-        msg(`set enable   ${this.id} ${enable}`);
+    setEnable(enable: boolean){
         for(let shape of this.shapes){
             shape.select(enable);
         }

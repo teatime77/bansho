@@ -834,7 +834,6 @@ export class View extends Widget {
     svgClick = (ev: MouseEvent)=>{
         glb.view = this;
         const pt1 = this.getSvgPoint(ev, null);
-        msg(`click ${pt1.x} ${pt1.y}`)
         if(this.capture != null){
             return;
         }
@@ -1002,6 +1001,12 @@ export abstract class Shape extends Widget {
         return obj;
     }
 
+    make(obj: any) : Widget {
+        super.make(obj);
+        this.updateName();
+
+        return this;
+    }
 
     setEnable(enable: boolean){
         super.setEnable(enable);
@@ -1028,14 +1033,24 @@ export abstract class Shape extends Widget {
         this.parentView.tool = null;
     }
 
+    addListener(shape: Shape){
+        console.assert(shape instanceof Shape);
+        this.listeners.push(shape);
+    }
+
     bind(pt: Point){
-        this.listeners.push(pt);
+        this.addListener(pt);
         pt.bindTo = this;
     }
 
     makeEventGraph(src:Shape|null){
         // イベントのリスナーに対し
         for(let shape of this.listeners){
+            if(!(shape instanceof Shape)){
+                // !!!!!!!!!! ERROR !!!!!!!!!!
+                // msg(`this:${this.id} shape:${(shape as any).id} ${(shape as Widget).summary()}`);
+                continue;
+            }
             
             // ビューのイベントキューのイベントグラフに追加する。
             this.parentView.eventQueue.addEventMakeEventGraph(shape, this);
@@ -1088,7 +1103,6 @@ export abstract class Shape extends Widget {
                 this.updateRatio();
         
                 setPointNameEventListener(this);
-
             }
 
             this.svgName.textContent = this.Name;
@@ -1161,7 +1175,7 @@ export abstract class CompositeShape extends Shape {
 
         if(useThisHandleMove){
 
-            handle.listeners.push(this);
+            handle.addListener(this);
         }
         this.handles.push(handle);
     }
@@ -1229,15 +1243,15 @@ export class Point extends Shape {
     constructor(obj: any){
         super();
 
+        this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        this.circle.setAttribute("fill", "blue");        
+        this.circle.style.cursor = "pointer";
+
         console.assert(obj.pos != undefined);
         super.make(obj);
         console.assert(! isNaN(this.pos.x));
 
-        this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        this.circle.setAttribute("fill", "blue");        
         setPointEventListener(this);
-
-        this.circle.style.cursor = "pointer";
 
         this.updateName();
 
@@ -1467,23 +1481,44 @@ export class LineSegment extends CompositeShape {
         for(let p of this.handles){
             console.assert(!isNaN(p.pos.x))
         }
-        this.updatePos();
+
+        this.updateRatio();
+
+        this.updateLinePos();
         this.line.style.cursor = "move";
 
         return this;
+    }
+
+    getNameXY(){
+        const p1 = this.handles[0].pos;
+        const p2 = this.handles[1].pos;
+
+        const p = new Vec2((p1.x + p2.x)/2, (p1.y + p2.y)/2);
+
+        let x = p.x + this.namePos.x;
+        let y = p.y + this.namePos.y;
+
+        if(this.parentView.FlipY){
+            return [x, - y];
+        }
+        else{
+
+            return [x, y];
+        }
     }
 
     makeByPos(x1: number, y1: number, x2: number, y2: number){
         this.line.style.cursor = "move";
         this.addHandle(new Point({pos:new Vec2(x1, y1)}));
         this.addHandle(new Point({pos:new Vec2(x2, y2)}));
-        this.updatePos();
+        this.updateLinePos();
 
         return this;
     }
 
     propertyNames() : string[] {
-        return [ "Color" ];
+        return [ "Color", "Name" ];
     }
 
     setColor(c:string){
@@ -1523,7 +1558,7 @@ export class LineSegment extends CompositeShape {
         }
     }
 
-    updatePos(){
+    updateLinePos(){
         this.line.setAttribute("x1", "" + this.handles[0].pos.x);
         this.line.setAttribute("y1", "" + this.handles[0].pos.y);
 
@@ -1561,6 +1596,8 @@ export class LineSegment extends CompositeShape {
         }
 
         this.setVecs();
+
+        this.updateNamePos();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -2291,7 +2328,7 @@ export class Triangle extends Polygon {
             const lastLine = last(this.lines);
             const handle = this.clickHandle(ev, pt);
             lastLine.addHandle(handle);
-            lastLine.updatePos();
+            lastLine.updateLinePos();
             lastLine.line.style.cursor = "move";
 
             line.addHandle(handle);
@@ -2308,7 +2345,7 @@ export class Triangle extends Polygon {
         }
 
         this.lines.push(line);
-        line.updatePos();
+        line.updateLinePos();
     }
 
     pointermove =(ev: PointerEvent) : void =>{
@@ -2511,7 +2548,7 @@ export class Perpendicular extends CompositeShape {
                 return;
             }
 
-            this.line.listeners.push(this);
+            this.line.addListener(this);
 
             this.foot = new Point({pos:calcFootOfPerpendicular(this.handles[0].pos, this.line!)});
 
@@ -2521,7 +2558,7 @@ export class Perpendicular extends CompositeShape {
             this.perpendicular.addHandle(this.foot, false);
 
             this.perpendicular.setVecs();
-            this.perpendicular.updatePos();
+            this.perpendicular.updateLinePos();
 
             this.finishTool();
         }
@@ -2580,7 +2617,7 @@ export class ParallelLine extends CompositeShape {
             }
 
             this.line1.select(true);
-            this.line1.listeners.push(this);
+            this.line1.addListener(this);
         }
         else {
 
@@ -2589,7 +2626,7 @@ export class ParallelLine extends CompositeShape {
                 return;
             }
 
-            this.point.listeners.push(this);
+            this.point.addListener(this);
 
             this.line2 = new LineSegment();
             this.line2.line.style.cursor = "move";
@@ -2658,7 +2695,7 @@ export class Intersection extends CompositeShape {
 
                 for(let line2 of this.lines){
 
-                    line2.listeners.push(this);
+                    line2.addListener(this);
                 }
 
                 this.finishTool();
@@ -2704,7 +2741,6 @@ export class Angle extends CompositeShape {
 
     make(obj: any) : Widget {
         super.make(obj);
-        this.updateName();
         this.updateRatio();
 
         this.drawArc();
@@ -2963,7 +2999,7 @@ export class Angle extends CompositeShape {
         
                 for(let line2 of this.lines){
 
-                    line2.listeners.push(this);
+                    line2.addListener(this);
                 }
 
                 this.finishTool();

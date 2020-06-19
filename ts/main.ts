@@ -449,6 +449,12 @@ export class Glb {
         for(let x of v){
             if(x instanceof Shape && x.listeners.length != 0){
                 x.listeners = parseObject(x.listeners);
+                for(let shape of x.listeners){
+                    if(!(shape instanceof Shape)){
+                        msg(`ERR this:${x.id} ${x.summary()} shape:${(shape as any).id} ${(shape as any).summary()}`)
+                    }
+                }
+        
             }
             if(x instanceof Point && x.bindTo != undefined){
                 x.bindTo = parseObject(x.bindTo);

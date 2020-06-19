@@ -264,10 +264,8 @@ function popQue(){
 
         if(text.includes("$")){
 
-            msg("typeset 開始");
             MathJax.typesetPromise([div])
             .then(() => {
-                msg("typeset 終了");
 
                 if(typesetAct instanceof TextBlock){
                     typesetAct.updateLineFeed();
