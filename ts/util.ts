@@ -17,6 +17,10 @@ export function last<T>(v:Array<T>) : T{
     return v[v.length - 1];
 }
 
+export function removeHtmlElement(ele: Element){
+    ele.parentElement!.removeChild(ele);
+}
+
 export const idPrefix = "bansho-id-";
 
 export function getBlockId(act: Widget) : string {

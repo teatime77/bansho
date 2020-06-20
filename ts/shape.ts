@@ -1023,6 +1023,18 @@ export abstract class Shape extends Widget {
         return this;
     }
 
+    summary() : string {
+        if(this.Name != ""){
+            return this.Name;
+        }
+
+        if(this.Caption != ""){
+            return this.Caption.replace(/\$\$/g, "\n$$\n");
+        }
+
+        return "";
+    }
+
     setEnable(enable: boolean){
         super.setEnable(enable);
         if(this.svgName != null){
@@ -1309,6 +1321,15 @@ export abstract class CompositeShape extends Shape {
         }
     }
 
+    summary() : string {
+        const text = super.summary();
+        if(text != ""){
+            return text;
+        }
+
+        return this.handles.map(x => x.summary()).join(' ');
+    }
+
 
     setEnable(enable: boolean){
         super.setEnable(enable);
@@ -1408,7 +1429,7 @@ export class Point extends Shape {
     }
 
     summary() : string {
-        return "点";
+        return `点 ${super.summary()}`;
     }
 
     getX(){
@@ -1598,6 +1619,10 @@ export class LineSegment extends CompositeShape {
         }
 
         return obj;
+    }
+
+    summary() : string {
+        return `線分 ${super.summary()}`;
     }
 
     setEnable(enable: boolean){
@@ -1990,6 +2015,11 @@ export class BSpline extends CompositeShape {
 export class Polygon extends CompositeShape {
     lines : Array<LineSegment> = [];
 
+    all(v: Widget[]){
+        super.all(v);
+        this.lines.forEach(x => x.all(v));
+    }
+
     setEnable(enable: boolean){
         super.setEnable(enable);
         this.lines.forEach(x => x.setEnable(enable));
@@ -2096,8 +2126,7 @@ export class Rect extends Polygon {
 
                 line1.line.style.cursor = "move";
                 
-                const handle3 = new Point({pos:p3});
-                this.handles.push(handle3);
+                this.addHandle(new Point({pos:p3}), false);
             }
 
             switch(this.handles.length){
@@ -2116,7 +2145,7 @@ export class Rect extends Polygon {
                 line2.line.style.cursor = "move";
 
                 const handle4 = new Point({pos:p4});
-                this.handles.push(handle4);
+                this.addHandle(handle4, false);
 
                 line3.addHandle(this.handles[2], false);
                 line3.addHandle(handle4, false);
@@ -2815,7 +2844,7 @@ enum AngleMark {
     prime3,
 }
 
-export class Angle extends CompositeShape {
+export class Angle extends Shape {
     lines : LineSegment[] = [];
     Mark: AngleMark = AngleMark.arc;
     handleIdx: number[] = [];

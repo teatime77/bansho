@@ -14,6 +14,12 @@ export function setEventListener(){
         glb.rngTimelineChange();
     });
 
+    // 要約の一覧
+    glb.selSummary.addEventListener("change", (ev: Event)=>{
+        glb.timeline.valueAsNumber = glb.selSummary.selectedIndex;
+        glb.rngTimelineChange();
+    });
+
     // ➕ ウイジェットの追加
     document.getElementById("add-empty-action")!.addEventListener("click", (ev: MouseEvent)=>{
         glb.addEmptyWidget();

@@ -240,7 +240,7 @@ export class Speech extends TextWidget {
     }
 
     summary() : string {
-        return "音声";
+        return `🔊 ${this.text}`;
     }
 
     getCaptionSpeech(): [string, string]{
@@ -347,7 +347,7 @@ export class TextBlock extends TextWidget {
     }
 
     summary() : string {
-        return "文字";
+        return `✏️\n${this.text}`;
     }
 
     updateLineFeed(){

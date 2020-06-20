@@ -1,5 +1,7 @@
 namespace bansho {
 
+declare let MathJax:any;
+
 export let glb: Glb;
 
 export class Glb {
@@ -10,13 +12,13 @@ export class Glb {
     caption: HTMLHeadingElement;
     btnPlayPause: HTMLButtonElement;
     timeline : HTMLInputElement;
+    selSummary : HTMLSelectElement;
     board : HTMLDivElement;
     lineFeedChk : HTMLInputElement;
     textArea : HTMLTextAreaElement;
     txtFile : HTMLInputElement;
     selFile  : HTMLSelectElement;
     txtTitle: HTMLInputElement;
-    summary : HTMLSpanElement;
 
     toolType = "";
     view: View | null = null;
@@ -35,6 +37,7 @@ export class Glb {
     constructor(){
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
+        this.selSummary    = document.getElementById("sel-summary") as HTMLSelectElement;
         this.board    = document.getElementById("board") as HTMLDivElement;
 
         this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
@@ -43,7 +46,6 @@ export class Glb {
         this.selFile  = document.getElementById("sel-file") as HTMLSelectElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.lineFeedChk = document.getElementById("line-feed") as HTMLInputElement;
-        this.summary = document.getElementById("spn-summary") as HTMLSpanElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
     }
         
@@ -129,24 +131,25 @@ export class Glb {
 
         console.assert(glb.widgets[selIdx] instanceof EmptyWidget);
         glb.widgets[selIdx] = act;
-        this.summary.textContent = act.summary();
-    }
-
-    resetWidget(){
-        let selIdx = glb.timeline.valueAsNumber;
-
-        const act = glb.widgets[selIdx] as TextBlock;
-        if(act instanceof TextBlock){
-
-            glb.board.removeChild(act.div);
-        }
-
-        glb.widgets[selIdx] = new EmptyWidget();
-        this.summary.textContent = glb.widgets[selIdx].summary();
+        glb.selSummary.selectedIndex = selIdx;
     }
 
     addEmptyWidget(){
         this.addWidget(new EmptyWidget());
+    }
+
+
+
+    removeWidget(act: Widget){
+        const idx = glb.widgets.indexOf(act);
+
+        glb.widgets.splice(idx, 1);
+        
+        let opt = glb.selSummary.options[idx];
+        removeHtmlElement(opt);
+        act.delete();
+
+        return idx;
     }
 
     deleteWidget(){
@@ -154,29 +157,44 @@ export class Glb {
             return;
         }
 
-        let fnc = (act: Widget)=>{
+        let act = glb.widgets[glb.timeline.valueAsNumber];
 
-            const refActs = glb.widgets.filter(x => x instanceof TextSelection && x.textAct == act) as TextSelection[];
+        if(act instanceof TextBlock){
+            // TextBlockの場合
 
-            refActs.forEach(x => fnc(x));
+            // TextBlockの選択も削除する。
+            glb.widgets
+                .filter(x => x instanceof TextSelection && x.textAct == act)
+                .forEach(x => glb.removeWidget(x));
+        }
+        else if(act instanceof Point || act instanceof LineSegment || act instanceof Angle){
+            // 点, 線分, 角度の場合
 
-            act.delete();
-        
-            let idx = glb.widgets.indexOf(act);
-            console.assert(idx != -1);
-            glb.widgets.splice(idx, 1);
+
+            // 点, 線分, 角度の選択も削除する。
+            let ref_acts = glb.widgets
+                .filter(x => x instanceof ShapeSelection && x.shapes.includes(act as (Point|LineSegment|Angle))) as ShapeSelection[];
+
+            for(let act2 of ref_acts){
+                let i = act2.shapes.indexOf(act);
+                console.assert(i != -1);
+                act2.shapes.splice(i, 1);
+
+                if(act2.shapes.length == 0){
+                    glb.removeWidget(act2);
+                }
+            }
         }
 
-        fnc(glb.widgets[glb.timeline.valueAsNumber]);
+        let act_idx = glb.removeWidget(act);
 
-        let selIdx = glb.timeline.valueAsNumber;
         glb.timeline.max = `${glb.widgets.length - 1}`;
 
-        if(selIdx < glb.widgets.length){
-            glb.widgets[selIdx].enable();
+        if(act_idx < glb.widgets.length){
+            glb.widgets[act_idx].enable();
         }
 
-        this.updateTimePos( Math.min(selIdx, glb.widgets.length - 1), false );
+        this.updateTimePos( Math.min(act_idx, glb.widgets.length - 1), false );
     }
 
     /**
@@ -223,43 +241,21 @@ export class Glb {
 
         glb.setspeechInput(act instanceof Speech);
 
-        if(act instanceof TextBlock){
+        this.lineFeedChk.parentElement!.style.display = (act instanceof TextBlock ? "inline" : "none");
 
-            this.lineFeedChk.parentElement!.style.display = "inline";
-            this.lineFeedChk.checked = act.lineFeed;
-        }
-        else if(act instanceof Speech){
+        this.textArea.value = act instanceof TextWidget ? act.text : "";
 
-            if(!playing){
-                deselectShape();
-            }    
-        }
-        else{
+        if(act instanceof TextWidget){
 
-            this.lineFeedChk.parentElement!.style.display = "none";
-        }
+            if(act instanceof TextBlock){
 
-        this.updateSummaryTextArea();
-    }
-
-    updateSummaryTextArea(){
-        this.textArea.style.backgroundColor = "white";
-        this.textArea.value = "";
-        this.summary.textContent = "";
-
-        if(glb.timeline.valueAsNumber != -1){
-
-            const act = glb.widgets[glb.timeline.valueAsNumber];
-            if(act instanceof TextWidget){
-
-                this.textArea.value = act.text;
-
-                if(act instanceof Speech){
-                    this.textArea.style.backgroundColor = "ivory";
-                }
+                this.lineFeedChk.checked = act.lineFeed;
             }
-
-            this.summary.textContent = act.summary();
+            else if(act instanceof Speech){
+                if(!playing){
+                    deselectShape();
+                }    
+            }
         }
     }
 
@@ -275,8 +271,6 @@ export class Glb {
 
             reprocessMathJax(act, act.div, html);
         }
-
-        this.summary.textContent = act.summary();
     }
 
     updateTextMath(){
@@ -289,7 +283,7 @@ export class Glb {
             if(text == ""){
                 // テキストが削除された場合
 
-                this.resetWidget();
+                this.deleteWidget();
             }
             else{
                 // テキストがある場合
@@ -422,15 +416,16 @@ export class Glb {
     
     openDoc(path: string){
         fetchText(`json/${path}.json`, (text: string)=>{
-            this.deserializeDoc(text);
+            this.initDoc(text);
         });
     }
 
     
-    deserializeDoc(text: string){
+    initDoc(text: string){
         glb.widgets = [];
         glb.timeline.max = "-1";
         glb.timeline.valueAsNumber = -1;
+        glb.selSummary.innerHTML = "";
     
         glb.board.innerHTML = "";
     
@@ -447,10 +442,17 @@ export class Glb {
                 msg(`SKIP Text-Box`);
                 continue;
             }
-            let act = parseObject(obj);
+            let act = parseObject(obj) as Widget;
         
             glb.widgets.push(act);
+
+            // 要約のリストに表示する。
+            let opt = document.createElement("option");
+            opt.innerHTML = act.summary();
+            glb.selSummary.add(opt);
         }
+
+        MathJax.typesetPromise([glb.selSummary]);
 
         let v = Array.from( glb.refMap.values() );
         for(let x of v){
@@ -473,9 +475,7 @@ export class Glb {
                 act.G0toG1();
             }
         }
-    
-        this.summary.textContent = last(glb.widgets).summary();
-    
+        
         glb.timeline.max = `${glb.widgets.length - 1}`;
         glb.prevTimePos = glb.widgets.length - 1;
 
@@ -583,10 +583,10 @@ export function bodyOnload(){
     console.log("body load");
     
     glb = new Glb();
+    msg("$$ab$$ $$cd$$".replace(/\$\$/g, "\n\$\$\n"))
 
     fetchFileList()    
 
-    glb.updateSummaryTextArea();
     glb.addEmptyWidget();
 
     initSpeech();
