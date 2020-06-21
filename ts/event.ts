@@ -80,24 +80,6 @@ export function setEventListener(){
     
 
 export function setUIEditEventListener(){
-    // 改行 チェックボックス
-    glb.lineFeedChk.addEventListener("change", (ev: Event)=>{
-        let act = glb.currentWidget();
-        if(act instanceof TextBlock){
-
-            act.LineFeed = glb.lineFeedChk.checked;
-            act.updateLineFeed();
-        }
-        else{
-            console.assert(false);
-        }
-    })
-
-    // TEXTAREA キー ダウン
-    glb.textArea.addEventListener("keydown", (ev: KeyboardEvent)=>{
-        glb.textAreaKeyDown(ev);
-    })
-
     // TEXTAREA キー プレス
     glb.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
         glb.textAreaKeyPress(ev);

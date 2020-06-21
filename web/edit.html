@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-
 <head>
 <meta charset="utf-8" />
 <title>手計算</title>
-
 <script>
-MathJax = {
+// \newcommand{\v}[1]{\mathrm{#1}}
+window.MathJax = {
     tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']]
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        macros: {
+            v : ["{\\mathrm #1}", 1]
+        }
     },
     options: {
         renderActions: {
@@ -71,12 +72,8 @@ input[type="radio"]:checked + label {
 </head>
 
 <body onload="bansho.bodyOnload()">
-$$
-\newcommand{\v}[1]{\mathrm{#1}}
-$$
-<div style="display: grid; grid-template-rows:150px 1fr 50px 100px; grid-template-columns:150px 1fr 200px 300px; width: 100%; height: 100%;">
-
-    <div style="grid-row: 1; grid-column: 1/span 3; background-color: cornsilk; ">
+<div style="display: grid; grid-template-rows:110px 100px 50px 1fr; grid-template-columns:150px 1fr 300px 200px; width: 100%; height: 100%;">
+    <div style="grid-row: 1; grid-column: 1/span 4; background-color: cornsilk; ">
         <button id="add-shape" >図形を挿入</button>
         <input type="radio" name="tool-type" value="select" checked />選択
         <input type="radio" name="tool-type" value="Point" />点
@@ -95,44 +92,42 @@ $$
         <input type="radio" name="tool-type" value="Image" />画像
         <input type="radio" name="tool-type" value="DimensionLine" />寸法線
         <br/>
-        <button id="play-pause" style="font-family: 'Segoe UI Emoji'; font-size: 40px;" >▶️</button>
-        <input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />    
+        <button id="delete-action" >削除</button>
+        <input  id="txt-file" type="text" style="width: 6em;" />
+        <select id="sel-file" size="1" style="width: 8em;"></select>
+        <input id="txt-title" type="text" style="width: 8em;" />
+
+        <button id="get-data" >開く</button>
+        <button id="put-data" >保存</button>
+
+        <button id="play-pause" style="font-family: 'Segoe UI Emoji'" >▶️</button>
+        <button id="fast-reverse" style="font-family: Segoe UI Emoji;" >⏮</button>
+        <button id="fast-forward" style="font-family: Segoe UI Emoji;" >⏭</button>
+
+        <button id="add-text-block" style="font-family: Segoe UI Emoji;">➕✏️</button>
+        <button id="add-speech" style="font-family: Segoe UI Emoji;">➕🔊</button>
+        <!-- <label for="line-feed" style="display: none;">
+            <input type="checkbox" id="line-feed" />改行
+        </label> -->
+
+        <!-- <input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />     -->
     </div>
 
-    <div id="board" style="grid-row: 2; grid-column: 1/span 3; overflow: scroll; border-style:inset; border-width: 3px;" ></div>
+    <div style="grid-row: 2; grid-column: 1/span 2; ">
+        <textarea id="txt-math" style="width: 98%; height: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk; border-style: ridge; border-width: 5px; border-color:grey;" spellcheck="false" ></textarea>
+    </div>
 
-    <select id="sel-summary" style="font-family: 'Segoe UI Emoji'; grid-row: 2; grid-column: 3" size="10">
-        <option>先頭</option>
+    <select id="sel-summary" style="grid-row: 2/span 3; grid-column: 3; font-family: 'Segoe UI Emoji';" size="10">
+        <option selected >先頭</option>
     </select>
-    <table id="tbl-property" style="grid-row: 2; grid-column: 4; background-color:lavender;"></table>
 
-    <div style="grid-row: 3; grid-column: 1/span 3; ">
+    <table id="tbl-property" style="grid-row: 2/span 3; grid-column: 4; background-color:lavender;"></table>
+
+    <div style="grid-row: 3; grid-column: 1/span 2; ">
         <h3 id="caption" style="text-align: center;" ></h3>
     </div>
 
-    <div style="grid-row: 4; grid-column: 1/span 2; ">
-        <textarea id="txt-math" style="width: 100%; height: 100%; overflow-x: visible; white-space: pre; font-size: large; font-weight: bold; background-color: cornsilk; border-style: ridge; border-width: 5px; border-color:grey;" spellcheck="false" ></textarea>
-    </div>
-    <div style="grid-row: 4; grid-column: 3/span 2; ">
-        <button id="add-text-block" style="font-family: Segoe UI Emoji;">➕✏️</button>
-        <button id="add-speech" style="font-family: Segoe UI Emoji;">➕🔊</button>
-        <button id="fast-reverse" style="font-family: Segoe UI Emoji;" >⏮</button>
-        <button id="fast-forward" style="font-family: Segoe UI Emoji;" >⏭</button>
-        <button id="get-data" >開く</button>
-        <button id="put-data" >保存</button>
-        <label for="line-feed" style="display: none;">
-            <input type="checkbox" id="line-feed" />改行
-        </label>
-        <br/>
-        path
-        <input  id="txt-file" type="text" style="width: 6em;" />
-        <select id="sel-file" size="1" style="width: 8em;"></select>
-        <br/>
-        title<input id="txt-title" type="text" style="width: 12em;" />
-        <br/>
-        <button id="delete-action" >削除</button>
-    </div>
+    <div id="board" style="grid-row: 4; grid-column: 1/span 2; overflow: scroll; border-style:inset; border-width: 3px;" ></div>
 </div>
-
 </body>
 </html>

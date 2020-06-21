@@ -421,6 +421,7 @@ export class View extends Widget {
         this.div.style.padding = "0px";
         this.div.style.zIndex = "1";
         this.div.style.backgroundColor = "cornsilk";
+        this.div.style.cssFloat = "right";
 
         this.svg = document.createElementNS("http://www.w3.org/2000/svg","svg") as SVGSVGElement;
 

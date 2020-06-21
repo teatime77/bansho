@@ -64,6 +64,8 @@ export function makeHtmlLines(text: string){
         if(currentLineTrim == "$$"){
             inMath = ! inMath;
             if(inMath){
+
+                // !!!!!!!!!! \tag{} の正しい表示ためにdivは必要 !!!!!!!!!!
                 htmlLines.push('<div style="display: inline-block">');
                 htmlLines.push('$$');
             }

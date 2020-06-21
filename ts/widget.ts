@@ -233,14 +233,6 @@ export class Speech extends TextWidget {
         super(text);
     }
 
-    propertyNames() : string[] {
-        return [ "Text" ];
-    }
-
-    setText(text: string){
-        this.Text = text;
-    }
-
     summary() : string {
         return `🔊 ${this.Text}`;
     }
@@ -324,18 +316,7 @@ export class TextBlock extends TextWidget {
     }
 
     propertyNames() : string[] {
-        return [ "Text", "LineFeed" ];
-    }
-
-    setText(text: string){
-        this.Text = text;
-        this.updateText();
-    }
-
-    updateText(){
-        const html = makeHtmlLines(this.Text);
-        this.div.innerHTML = html;
-        reprocessMathJax(this, this.div, html);
+        return [ "LineFeed" ];
     }
 
     setLineFeed(value: boolean){
@@ -348,7 +329,9 @@ export class TextBlock extends TextWidget {
         if(! this.initialize){
             this.initialize = true;
 
-            this.updateText();
+            const html = makeHtmlLines(this.Text);
+            this.div.innerHTML = html;
+            reprocessMathJax(this, this.div, html);
         }
     }
 

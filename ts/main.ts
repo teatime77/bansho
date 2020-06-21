@@ -15,7 +15,6 @@ export class Glb {
     tblProperty : HTMLTableElement;
     selSummary : HTMLSelectElement;
     board : HTMLDivElement;
-    lineFeedChk : HTMLInputElement;
     textArea : HTMLTextAreaElement;
     txtFile : HTMLInputElement;
     selFile  : HTMLSelectElement;
@@ -24,7 +23,6 @@ export class Glb {
     toolType = "";
     view: View | null = null;
     textSel: TextSelection | null = null;
-    speechInput : boolean = false;
 
     isPlaying = false;
     pauseFlag = false;
@@ -47,7 +45,6 @@ export class Glb {
         this.txtFile  = document.getElementById("txt-file") as HTMLInputElement;
         this.selFile  = document.getElementById("sel-file") as HTMLSelectElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
-        this.lineFeedChk = document.getElementById("line-feed") as HTMLInputElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
     }
         
@@ -115,6 +112,11 @@ export class Glb {
         let selIdx = getTimePos() + 1;
     
         glb.widgets.splice(selIdx, 0, act);
+
+        // 要約を表示する。
+        let opt = document.createElement("option");
+        opt.innerHTML = act.summary();
+        glb.selSummary.add(opt, selIdx + 1);
     
         setTimePosMax( glb.widgets.length - 1 );
         this.updateTimePos(selIdx, false);
@@ -222,9 +224,7 @@ export class Glb {
             glb.caption.textContent = "";
         }
 
-        glb.setspeechInput(act instanceof Speech);
-
-        this.lineFeedChk.parentElement!.style.display = (act instanceof TextBlock ? "inline" : "none");
+        glb.textArea.style.borderColor = act instanceof Speech ? "blue" : "grey";
 
         this.textArea.value = act instanceof TextWidget ? act.Text : "";
 
@@ -232,11 +232,7 @@ export class Glb {
 
             if(act instanceof TextWidget){
 
-                if(act instanceof TextBlock){
-
-                    this.lineFeedChk.checked = act.LineFeed;
-                }
-                else if(act instanceof Speech){
+                if(act instanceof Speech){
                     if(!playing){
                         deselectShape();
                     }    
@@ -282,30 +278,6 @@ export class Glb {
                 // テキストか改行が変更された場合
 
                 this.updateFocusedTextBlock();
-            }
-        }
-    }
-
-    setspeechInput(is_speech: boolean){
-        glb.speechInput = is_speech;
-
-        if(glb.speechInput){
-            glb.textArea.style.borderColor = "blue";
-        }
-        else{
-            glb.textArea.style.borderColor = "grey";
-        }
-    }
-
-    textAreaKeyDown(ev: KeyboardEvent){
-        msg(`key down ${ev.key}`);
-        if(ev.key == "Insert"){
-            if(ev.ctrlKey){
-
-                this.textArea.value = "$$\n\\frac{1}{2 \\pi \\sigma^2} \\int_{-\\infty}^\\infty \\exp^{ - \\frac{{(x - \\mu)}^2}{2 \\sigma^2}  } dx\n$$";
-            }
-            else if(! ev.shiftKey){
-                this.setspeechInput(! glb.speechInput)
             }
         }
     }
@@ -372,6 +344,7 @@ export class Glb {
         setTimePosMax(-1);
         setTimePos(-1);
         glb.selSummary.innerHTML = "<option>先頭</option>";
+        glb.selSummary.selectedIndex = 0;
     
         glb.board.innerHTML = "";
     
