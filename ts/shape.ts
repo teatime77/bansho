@@ -9,7 +9,6 @@ const rightAngleLength = 20;
 const gridLineWidth = 1;
 
 declare let MathJax:any;
-let tblProperty : HTMLTableElement;
 
 export let focusedActionIdx : number;
 
@@ -120,7 +119,7 @@ export function updateProperty(act: Widget){
     for(let [idx, name] of act.propertyNames().entries()){
         let value = act.getValue(name);
 
-        let tr = tblProperty.rows[idx];
+        let tr = glb.tblProperty.rows[idx];
         let valueTd = tr.cells[1];
         let inp = valueTd.firstElementChild;
         if(inp instanceof HTMLInputElement && inp.value != `${value}`){
@@ -131,8 +130,19 @@ export function updateProperty(act: Widget){
     }
 }
 
-function showProperty(act: Widget){
-    tblProperty.innerHTML = "";
+export function updateSummary(act: Widget){
+    const idx = glb.widgets.indexOf(act);
+    if(idx == -1){
+        // トップレベルの図形でない場合
+        return;
+    }
+
+    const opt = glb.selSummary.options[idx + 1];
+    opt.innerHTML = act.summary();
+}
+
+export function showProperty(act: Widget){
+    glb.tblProperty.innerHTML = "";
 
     for(let name of act.propertyNames()){
 
@@ -184,13 +194,13 @@ function showProperty(act: Widget){
         tr.appendChild(nameTd);
         tr.appendChild(valueTd);
 
-        tblProperty.appendChild(tr);
+        glb.tblProperty.appendChild(tr);
     }
 }
 
 export function deselectShape(){
     // 手前のウイジェット
-    let prev_acts = glb.widgets.slice(0, glb.timeline.valueAsNumber);
+    let prev_acts = glb.widgets.slice(0, getTimePos());
 
     // 手前の選択を無効にする。
     prev_acts.forEach(x => {
@@ -201,7 +211,6 @@ export function deselectShape(){
 }
 
 export function initDraw(){
-    tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
     setToolTypeEventListener();
 }
 

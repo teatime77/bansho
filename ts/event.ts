@@ -10,13 +10,18 @@ export function setEventListener(){
     });
 
     // タイムライン
-    glb.timeline.addEventListener("change", (ev: Event)=>{
-        glb.rngTimelineChange();
-    });
+    if(glb.timeline != null){
+
+        glb.timeline.addEventListener("change", (ev: Event)=>{
+            glb.selSummary.selectedIndex = getTimePos() + 1;
+            glb.rngTimelineChange();
+        });
+    }
 
     // 要約一覧
     glb.selSummary.addEventListener("change", (ev: Event)=>{
-        glb.timeline.valueAsNumber = glb.selSummary.selectedIndex;
+        msg("要約一覧 change");
+        setTimePos(glb.selSummary.selectedIndex - 1);
         glb.rngTimelineChange();
     });
 
@@ -41,11 +46,13 @@ export function setEventListener(){
 
     // ⏮
     document.getElementById("fast-reverse")!.addEventListener("click", (ev: MouseEvent)=>{
+        glb.selSummary.selectedIndex = -1;
         glb.updateTimePos(-1, false);
     });
 
     // ⏭
     document.getElementById("fast-forward")!.addEventListener("click", (ev: MouseEvent)=>{
+        glb.selSummary.selectedIndex = glb.selSummary.options.length - 1;
         glb.updateTimePos(glb.widgets.length - 1, false);
     });
 
@@ -78,7 +85,7 @@ export function setUIEditEventListener(){
         let act = glb.currentWidget();
         if(act instanceof TextBlock){
 
-            act.lineFeed = glb.lineFeedChk.checked;
+            act.LineFeed = glb.lineFeedChk.checked;
             act.updateLineFeed();
         }
         else{
@@ -184,6 +191,7 @@ export function setPropertyTextEventListener(obj: Widget, inp: HTMLInputElement,
         return function(ev: FocusEvent){
             setter.apply(act, [ inp.value ]);
             updateProperty(act);
+            updateSummary(act);
         };
     
     }(obj, inp, setter));
@@ -197,6 +205,7 @@ export function setPropertyCheckboxEventListener(obj: Widget, inp: HTMLInputElem
         return function(ev: MouseEvent){
             setter.apply(act, [ inp.checked ]);
             updateProperty(act);
+            updateSummary(act);
         };
     })(obj, inp, setter));
 

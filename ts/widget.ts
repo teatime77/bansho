@@ -212,16 +212,16 @@ export class TextSelection extends Widget {
 }
 
 export class TextWidget extends Widget {
-    text: string;
+    Text: string;
 
     constructor(text: string){
         super();
-        this.text = text;
+        this.Text = text;
     }
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            text: this.text
+            Text: this.Text
         });
     }
 
@@ -233,38 +233,46 @@ export class Speech extends TextWidget {
         super(text);
     }
 
+    propertyNames() : string[] {
+        return [ "Text" ];
+    }
+
+    setText(text: string){
+        this.Text = text;
+    }
+
     summary() : string {
-        return `🔊 ${this.text}`;
+        return `🔊 ${this.Text}`;
     }
 
     getCaptionSpeech(): [string, string]{
         let caption = "";
         let speech = "";
         let st = 0;
-        while(st < this.text.length){
-            let k1 = this.text.indexOf("'", st);
+        while(st < this.Text.length){
+            let k1 = this.Text.indexOf("'", st);
             if(k1 == -1){
-                caption += this.text.substring(st);
-                speech  += this.text.substring(st);
+                caption += this.Text.substring(st);
+                speech  += this.Text.substring(st);
                 break;
             }
     
-            caption += this.text.substring(st, k1);
-            speech  += this.text.substring(st, k1);
+            caption += this.Text.substring(st, k1);
+            speech  += this.Text.substring(st, k1);
     
             k1++;
-            let k2 = this.text.indexOf("'", k1);
+            let k2 = this.Text.indexOf("'", k1);
             if(k2 == -1){
     
-                caption += this.text.substring(st);
-                speech  += this.text.substring(st);
+                caption += this.Text.substring(st);
+                speech  += this.Text.substring(st);
                 break;
             }
     
-            let v = this.text.substring(k1, k2).split("|");
+            let v = this.Text.substring(k1, k2).split("|");
             if(v.length != 2){
     
-                let s = this.text.substring(k1 - 1, k2 + 1)
+                let s = this.Text.substring(k1 - 1, k2 + 1)
                 
                 caption += s;
                 speech  += s;
@@ -284,7 +292,7 @@ export class Speech extends TextWidget {
 
 export class TextBlock extends TextWidget {
     div: HTMLDivElement;
-    lineFeed: boolean = false;
+    LineFeed: boolean = false;
     initialize = false;
 
     constructor(text: string){
@@ -292,9 +300,9 @@ export class TextBlock extends TextWidget {
 
         let nextEle = null;
 
-        if(glb.timeline.valueAsNumber != -1){
+        if(getTimePos() != -1){
 
-            for(let act of glb.widgets.slice(glb.timeline.valueAsNumber + 1)){
+            for(let act of glb.widgets.slice(getTimePos() + 1)){
                 if(act instanceof TextBlock){
                     nextEle = act.div;
                     break;
@@ -315,14 +323,32 @@ export class TextBlock extends TextWidget {
         setTextBlockEventListener(this);
     }
 
+    propertyNames() : string[] {
+        return [ "Text", "LineFeed" ];
+    }
+
+    setText(text: string){
+        this.Text = text;
+        this.updateText();
+    }
+
+    updateText(){
+        const html = makeHtmlLines(this.Text);
+        this.div.innerHTML = html;
+        reprocessMathJax(this, this.div, html);
+    }
+
+    setLineFeed(value: boolean){
+        this.LineFeed = value;
+        this.updateLineFeed();
+    }
+
     enable(){
         this.div.style.display = "inline-block";
         if(! this.initialize){
             this.initialize = true;
 
-            const html = makeHtmlLines(this.text);
-            this.div.innerHTML = html;
-            reprocessMathJax(this, this.div, html);
+            this.updateText();
         }
     }
 
@@ -336,19 +362,19 @@ export class TextBlock extends TextWidget {
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            lineFeed: this.lineFeed
+            LineFeed: this.LineFeed
         });
     }
 
     summary() : string {
-        return `✏️\n${this.text}`;
+        return `✏️\n${this.Text}`;
     }
 
     updateLineFeed(){
         if(this.div.nextSibling != null && this.div.nextSibling.nodeName == "BR"){
             // 次がBRの場合
 
-            if(!this.lineFeed){
+            if(!this.LineFeed){
                 // 改行しない場合
 
                 this.div.parentNode!.removeChild(this.div.nextSibling);
@@ -357,7 +383,7 @@ export class TextBlock extends TextWidget {
         else{
             // 次がBRでない場合
 
-            if(this.lineFeed){
+            if(this.LineFeed){
                 // 改行する場合
 
                 let  br = document.createElement("br");

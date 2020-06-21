@@ -11,7 +11,8 @@ export class Glb {
 
     caption: HTMLHeadingElement;
     btnPlayPause: HTMLButtonElement;
-    timeline : HTMLInputElement;
+    timeline : HTMLInputElement | null = null;
+    tblProperty : HTMLTableElement;
     selSummary : HTMLSelectElement;
     board : HTMLDivElement;
     lineFeedChk : HTMLInputElement;
@@ -37,6 +38,7 @@ export class Glb {
     constructor(){
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
+        this.tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
         this.selSummary    = document.getElementById("sel-summary") as HTMLSelectElement;
         this.board    = document.getElementById("board") as HTMLDivElement;
 
@@ -81,13 +83,13 @@ export class Glb {
     }
 
     rngTimelineChange(){   
-        glb.timeline.max = `${glb.widgets.length - 1}`;
-        this.updateTimePos(glb.timeline.valueAsNumber, false);
+        setTimePosMax( glb.widgets.length - 1 );
+        this.updateTimePos(getTimePos(), false);
     }
 
     currentWidget() : Widget | undefined {
-        if(glb.timeline.valueAsNumber != -1){
-            return glb.widgets[glb.timeline.valueAsNumber];
+        if(getTimePos() != -1){
+            return glb.widgets[getTimePos()];
         }
         else{
             return undefined;
@@ -95,7 +97,7 @@ export class Glb {
     }
     
     playWidgets(){
-        for(let pos = glb.timeline.valueAsNumber + 1; pos < glb.widgets.length; pos++){
+        for(let pos = getTimePos() + 1; pos < glb.widgets.length; pos++){
             let act = glb.widgets[pos];
             act.enable();
             glb.updateTimePos(pos, true);
@@ -110,11 +112,11 @@ export class Glb {
     }
 
     addWidget(act: Widget){
-        let selIdx = glb.timeline.valueAsNumber + 1;
+        let selIdx = getTimePos() + 1;
     
         glb.widgets.splice(selIdx, 0, act);
     
-        glb.timeline.max = `${glb.widgets.length - 1}`;
+        setTimePosMax( glb.widgets.length - 1 );
         this.updateTimePos(selIdx, false);
     
         this.textArea.focus();
@@ -133,11 +135,11 @@ export class Glb {
     }
 
     deleteWidget(){
-        if(glb.timeline.valueAsNumber == -1){
+        if(getTimePos() == -1){
             return;
         }
 
-        let act = glb.widgets[glb.timeline.valueAsNumber];
+        let act = glb.widgets[getTimePos()];
 
         if(act instanceof TextBlock){
             // TextBlockの場合
@@ -168,7 +170,7 @@ export class Glb {
 
         let act_idx = glb.removeWidget(act);
 
-        glb.timeline.max = `${glb.widgets.length - 1}`;
+        setTimePosMax( glb.widgets.length - 1 );
 
         if(act_idx < glb.widgets.length){
             glb.widgets[act_idx].enable();
@@ -204,10 +206,11 @@ export class Glb {
         glb.board.scrollTop = glb.board.scrollHeight;
         window.scrollTo(0,document.body.scrollHeight);
     
-        glb.timeline.valueAsNumber = pos;
+        setTimePos(pos);
         glb.prevTimePos            = pos;
         
         let act = this.currentWidget();
+
         if(act instanceof Speech){
             
             let [caption, speech] = act.getCaptionSpeech();
@@ -223,19 +226,24 @@ export class Glb {
 
         this.lineFeedChk.parentElement!.style.display = (act instanceof TextBlock ? "inline" : "none");
 
-        this.textArea.value = act instanceof TextWidget ? act.text : "";
+        this.textArea.value = act instanceof TextWidget ? act.Text : "";
 
-        if(act instanceof TextWidget){
+        if(act instanceof Widget){
 
-            if(act instanceof TextBlock){
+            if(act instanceof TextWidget){
 
-                this.lineFeedChk.checked = act.lineFeed;
+                if(act instanceof TextBlock){
+
+                    this.lineFeedChk.checked = act.LineFeed;
+                }
+                else if(act instanceof Speech){
+                    if(!playing){
+                        deselectShape();
+                    }    
+                }
             }
-            else if(act instanceof Speech){
-                if(!playing){
-                    deselectShape();
-                }    
-            }
+            
+            showProperty(act);
         }
     }
 
@@ -247,7 +255,7 @@ export class Glb {
 
             const html = makeHtmlLines(text);
             act.div.innerHTML = html;
-            act.text = text;
+            act.Text = text;
 
             reprocessMathJax(act, act.div, html);
         }
@@ -260,12 +268,12 @@ export class Glb {
         }
         
         let text = this.textArea.value.trim();
-        let changed = (act.text != text);
-        act.text = text;
+        let changed = (act.Text != text);
+        act.Text = text;
 
         if(act instanceof TextBlock){
 
-            if(act.lineFeed != (act.div.getElementsByClassName("line-feed").length != 0)){
+            if(act.LineFeed != (act.div.getElementsByClassName("line-feed").length != 0)){
 
                 changed = true;
             }
@@ -361,9 +369,9 @@ export class Glb {
     initDoc(doc: any){
         glb.widgets = [];
         glb.refMap = new Map<number, Widget>();
-        glb.timeline.max = "-1";
-        glb.timeline.valueAsNumber = -1;
-        glb.selSummary.innerHTML = "";
+        setTimePosMax(-1);
+        setTimePos(-1);
+        glb.selSummary.innerHTML = "<option>先頭</option>";
     
         glb.board.innerHTML = "";
     
@@ -412,7 +420,7 @@ export class Glb {
             }
         }
         
-        glb.timeline.max = `${glb.widgets.length - 1}`;
+        setTimePosMax( glb.widgets.length - 1 );
         glb.prevTimePos = glb.widgets.length - 1;
 
         this.updateTimePos(-1, false);
@@ -420,6 +428,36 @@ export class Glb {
     }
 
 }
+
+export function getTimePos(){
+    if(glb.timeline != null){
+        return glb.timeline.valueAsNumber;
+    }
+    else if(glb.selSummary != null){
+        return glb.selSummary.selectedIndex - 1;
+    }
+    else{
+        console.assert(false);
+        return 0;
+    }
+}
+
+export function setTimePos(pos: number){
+    if(glb.timeline != null){
+        glb.timeline.valueAsNumber = pos;
+    }
+
+    if(glb.selSummary != null){
+        glb.selSummary.selectedIndex = pos + 1;
+    }
+}
+
+export function setTimePosMax(pos: number){
+    if(glb.timeline != null){
+        glb.timeline.max = `${pos}`;
+    }
+}
+
 
 export function parseObject(obj: any) : any {
     if(obj == undefined || obj == null || typeof obj != "object"){
