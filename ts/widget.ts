@@ -100,12 +100,6 @@ export class Widget{
     }
 }
 
-export class EmptyWidget extends Widget {
-    summary() : string {
-        return "空";
-    }
-}
-
 export class ShapeSelection extends Widget {
     shapes: (Point|LineSegment|Angle)[] = [];
 

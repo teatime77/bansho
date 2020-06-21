@@ -14,15 +14,29 @@ export function setEventListener(){
         glb.rngTimelineChange();
     });
 
-    // 要約の一覧
+    // 要約一覧
     glb.selSummary.addEventListener("change", (ev: Event)=>{
         glb.timeline.valueAsNumber = glb.selSummary.selectedIndex;
         glb.rngTimelineChange();
     });
 
-    // ➕ ウイジェットの追加
-    document.getElementById("add-empty-action")!.addEventListener("click", (ev: MouseEvent)=>{
-        glb.addEmptyWidget();
+    // Viewの追加
+    document.getElementById("add-shape")!.addEventListener("click", (ev: MouseEvent)=>{
+        const view1 = new View().make({ Width: 500, Height: 500, ViewBox: "-2 -2 4 4" });
+        glb.addWidget(view1);
+    });
+
+    //  テキストブロックの追加
+    document.getElementById("add-text-block")!.addEventListener("click", (ev: MouseEvent)=>{
+        let act = new TextBlock("$$\n\n$$");
+        act.enable();
+
+        glb.addWidget(act);
+    });
+
+    // スピーチの追加
+    document.getElementById("add-speech")!.addEventListener("click", (ev: MouseEvent)=>{
+        glb.addWidget(new Speech("🔊"));
     });
 
     // ⏮
@@ -92,7 +106,7 @@ export function setUIEditEventListener(){
             timeout_id = -1;
         }
 
-        glb.textAreaBlur(ev);
+        glb.updateTextMath();
     });
 
     // TEXTAREA INPUT

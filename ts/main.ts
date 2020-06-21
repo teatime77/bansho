@@ -80,13 +80,7 @@ export class Glb {
         this.isPlaying = false;
     }
 
-    rngTimelineChange(){
-        msg(`changed`);
-        while(glb.widgets.some(x => x instanceof EmptyWidget)){
-            let idx = glb.widgets.findIndex(x => x instanceof EmptyWidget);
-            glb.widgets.splice(idx, 1);
-        }
-    
+    rngTimelineChange(){   
         glb.timeline.max = `${glb.widgets.length - 1}`;
         this.updateTimePos(glb.timeline.valueAsNumber, false);
     }
@@ -125,20 +119,6 @@ export class Glb {
     
         this.textArea.focus();
     }
-
-    setWidget(act: Widget){
-        let selIdx = glb.timeline.valueAsNumber;
-
-        console.assert(glb.widgets[selIdx] instanceof EmptyWidget);
-        glb.widgets[selIdx] = act;
-        glb.selSummary.selectedIndex = selIdx;
-    }
-
-    addEmptyWidget(){
-        this.addWidget(new EmptyWidget());
-    }
-
-
 
     removeWidget(act: Widget){
         const idx = glb.widgets.indexOf(act);
@@ -275,61 +255,25 @@ export class Glb {
 
     updateTextMath(){
         const act = this.currentWidget();
+        if(! (act instanceof TextWidget)){
+            return;
+        }
         
         let text = this.textArea.value.trim();
+        let changed = (act.text != text);
+        act.text = text;
 
-        if(act instanceof TextWidget){
+        if(act instanceof TextBlock){
 
-            if(text == ""){
-                // テキストが削除された場合
+            if(act.lineFeed != (act.div.getElementsByClassName("line-feed").length != 0)){
 
-                this.deleteWidget();
-            }
-            else{
-                // テキストがある場合
-
-                let changed = (act.text != text);
-                act.text = text;
-
-                if(act instanceof TextBlock){
-
-                    if(act.lineFeed != (act.div.getElementsByClassName("line-feed").length != 0)){
-
-                        changed = true;
-                    }
-
-                    if(changed){
-                        // テキストか改行が変更された場合
-
-                        this.updateFocusedTextBlock();
-                    }
-                }
-            }
-        }
-        else{
-            if(text == ""){
-                return;
+                changed = true;
             }
 
-            let newAct;
-            if(glb.speechInput){
+            if(changed){
+                // テキストか改行が変更された場合
 
-                newAct = new Speech(text);
-            }
-            else{
-
-                newAct = new TextBlock(text);
-                newAct.enable();
-            }
-
-            if(act instanceof EmptyWidget){
-                // 空のアクションの場合
-    
-                this.setWidget(newAct);    
-            }
-            else{
-
-                this.addWidget(newAct);
+                this.updateFocusedTextBlock();
             }
         }
     }
@@ -373,14 +317,7 @@ export class Glb {
                 glb.pauseFlag = true;
                 speak(act);
             }
-
-            this.addEmptyWidget();
         }
-    }
-
-    textAreaBlur(ev: FocusEvent){
-        msg("blur");
-        this.updateTextMath();
     }
 
     writeTextFile(path: string, text: string){
@@ -416,21 +353,20 @@ export class Glb {
     
     openDoc(path: string){
         fetchText(`json/${path}.json`, (text: string)=>{
-            this.initDoc(text);
+            this.initDoc(JSON.parse(text));
         });
     }
 
     
-    initDoc(text: string){
+    initDoc(doc: any){
         glb.widgets = [];
+        glb.refMap = new Map<number, Widget>();
         glb.timeline.max = "-1";
         glb.timeline.valueAsNumber = -1;
         glb.selSummary.innerHTML = "";
     
         glb.board.innerHTML = "";
     
-        const doc = JSON.parse(text);
-
         this.txtTitle.value = doc.title;
     
         const h1 = document.createElement("h1");
@@ -479,7 +415,7 @@ export class Glb {
         glb.timeline.max = `${glb.widgets.length - 1}`;
         glb.prevTimePos = glb.widgets.length - 1;
 
-        this.updateTimePos(-1, false);    
+        this.updateTimePos(-1, false);
         this.showPlayButton();
     }
 
@@ -585,9 +521,7 @@ export function bodyOnload(){
     glb = new Glb();
     msg("$$ab$$ $$cd$$".replace(/\$\$/g, "\n\$\$\n"))
 
-    fetchFileList()    
-
-    glb.addEmptyWidget();
+    fetchFileList();
 
     initSpeech();
 
@@ -611,8 +545,6 @@ export function getAll() : Widget[] {
 }
 
 export function putData(){
-    glb.widgets = glb.widgets.filter(x => ! (x instanceof EmptyWidget));
-
     let v = getAll();
     for(let [i, x] of v.entries()){
         x.id = i;

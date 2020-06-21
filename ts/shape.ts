@@ -188,11 +188,6 @@ function showProperty(act: Widget){
     }
 }
 
-export function addShape(){
-    const view1 = new View().make({ Width: 500, Height: 500, ViewBox: "-2 -2 4 4" });
-    glb.widgets.push(view1);
-}
-
 export function deselectShape(){
     // 手前のウイジェット
     let prev_acts = glb.widgets.slice(0, glb.timeline.valueAsNumber);
@@ -2042,9 +2037,8 @@ export class Rect extends Polygon {
         });
     }
 
-    all(v: Widget[]){
-        super.all(v);
-        this.lines.forEach(x => x.all(v));
+    summary() : string {
+        return this.isSquare ? "正方形" : "矩形";
     }
 
     setRectPos(pt: Vec2|null, idx: number, clicked:boolean){
@@ -2258,6 +2252,10 @@ export class Circle extends CompositeShape {
         this.parentView.G0.appendChild(this.circle);    
     }
 
+    summary() : string {
+        return "円";
+    }
+
     setEnable(enable: boolean){
         super.setEnable(enable);
         this.circle.setAttribute("visibility", (enable ? "visible" : "hidden"));
@@ -2416,6 +2414,10 @@ export class DimensionLine extends CompositeShape {
         this.updateRatio();
     }
 
+    summary() : string {
+        return "寸法線";
+    }
+
     setEnable(enable: boolean){
         super.setEnable(enable);
 
@@ -2522,9 +2524,8 @@ export class Triangle extends Polygon {
         });
     }
 
-    all(v: Widget[]){
-        super.all(v);
-        this.lines.forEach(x => x.all(v));
+    summary() : string {
+        return "三角形";
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
@@ -2579,6 +2580,10 @@ export class Midpoint extends CompositeShape {
         this.midpoint!.all(v);
     }
 
+    summary() : string {
+        return "中点";
+    }
+
     setEnable(enable: boolean){
         super.setEnable(enable);
         this.midpoint!.setEnable(enable);
@@ -2631,9 +2636,12 @@ export class Perpendicular extends CompositeShape {
 
     all(v: Widget[]){
         super.all(v);
-        this.line!.all(v);
         this.foot!.all(v);
         this.perpendicular!.all(v);
+    }
+
+    summary() : string {
+        return "垂線";
     }
 
     setEnable(enable: boolean){
@@ -2695,21 +2703,22 @@ export class Perpendicular extends CompositeShape {
 export class ParallelLine extends CompositeShape {
     line1 : LineSegment | null = null;
     line2 : LineSegment | null = null;
-    point : Point|null = null;
 
     all(v: Widget[]){
         super.all(v);
         this.line1!.all(v);
         this.line2!.all(v);
-        this.point!.all(v);
     }
     
     makeObj() : any {
         return Object.assign(super.makeObj(), {
             line1: this.line1!.toObj(),
             line2: this.line2!.toObj(),
-            point: this.point!.toObj()
         });
+    }
+
+    summary() : string {
+        return "平行線";
     }
 
     setEnable(enable: boolean){
@@ -2719,8 +2728,9 @@ export class ParallelLine extends CompositeShape {
     }
 
     calcParallelLine(){
-        const p1 = this.point!.pos.add(this.line1!.e.mul(infinity));
-        const p2 = this.point!.pos.sub(this.line1!.e.mul(infinity));
+        let pos = this.handles[0].pos;
+        const p1 = pos.add(this.line1!.e.mul(infinity));
+        const p2 = pos.sub(this.line1!.e.mul(infinity));
 
         this.line2!.setPoints(p1, p2);
     }
@@ -2748,12 +2758,12 @@ export class ParallelLine extends CompositeShape {
         }
         else {
 
-            this.point = this.parentView.getPoint(ev);
-            if(this.point == null){
+            let point = this.parentView.getPoint(ev);
+            if(point == null){
                 return;
             }
 
-            this.point.addListener(this);
+            this.addHandle(point);
 
             this.line2 = new LineSegment();
             this.line2.line.style.cursor = "move";
@@ -2770,7 +2780,7 @@ export class ParallelLine extends CompositeShape {
     }
 }
 
-export class Intersection extends CompositeShape {
+export class Intersection extends Shape {
     lines : LineSegment[] = [];
     intersection : Point|null = null;
 
@@ -2783,8 +2793,11 @@ export class Intersection extends CompositeShape {
 
     all(v: Widget[]){
         super.all(v);
-        this.lines.forEach(x => x.all(v));
         this.intersection!.all(v);
+    }
+
+    summary() : string {
+        return "交点";
     }
 
     setEnable(enable: boolean){
@@ -2875,17 +2888,16 @@ export class Angle extends Shape {
         return this;
     }
 
-    all(v: Widget[]){
-        super.all(v);
-        this.lines.forEach(x => x.all(v));
-    }
-
     svgElements(){
         return (this.arcs as SVGGraphicsElement[]).concat(this.primes)
     }
 
     propertyNames() : string[] {
         return [ "Mark", "Color", "Name" ];
+    }
+
+    summary() : string {
+        return "角度";
     }
 
     setEnable(enable: boolean){
@@ -3170,6 +3182,10 @@ export class Image extends CompositeShape {
     setEnable(enable: boolean){
         super.setEnable(enable);
         this.image.setAttribute("visibility", (enable ? "visible" : "hidden"));
+    }
+
+    summary() : string {
+        return "画像";
     }
 
     load =(ev:Event)=>{
