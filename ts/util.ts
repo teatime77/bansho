@@ -140,13 +140,20 @@ export function fetchText(path:string, fnc:(text: string)=>void){
     msg(`fetch-json:${url} ${url2}`);
     fetch(url2)
     .then((res: Response) => {
-        return res.text();
+        if(res.status == 404){
+
+            throw new Error("ファイルがありません。");
+        }
+        else{
+
+            return res.text();
+        }
     })
     .then(text => {
         fnc(text);
     })
     .catch(error => {
-        console.error('Error:', error);
+        msg(`fetch error ${error}`);
     });
 }
 

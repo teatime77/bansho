@@ -5,6 +5,7 @@ declare let MathJax:any;
 export let glb: Glb;
 
 export class Glb {
+    edit: boolean;
     widgets : Widget[] = [];
     widgetMap : Widget[] = [];
     refMap = new Map<number, Widget>();
@@ -33,7 +34,8 @@ export class Glb {
     eventPos!: Vec2;
     orgPos!: Vec2;
 
-    constructor(){
+    constructor(edit: boolean){
+        this.edit     = edit;
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
         this.tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
@@ -224,9 +226,12 @@ export class Glb {
             glb.caption.textContent = "";
         }
 
-        glb.textArea.style.borderColor = act instanceof Speech ? "blue" : "grey";
+        if(glb.edit){
 
-        this.textArea.value = act instanceof TextWidget ? act.Text : "";
+            glb.textArea.style.borderColor = act instanceof Speech ? "blue" : "grey";
+
+            glb.textArea.value = act instanceof TextWidget ? act.Text : "";
+        }
 
         if(act instanceof Widget){
 
@@ -239,7 +244,10 @@ export class Glb {
                 }
             }
             
-            showProperty(act);
+            if(glb.edit){
+
+                showProperty(act);
+            }
         }
     }
 
@@ -312,12 +320,15 @@ export class Glb {
         glb.refMap = new Map<number, Widget>();
         setTimePosMax(-1);
         setTimePos(-1);
-        glb.selSummary.innerHTML = "<option>先頭</option>";
-        glb.selSummary.selectedIndex = 0;
+
+        if(glb.edit){
+
+            glb.selSummary.innerHTML = "<option>先頭</option>";
+            glb.selSummary.selectedIndex = 0;
+            glb.txtTitle.value = doc.title;
+        }
     
         glb.board.innerHTML = "";
-    
-        this.txtTitle.value = doc.title;
     
         const h1 = document.createElement("h1");
         h1.innerHTML = doc.title;
@@ -333,12 +344,18 @@ export class Glb {
             glb.widgets.push(act);
 
             // 要約のリストに表示する。
-            let opt = document.createElement("option");
-            opt.innerHTML = act.summary();
-            glb.selSummary.add(opt);
+            if(glb.edit){
+
+                let opt = document.createElement("option");
+                opt.innerHTML = act.summary();
+                glb.selSummary.add(opt);
+            }
         }
 
-        MathJax.typesetPromise([glb.selSummary]);
+        if(glb.edit){
+
+            MathJax.typesetPromise([glb.selSummary]);
+        }
 
         let v = Array.from( glb.refMap.values() );
         for(let x of v){
@@ -498,7 +515,7 @@ export function showFileList(obj: any){
 export function bodyOnload(){
     console.log("body load");
     
-    glb = new Glb();
+    glb = new Glb(true);
     msg("$$ab$$ $$cd$$".replace(/\$\$/g, "\n\$\$\n"))
 
     fetchFileList(showFileList);
@@ -506,7 +523,6 @@ export function bodyOnload(){
     initSpeech();
 
     setEventListener();
-    setUIEditEventListener();
 
     initDraw();
 }
@@ -543,26 +559,28 @@ export function putData(){
     writeTextFile(path, text);
 }
 
-export function initPlayer(){
+export function initPlay(){
+    console.log(`play ${window.location.href}`);
+    
+    glb = new Glb(false);
+
     initSpeech();
 
-    msg("body loaded");
-   
-    let divs = Array.from(document.getElementsByClassName("bansho")) as HTMLDivElement[];
+    setEventListener();
 
-    if(window.location.search != ""){
-        console.assert(window.location.search[0] == '?');
-
-        for(let item of window.location.search.substring(1).split('&')){
-            let [key, value] = item.split("=");
-            if(key == "path"){
-                let div = divs[0];
-
-                // let ui = new UIEdit(div);
-                // ui.openDoc(value);
-            }
-        }
+    let k = window.location.href.lastIndexOf('?');
+    if(k == -1){
+        return;
     }
+
+    let s = window.location.href.substring(k + 1);
+    let v = s.split('=');
+    if(v.length != 2 || v[0] != "id"){
+        return;
+    }
+
+    let id = v[1];
+    glb.openDoc(id);
 }
 
 export function onClickPointerMove(act:TextBlock, ev: PointerEvent | MouseEvent, is_click: boolean){

@@ -9,6 +9,28 @@ export function setEventListener(){
         glb.clickPlayPause();
     });
 
+    // ⏮
+    document.getElementById("fast-reverse")!.addEventListener("click", (ev: MouseEvent)=>{
+        if(glb.edit){
+
+            glb.selSummary.selectedIndex = -1;
+        }
+        glb.updateTimePos(-1, false);
+    });
+
+    // ⏭
+    document.getElementById("fast-forward")!.addEventListener("click", (ev: MouseEvent)=>{
+        if(glb.edit){
+
+            glb.selSummary.selectedIndex = glb.selSummary.options.length - 1;
+        }
+        glb.updateTimePos(glb.widgets.length - 1, false);
+    });
+
+    if(! glb.edit){
+        return;
+    }
+
     // タイムライン
     if(glb.timeline != null){
 
@@ -44,18 +66,6 @@ export function setEventListener(){
         glb.addWidget(new Speech("🔊"));
     });
 
-    // ⏮
-    document.getElementById("fast-reverse")!.addEventListener("click", (ev: MouseEvent)=>{
-        glb.selSummary.selectedIndex = -1;
-        glb.updateTimePos(-1, false);
-    });
-
-    // ⏭
-    document.getElementById("fast-forward")!.addEventListener("click", (ev: MouseEvent)=>{
-        glb.selSummary.selectedIndex = glb.selSummary.options.length - 1;
-        glb.updateTimePos(glb.widgets.length - 1, false);
-    });
-
     // 開くボタン
     document.getElementById("get-data")!.addEventListener("click", (ev: MouseEvent)=>{
         getData();
@@ -76,10 +86,6 @@ export function setEventListener(){
         glb.txtFile.value = glb.selFile.value;
     })
 
-}
-    
-
-export function setUIEditEventListener(){
     // TEXTAREA キー プレス
     glb.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
         glb.textAreaKeyPress(ev);
@@ -109,6 +115,7 @@ export function setUIEditEventListener(){
             glb.updateTextMath();
         }, 500);
     });
+
 }
 
 export function setTextBlockEventListener(act: TextBlock){

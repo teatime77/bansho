@@ -56,11 +56,22 @@ var server = http.createServer(function(req, res) {
 
                     console.log(`png:[${path}]`);
                 }
+                else{
+
+                    res.statusCode = 404;
+                }
             }
             else{
 
-                let s = read(path);                
-                res.write(s);
+                if(check(path)){
+
+                    let s = fs.readFileSync(path, 'utf8');
+                    res.write(s);
+                }
+                else{
+
+                    res.statusCode = 404;
+                }
             }
 
             res.end();
@@ -114,14 +125,6 @@ function check(filePath) {
         isExist = false;
     }
     return isExist;
-}
-
-function read(filePath) {
-    var content = new String();
-    if(check(filePath)) {
-        content = fs.readFileSync(filePath, 'utf8');
-    }
-    return content;
 }
 
 function write(filePath, stream) {

@@ -1,49 +1,63 @@
 <!DOCTYPE html>
-
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-
 <head>
 <meta charset="utf-8" />
-<title>手計算</title>
-<script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-    tex2jax: {
-        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-        processEscapes: true
-    }
-});
+<title>再生</title>
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        macros: {
+            v : ["{\\mathrm #1}", 1]
+        }
+    },
+    options: {
+        renderActions: {
+            addMenu: [0, '', '']
+        }
+    },
+    chtml: {
+        scale: 1.0
+    }    
+};
 </script>
-<script type="text/javascript" src="js/util.js?ver=1" ></script>
-<script type="text/javascript" src="js/jax.js?ver=1" ></script>
-<script type="text/javascript" src="js/main.js?ver=1" ></script>
-<script type="text/javascript" src="js/speech.js?ver=1" ></script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
-<script type="text/javascript">
-</script>
-<!-- 
+<script src="js/util.js?ver=1" ></script>
+<script src="js/widget.js?ver=1" ></script>
+<script src="js/event.js?ver=1" ></script>
+<script src="js/speech.js?ver=1" ></script>
+<script src="js/main.js?ver=1" ></script>
+<script src="js/shape.js?ver=1" ></script>
+
 <style type="text/css">
-.play {
-	width: 120px;
-	height: 120px;
-	
-	position: absolute;
-	top:0;
-	bottom: 0;
-	left: 0;
-	right: 0;
-  	
-	margin: auto;
-    padding: 0;
-    border-width: 0px;
-    background-color: transparent;
+html {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}      
+
+li {
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 </style>
--->
+
 </head>
 
-<body onload="bansho.initPlayer()">
-<div class="bansho" style="width: 100%;" data-path="gauss-int"></div>
+<body onload="bansho.initPlay()">
+<button id="play-pause" style="font-family: 'Segoe UI Emoji'" >▶️</button>
+<button id="fast-reverse" style="font-family: Segoe UI Emoji;" >⏮</button>
+<button id="fast-forward" style="font-family: Segoe UI Emoji;" >⏭</button>
+<input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
+<br/>
+<h3 id="caption" style="text-align: center;" ></h3>
+<div id="board" style="overflow: scroll; border-style:inset; border-width: 3px;" ></div>
 </body>
 </html>
