@@ -5,7 +5,7 @@ declare let MathJax:any;
 export let glb: Glb;
 
 export class Glb {
-    edit: boolean;
+    static edit: boolean;
     widgets : Widget[] = [];
     widgetMap : Widget[] = [];
     refMap = new Map<number, Widget>();
@@ -35,7 +35,7 @@ export class Glb {
     orgPos!: Vec2;
 
     constructor(edit: boolean){
-        this.edit     = edit;
+        Glb.edit     = edit;
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
         this.tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
@@ -226,7 +226,7 @@ export class Glb {
             glb.caption.textContent = "";
         }
 
-        if(glb.edit){
+        if(Glb.edit){
 
             glb.textArea.style.borderColor = act instanceof Speech ? "blue" : "grey";
 
@@ -244,7 +244,7 @@ export class Glb {
                 }
             }
             
-            if(glb.edit){
+            if(Glb.edit){
 
                 showProperty(act);
             }
@@ -321,12 +321,14 @@ export class Glb {
         setTimePosMax(-1);
         setTimePos(-1);
 
-        if(glb.edit){
+        if(Glb.edit){
 
             glb.selSummary.innerHTML = "<option>先頭</option>";
             glb.selSummary.selectedIndex = 0;
             glb.txtTitle.value = doc.title;
         }
+
+        document.title = `${(doc.title as string).split('\n')[0]} - 板書`
     
         glb.board.innerHTML = "";
     
@@ -344,7 +346,7 @@ export class Glb {
             glb.widgets.push(act);
 
             // 要約のリストに表示する。
-            if(glb.edit){
+            if(Glb.edit){
 
                 let opt = document.createElement("option");
                 opt.innerHTML = act.summary();
@@ -352,7 +354,7 @@ export class Glb {
             }
         }
 
-        if(glb.edit){
+        if(Glb.edit){
 
             MathJax.typesetPromise([glb.selSummary]);
         }
@@ -502,13 +504,13 @@ export function showFileList(obj: any){
 
         for(let file of obj.files){
             let opt = document.createElement("option");
-            opt.value = file.name;
+            opt.value = file.id;
             opt.textContent = file.title;
             glb.selFile.add(opt);
         }
 
         glb.selFile.selectedIndex = 0;
-        glb.txtFile.value = obj.files[0].name;
+        glb.txtFile.value = obj.files[0].id;
     }
 }
 

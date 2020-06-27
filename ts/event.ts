@@ -11,7 +11,7 @@ export function setEventListener(){
 
     // ⏮
     document.getElementById("fast-reverse")!.addEventListener("click", (ev: MouseEvent)=>{
-        if(glb.edit){
+        if(Glb.edit){
 
             glb.selSummary.selectedIndex = -1;
         }
@@ -20,14 +20,14 @@ export function setEventListener(){
 
     // ⏭
     document.getElementById("fast-forward")!.addEventListener("click", (ev: MouseEvent)=>{
-        if(glb.edit){
+        if(Glb.edit){
 
             glb.selSummary.selectedIndex = glb.selSummary.options.length - 1;
         }
         glb.updateTimePos(glb.widgets.length - 1, false);
     });
 
-    if(! glb.edit){
+    if(! Glb.edit){
         return;
     }
 
@@ -329,13 +329,24 @@ export function fetchFileList(fnc:(obj: any)=>void){
     msg(`fetch-file names:${url} ${url2}`);
     fetch(url2)
     .then((res: Response) => {
-        return res.json();
+        if(res.status == 404){
+
+            fetchText(`list.json`, fnc);
+    
+            throw new Error("ファイルがありません。");
+        }
+        else{
+
+            return res.text();
+            // return res.json();
+        }
+
     })
-    .then(obj => {
-        fnc(obj);
+    .then(text => {
+        fnc(JSON.parse(text));
     })
     .catch(error => {
-        console.error('Error:', error);
+        msg(`fetch file list error ${error}`);
     });
 
 }

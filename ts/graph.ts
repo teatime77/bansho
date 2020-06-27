@@ -329,6 +329,13 @@ class TextBox {
                 showGraph();
             }    
         }
+        else if(! Glb.edit){
+            // https://lkzf.info/bansho/list
+            let k = window.location.href.lastIndexOf("/");
+            let base = window.location.href.substring(0, k);
+            let url = `${base}/play.html?id=${this.id}`
+            window.open(url, '_blank');
+        }
     }
 }
 
@@ -366,7 +373,7 @@ function initEdges(edges: any[]){
 function getFileList(obj: any){
     for(let file of obj.files){
         let box = new TextBox([], file.title);
-        box.id = parseInt(file.name);
+        box.id = parseInt(file.id);
         blocks.push(box);
     }
 
@@ -390,6 +397,9 @@ function saveGraph(){
 }
 
 export function initGraph(){
+    Glb.edit = (window.location.href.includes("?edit=true"));
+    msg(`init graph edit:${Glb.edit}`);
+
     let save_btn = document.getElementById("save-graph") as HTMLButtonElement;
     save_btn.addEventListener("click", saveGraph);
 

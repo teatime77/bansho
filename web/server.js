@@ -27,12 +27,16 @@ var server = http.createServer(function(req, res) {
 
                         let title = obj.title;
 
-                        name_titles.push( { name: name, title: title })
+                        name_titles.push( { id: name, title: title })
                     }
                 }
                 
                 res.writeHead(200, {"Content-Type": "application/json"});
-                res.end(JSON.stringify({ files: name_titles, edges: edges }));
+
+                let text = JSON.stringify({ files: name_titles, edges: edges }, null, 4);
+                res.end(text);
+
+                writeText(`list.json`, text);
             });
         }
         else if(req.url.startsWith("/")){
@@ -106,7 +110,7 @@ var server = http.createServer(function(req, res) {
                 backup(id);
             }
 
-            write(`json/${id}.json`, data.text);
+            writeText(`json/${id}.json`, data.text);
 
             res.write(JSON.stringify({ "status": "ok"}));
             res.end();
@@ -127,7 +131,7 @@ function check(filePath) {
     return isExist;
 }
 
-function write(filePath, stream) {
+function writeText(filePath, stream) {
     var result = false;
     try {
         fs.writeFileSync(filePath, stream);
@@ -152,7 +156,7 @@ function backup(name){
     }
 
     for(let i = 1; ; i++){
-        let path2 = `json/save/${name}-${i}.json`;
+        let path2 = `../work/save/${name}-${i}.json`;
         if(! check(path2)){
             fs.renameSync(path1, path2);
             return;

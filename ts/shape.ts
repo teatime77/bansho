@@ -475,7 +475,7 @@ export class View extends Widget {
     
         setViewEventListener(this);
 
-        if(glb.edit){
+        if(Glb.edit){
 
             setToolType();
         }
