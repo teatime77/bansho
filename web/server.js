@@ -14,15 +14,25 @@ var server = http.createServer(function(req, res) {
                 files = files.filter(x => x.endsWith(".json")).map(x => x.replace(".json", ""));
 
                 let name_titles = [];
+                let edges;
                 for(let name of files){
                     let text = fs.readFileSync(`json/${name}.json`, 'utf8');
-                    let title = JSON.parse(text).title;
+                    let obj  = JSON.parse(text);
 
-                    name_titles.push( { name: name, title: title })
+                    if(name == "edges"){
+
+                        edges = obj.edges;
+                    }
+                    else{
+
+                        let title = obj.title;
+
+                        name_titles.push( { name: name, title: title })
+                    }
                 }
                 
                 res.writeHead(200, {"Content-Type": "application/json"});
-                res.end(JSON.stringify({ files: name_titles }));
+                res.end(JSON.stringify({ files: name_titles, edges: edges }));
             });
         }
         else if(req.url.startsWith("/")){
@@ -74,9 +84,18 @@ var server = http.createServer(function(req, res) {
             console.log(body);
 
             let data = JSON.parse(body);
+            let id = data.path;
 
-            backup(data.path);
-            write(`json/${data.path}.json`, data.text);
+            if(id == ""){
+
+                id = emptyId();
+            }
+            else{
+
+                backup(id);
+            }
+
+            write(`json/${id}.json`, data.text);
 
             res.write(JSON.stringify({ "status": "ok"}));
             res.end();
@@ -112,6 +131,14 @@ function write(filePath, stream) {
         return true;
     } catch(err) {
         return false;
+    }
+}
+
+function emptyId(){
+    for(let i = 1; ; i++){
+        if(! check( `json/${i}.json` )){
+            return i;
+        }
     }
 }
 

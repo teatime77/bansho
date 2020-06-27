@@ -314,7 +314,7 @@ export function reprocessMathJax(act: Widget, div: HTMLDivElement | HTMLSpanElem
     popQue();
 }
 
-export function fetchFileList(){
+export function fetchFileList(fnc:(obj: any)=>void){
     let k = window.location.href.lastIndexOf("/");
 
     const url = `${window.location.href.substring(0, k)}/list`;
@@ -325,7 +325,7 @@ export function fetchFileList(){
         return res.json();
     })
     .then(obj => {
-        showFileList(obj);
+        fnc(obj);
     })
     .catch(error => {
         console.error('Error:', error);

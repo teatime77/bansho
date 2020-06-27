@@ -150,5 +150,35 @@ export function fetchText(path:string, fnc:(text: string)=>void){
     });
 }
 
+export function writeTextFile(path: string, text: string){
+    msg(`[${text}]`);
+
+    navigator.clipboard.writeText(text).then(function() {
+        msg("copy OK");
+    }, function() {
+        msg("copy NG");
+    });
+
+    var url = `${window.location.origin}/`;
+    var data = {
+        "path": path,
+        "text": text,
+    };
+    
+    fetch(url, {
+        method: "POST", // or 'PUT'
+        body: JSON.stringify(data),
+        headers:{
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(res => res.json())
+    .then(response => {
+        console.log('Success:', JSON.stringify(response))
+    })
+    .catch(error => {
+        console.error('Error:', error)
+    });
+}
 
 }

@@ -299,37 +299,6 @@ export class Glb {
             }
         }
     }
-
-    writeTextFile(path: string, text: string){
-        msg(`[${text}]`);
-    
-        navigator.clipboard.writeText(text).then(function() {
-            msg("copy OK");
-        }, function() {
-            msg("copy NG");
-        });
-    
-        var url = `${window.location.origin}/`;
-        var data = {
-            "path": path,
-            "text": text,
-        };
-        
-        fetch(url, {
-            method: "POST", // or 'PUT'
-            body: JSON.stringify(data),
-            headers:{
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(res => res.json())
-        .then(response => {
-            console.log('Success:', JSON.stringify(response))
-        })
-        .catch(error => {
-            console.error('Error:', error)
-        });
-    }
     
     openDoc(path: string){
         fetchText(`json/${path}.json`, (text: string)=>{
@@ -532,7 +501,7 @@ export function bodyOnload(){
     glb = new Glb();
     msg("$$ab$$ $$cd$$".replace(/\$\$/g, "\n\$\$\n"))
 
-    fetchFileList();
+    fetchFileList(showFileList);
 
     initSpeech();
 
@@ -571,7 +540,7 @@ export function putData(){
 
     let path  = glb.txtFile.value.trim();
 
-    glb.writeTextFile(path, text);
+    writeTextFile(path, text);
 }
 
 export function initPlayer(){
