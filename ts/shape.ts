@@ -104,6 +104,7 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "BSpline":       return new BSpline();
         case "Rect":          return new Rect().make({isSquare:(arg == "2")}) as Shape;
         case "Circle":        return new Circle(arg == "2");
+        case "Arc":           return new Arc();
         case "DimensionLine": return new DimensionLine();
         case "Triangle":      return new Triangle();
         case "Midpoint":      return new Midpoint();
@@ -934,13 +935,18 @@ export class View extends Widget {
     }
     
     getLine(ev: MouseEvent) : LineSegment | null{
-        const line = this.shapes.find(x => x instanceof LineSegment && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
+        const line = this.shapes.find(x => x instanceof LineSegment && x.line == ev.target && x.handles.length == 2) as (LineSegment|undefined);
         return line == undefined ? null : line;
     }
     
     getCircle(ev: MouseEvent) : Circle | null{
-        const circle = this.shapes.find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
+        const circle = this.shapes.find(x => x instanceof Circle && x.circle == ev.target && x.handles.length == 2) as (Circle|undefined);
         return circle == undefined ? null : circle;
+    }
+    
+    getArc(ev: MouseEvent) : Arc | null{
+        const arc = this.shapes.find(x => x instanceof Arc && x.arc == ev.target && x.handles.length == 3) as (Arc|undefined);
+        return arc == undefined ? null : arc;
     }
 
     toSvg2(x:number) : number{
@@ -1366,8 +1372,17 @@ export abstract class CompositeShape extends Shape {
                     circle.bind(handle)
                 }
                 else{
-    
-                    handle = new Point({pos:pt});
+                    const arc = this.parentView.getArc(ev);
+                    if(arc != null){
+
+                        handle = new Point({pos:pt});
+                        arc.adjust(handle);
+                        arc.bind(handle)    
+                    }
+                    else{
+
+                        handle = new Point({pos:pt});
+                    }
                 }
             }
         }
@@ -1521,10 +1536,13 @@ export class Point extends Shape {
         if(this.bindTo != undefined){
 
             if(this.bindTo instanceof LineSegment){
-                    (this.bindTo as LineSegment).adjust(this);
+                this.bindTo.adjust(this);
             }
             else if(this.bindTo instanceof Circle){
-                (this.bindTo as Circle).adjust(this);
+                this.bindTo.adjust(this);
+            }
+            else if(this.bindTo instanceof Arc){
+                this.bindTo.adjust(this);
             }
             else{
                 console.assert(false);
@@ -1539,11 +1557,8 @@ export class Point extends Shape {
     processEvent =(sources: Shape[])=>{
         if(this.bindTo != undefined){
 
-            if(this.bindTo instanceof LineSegment){
-                    (this.bindTo as LineSegment).adjust(this);
-            }
-            else if(this.bindTo instanceof Circle){
-                (this.bindTo as Circle).adjust(this);
+            if(this.bindTo instanceof LineSegment || this.bindTo instanceof Circle || this.bindTo instanceof Arc){
+                this.bindTo.adjust(this);
             }
         }
     }
@@ -2860,6 +2875,142 @@ export class Intersection extends Shape {
     }
 }
 
+function calcLargeArcSweepFlag(q1: Vec2, q2: Vec2){
+        // 線分上の点の角度
+        let theta1 = Math.atan2(q1.y, q1.x);
+        let theta2 = Math.atan2(q2.y, q2.x);
+
+        if(theta1 < 0){
+            theta1 += 2 * Math.PI;
+        }
+        if(theta2 < 0){
+            theta2 += 2 * Math.PI;
+        }
+        
+        let deltaTheta = theta2 - theta1;
+        if(deltaTheta < 0){
+            deltaTheta += 2 * Math.PI;
+        }
+
+        const largeArcSweepFlag = (Math.PI < deltaTheta ? 1 : 0);
+
+        return [ theta1, theta2, deltaTheta, largeArcSweepFlag];
+}
+
+export class Arc extends CompositeShape {
+    arc   : SVGPathElement;
+    Color : string = "black";
+
+    constructor(){
+        super();
+        this.arc = document.createElementNS("http://www.w3.org/2000/svg","path");
+
+        this.arc.setAttribute("fill", "none");
+        this.arc.setAttribute("stroke", this.Color);
+        this.arc.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);
+        this.arc.style.cursor = "pointer";
+
+        this.parentView.G0.appendChild(this.arc);
+    }
+
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            Color : this.Color
+        });
+    }
+
+    make(obj: any) : Widget {
+        super.make(obj);
+        this.drawArc(null);
+
+        return this;
+    }
+
+    summary() : string {
+        return "弧";
+    }
+
+    propertyNames() : string[] {
+        return [ "Color" ];
+    }
+
+    setColor(c:string){
+        this.Color = c;
+
+        this.arc.setAttribute("stroke", this.Color);
+    }
+
+    setEnable(enable: boolean){
+        super.setEnable(enable);
+        this.arc.setAttribute("visibility", (enable ? "visible" : "hidden"));
+    }
+
+    processEvent =(sources: Shape[])=>{
+        this.drawArc(null);
+    }
+
+    adjust(handle: Point) {
+        let [p0, p1] = [ this.handles[0].pos, this.handles[1].pos ];
+        let radius = p1.sub(p0).len();
+
+        const v = handle.pos.sub(p0);
+        const theta = Math.atan2(v.y, v.x);
+
+        handle.pos = new Vec2(p0.x + radius * Math.cos(theta), p0.y + radius * Math.sin(theta));
+
+        handle.setPos();
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void =>{
+        this.addHandle(this.clickHandle(ev, pt));
+
+        if(this.handles.length == 3){
+            this.drawArc(null);
+
+            this.finishTool();
+        }
+    }
+
+    drawArc(pt: Vec2 | null){
+        let [p0, p1] = [ this.handles[0].pos, this.handles[1].pos ];
+        let p2 = (pt != null ? pt : this.handles[2].pos);
+
+        const q1 = p1.sub(p0);
+        const q2 = p2.sub(p0);
+
+        let [ theta1, theta2, deltaTheta, largeArcSweepFlag] = calcLargeArcSweepFlag(q1, q2);
+
+        let r = p1.sub(p0).len();
+
+        let x = p0.x + r * Math.cos(theta2);
+        let y = p0.y + r * Math.sin(theta2);
+
+        const d = `M${p1.x} ${p1.y} A ${r} ${r} 0 ${largeArcSweepFlag} 1 ${x} ${y}`;
+
+        this.arc.setAttribute("d", d);
+
+        if(this.handles.length == 3){
+
+            this.handles[2].pos = new Vec2(x, y);
+            this.handles[2].setPos();
+        }
+    }
+
+    pointermove =(ev: PointerEvent) : void =>{
+        const pt = this.parentView.getSvgPoint(ev, null);
+
+        if(this.handles.length == 2){
+
+            this.drawArc(pt);
+        }
+    }
+
+    delete(){
+        super.delete();
+        this.arc.parentElement!.removeChild(this.arc);
+    }
+}
+
 enum AngleMark {
     rightAngle,
     arc,
@@ -2896,7 +3047,7 @@ export class Angle extends Shape {
         super.make(obj);
         this.updateRatio();
 
-        this.drawArc();
+        this.drawAngleArc();
 
         return this;
     }
@@ -2927,7 +3078,7 @@ export class Angle extends Shape {
         this.Mark = mark;
         msg(`mark:${mark}`);
 
-        this.drawArc();
+        this.drawAngleArc();
     }
 
     setColor(c:string){
@@ -3026,7 +3177,7 @@ export class Angle extends Shape {
         }
     }
 
-    drawArc(){
+    drawAngleArc(){
         let [num_arc, num_prime] = this.matchArcs();
 
         const line1 = this.lines[0];
@@ -3046,23 +3197,8 @@ export class Angle extends Shape {
             return;
         }
 
-        // 線分上の点の角度
-        let theta1 = Math.atan2(q1.y, q1.x);
-        let theta2 = Math.atan2(q2.y, q2.x);
+        let [ theta1, theta2, deltaTheta, largeArcSweepFlag] = calcLargeArcSweepFlag(q1, q2);
 
-        if(theta1 < 0){
-            theta1 += 2 * Math.PI;
-        }
-        if(theta2 < 0){
-            theta2 += 2 * Math.PI;
-        }
-        
-        let deltaTheta = theta2 - theta1;
-        if(deltaTheta < 0){
-            deltaTheta += 2 * Math.PI;
-        }
-
-        const largeArcSweepFlag = (Math.PI < deltaTheta ? 1 : 0);
 
         for(let [i, arc] of this.arcs.entries()){
 
@@ -3120,7 +3256,7 @@ export class Angle extends Shape {
     }
 
     processEvent =(sources: Shape[])=>{
-        this.drawArc();
+        this.drawAngleArc();
         this.updateNamePos();
     }
 
@@ -3147,7 +3283,7 @@ export class Angle extends Shape {
                     this.handleIdx.push(head_side ? 1 : 0);
                 }       
 
-                this.drawArc();
+                this.drawAngleArc();
         
                 for(let line2 of this.lines){
 

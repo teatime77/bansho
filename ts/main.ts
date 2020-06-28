@@ -481,6 +481,9 @@ export function parseObject(obj: any) : any {
     case Intersection.name:
         return new Intersection().make(obj);
 
+    case Arc.name:
+        return new Arc().make(obj);
+        
     case Angle.name:
         return new Angle().make(obj);
 
