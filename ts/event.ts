@@ -66,19 +66,33 @@ export function setEventListener(){
         glb.addWidget(new Speech("🔊"));
     });
 
-    // 開くボタン
-    document.getElementById("get-data")!.addEventListener("click", (ev: MouseEvent)=>{
-        getData();
+    // 新規ボタン
+    document.getElementById("new-doc")!.addEventListener("click", (ev: MouseEvent)=>{
+        putData("");
     });
+
+    // 開くボタン
+    document.getElementById("get-doc")!.addEventListener("click", (ev: MouseEvent)=>{
+        let path  = glb.selFile.value.trim();
+        glb.openDoc(path);
+    });
+
+    // 保存ボタン
+    document.getElementById("put-doc")!.addEventListener("click", (ev: MouseEvent)=>{
+        let path  = glb.txtFile.value.trim();
+        console.assert(path != "");
+        putData(path);
+    });
+
+    // タイトル
+    glb.txtTitle.addEventListener("focus", (ev: FocusEvent)=>{
+        // フォーカス時にテキスト全体を選択する。
+        glb.txtTitle.setSelectionRange(0, glb.txtTitle.value.length);
+    })
 
     // 削除ボタン
     document.getElementById("delete-action")!.addEventListener("click", (ev: MouseEvent)=>{
         glb.deleteWidget();
-    });
-
-    // 保存ボタン
-    document.getElementById("put-data")!.addEventListener("click", (ev: MouseEvent)=>{
-        putData();
     });
 
     // ファイルリスト

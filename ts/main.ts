@@ -509,8 +509,8 @@ export function showFileList(obj: any){
             glb.selFile.add(opt);
         }
 
-        glb.selFile.selectedIndex = 0;
-        glb.txtFile.value = obj.files[0].id;
+        glb.selFile.selectedIndex = -1;
+        glb.txtFile.value = "";
     }
 }
 
@@ -529,11 +529,6 @@ export function bodyOnload(){
     initDraw();
 }
 
-export function getData(){
-    let path  = glb.selFile.value.trim();
-    glb.openDoc(path);
-}
-
 export function getAll() : Widget[] {
     let v: Widget[] = [];
 
@@ -542,7 +537,7 @@ export function getAll() : Widget[] {
     return v;
 }
 
-export function putData(){
+export function putData(path: string){
     let v = getAll();
     for(let [i, x] of v.entries()){
         x.id = i;
@@ -555,8 +550,6 @@ export function putData(){
     }
 
     const text = JSON.stringify(obj, null, 4);
-
-    let path  = glb.txtFile.value.trim();
 
     writeTextFile(path, text);
 }

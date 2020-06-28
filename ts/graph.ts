@@ -322,7 +322,7 @@ class TextBox {
 
                 srcBox.rect!.setAttribute("stroke", "green");
 
-                this.inputs.push(new Edge(srcBox.id, this.id, `${srcBox.id}⇒${this.id}`));
+                this.inputs.push(new Edge(srcBox.id, this.id, ""));
 
                 srcBox = null;
 
