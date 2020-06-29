@@ -6,6 +6,7 @@ export let glb: Glb;
 
 export class Glb {
     static edit: boolean;
+    static svgGraph: SVGSVGElement;
     widgets : Widget[] = [];
     widgetMap : Widget[] = [];
     refMap = new Map<number, Widget>();
@@ -483,7 +484,7 @@ export function parseObject(obj: any) : any {
 
     case Arc.name:
         return new Arc().make(obj);
-        
+
     case Angle.name:
         return new Angle().make(obj);
 
@@ -502,7 +503,7 @@ export function parseObject(obj: any) : any {
     }
 }
 
-export function showFileList(obj: any){    
+function showFileList(obj: any){    
     if(obj.files.length != 0){
 
         for(let file of obj.files){
@@ -512,24 +513,14 @@ export function showFileList(obj: any){
             glb.selFile.add(opt);
         }
 
-        glb.selFile.selectedIndex = -1;
-        glb.txtFile.value = "";
-    }
-}
-
-export function bodyOnload(){
-    console.log("body load");
+        let id = getIdFromUrl();
+        if(id != ""){
     
-    glb = new Glb(true);
-    msg("$$ab$$ $$cd$$".replace(/\$\$/g, "\n\$\$\n"))
-
-    fetchFileList(showFileList);
-
-    initSpeech();
-
-    setEventListener();
-
-    initDraw();
+            glb.selFile.value = id;
+            glb.txtFile.value = id;
+            glb.openDoc(id);
+        }
+    }
 }
 
 export function getAll() : Widget[] {
@@ -557,6 +548,37 @@ export function putData(path: string){
     writeTextFile(path, text);
 }
 
+function getIdFromUrl(){
+    let k = window.location.href.lastIndexOf('?');
+    if(k == -1){
+        return "";
+    }
+
+    let s = window.location.href.substring(k + 1);
+    let v = s.split('=');
+    if(v.length == 2 && v[0] == "id"){
+        return v[1];
+    }
+    else{
+        return "";
+    }
+}
+
+export function initEdit(){
+    console.log("body load");
+    
+    glb = new Glb(true);
+    msg("$$ab$$ $$cd$$".replace(/\$\$/g, "\n\$\$\n"))
+
+    fetchFileList(showFileList);
+
+    initSpeech();
+
+    setEventListener();
+
+    initDraw();
+}
+
 export function initPlay(){
     console.log(`play ${window.location.href}`);
     
@@ -566,19 +588,11 @@ export function initPlay(){
 
     setEventListener();
 
-    let k = window.location.href.lastIndexOf('?');
-    if(k == -1){
-        return;
-    }
+    let id = getIdFromUrl();
+    if(id != ""){
 
-    let s = window.location.href.substring(k + 1);
-    let v = s.split('=');
-    if(v.length != 2 || v[0] != "id"){
-        return;
+        glb.openDoc(id);
     }
-
-    let id = v[1];
-    glb.openDoc(id);
 }
 
 export function onClickPointerMove(act:TextBlock, ev: PointerEvent | MouseEvent, is_click: boolean){

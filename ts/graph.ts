@@ -270,7 +270,7 @@ class Edge {
     onClickEdge = (ev:MouseEvent)=>{
         ev.stopPropagation();
 
-        if(ev.shiftKey){
+        if(ev.ctrlKey && ev.shiftKey){
 
             var dst_blc = get_block(this.dstId)!;
             dst_blc.inputs = dst_blc.inputs.filter(x => x != this);
@@ -329,12 +329,13 @@ class TextBox {
                 showGraph();
             }    
         }
-        else if(! Glb.edit){
-            // https://lkzf.info/bansho/list
-            let k = window.location.href.lastIndexOf("/");
-            let base = window.location.href.substring(0, k);
-            let url = `${base}/play.html?id=${this.id}`
-            window.open(url, '_blank');
+        else if(ev.shiftKey){
+
+            showEditHtml(`${this.id}`);
+        }
+        else{
+
+            showPlayHtml(`${this.id}`);
         }
     }
 }
@@ -370,14 +371,14 @@ function initEdges(edges: any[]){
     showGraph();
 }
 
-function getFileList(obj: any){
-    for(let file of obj.files){
-        let box = new TextBox([], file.title);
-        box.id = parseInt(file.id);
+function getFileList(docs: any){
+    for(let doc of docs.files){
+        let box = new TextBox([], doc.title);
+        box.id = parseInt(doc.id);
         blocks.push(box);
     }
 
-    initEdges(obj.edges);
+    initEdges(docs.edges);
 }
 
 function saveGraph(){
@@ -416,12 +417,52 @@ export function initGraph(){
 
     for(let [i, s] of [s0, s1, s2].entries()){
         let box = new TextBox([], s);
-        box.id = 90 + i;
+        box.id = -100 - i;
         blocks.push(box);
     }
 
     fetchFileList(getFileList);
 }
 
+function showHtml(file_name: string, id: string){
+    // https://lkzf.info/bansho/list
+    let k = window.location.href.lastIndexOf("/");
+    let base = window.location.href.substring(0, k);
+    let url = `${base}/${file_name}.html?id=${id}`
+    window.open(url, '_blank');
+}
+
+function showEditHtml(id: string){
+    showHtml("edit", id);
+}
+
+function showPlayHtml(id: string){
+    showHtml("play", id);
+}
+
+function initSvgNodes(docs: any){
+    for(let doc of docs.files){
+        let node = document.getElementById(doc.id) as any as SVGGElement;
+        
+        node.style.cursor = "pointer";
+        node.addEventListener("click", function(ev:MouseEvent){
+            showPlayHtml(this.id);
+        });
+    }
+}
+
+
+export function showGraphviz(){
+    Glb.svgGraph = document.getElementById("svg-graph") as any as SVGSVGElement;
+
+    fetchText("graph.svg", (text: string)=>{
+        let k = text.indexOf("<svg");
+        text = text.substring(k);
+
+        Glb.svgGraph.outerHTML = text;
+
+        fetchFileList(initSvgNodes);
+    });
+}
 
 }

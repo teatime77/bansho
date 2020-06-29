@@ -160,12 +160,6 @@ export function fetchText(path:string, fnc:(text: string)=>void){
 export function writeTextFile(path: string, text: string){
     msg(`[${text}]`);
 
-    navigator.clipboard.writeText(text).then(function() {
-        msg("copy OK");
-    }, function() {
-        msg("copy NG");
-    });
-
     var url = `${window.location.origin}/`;
     var data = {
         "path": path,

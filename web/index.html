@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8" />
+<title>数学・物理・AIの依存関係グラフ</title>
+<script>
+// \newcommand{\v}[1]{\mathrm{#1}}
+window.MathJax = {
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        macros: {
+            v : ["{\\mathrm #1}", 1]
+        }
+    },
+    options: {
+        renderActions: {
+            addMenu: [0, '', '']
+        }
+    },
+    chtml: {
+        scale: 1.0
+    }    
+};
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script src="lib/dagre.min.js"></script>
+
+<script src="js/util.js?ver=1" ></script>
+<script src="js/widget.js?ver=1" ></script>
+<script src="js/event.js?ver=1" ></script>
+<script src="js/speech.js?ver=1" ></script>
+<script src="js/main.js?ver=1" ></script>
+<script src="js/shape.js?ver=1" ></script>
+<script src="js/graph.js?ver=1" ></script>
+
+
+</head>
+
+<body onload="bansho.showGraphviz()">
+<svg id="svg-graph"></svg>
+</body>
+</html>

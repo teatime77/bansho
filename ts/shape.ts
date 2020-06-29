@@ -75,6 +75,79 @@ function linesIntersection(l1:LineSegment, l2:LineSegment) : Vec2 {
     return l1.p1.add(l1.p12.mul(u));
 }
 
+function lineArcIntersection(line:LineSegment, arc:CircleArc) : Vec2[] {
+    // 円/弧の中心
+    const center = arc.getCenter();
+
+    // 円/弧の中心から線分に垂線をおろして、その足をfootとする。
+    const foot = calcFootOfPerpendicular(center, line);
+
+    // 円/弧の中心から垂線の足までの距離。
+    const h = foot.sub(center).len();
+
+    // 円/弧の半径
+    let r = arc.getRadius();
+
+    if(r < h ){
+        // 半径が垂線の足までの距離より小さい場合
+
+        return [];
+    }
+
+    // 垂線の足から交点までの距離
+    let t = Math.sqrt(r*r - h * h);
+
+    // 線分の単位方向ベクトル
+    let e = line.e;
+    
+    // 交点の座標
+    let p1 = foot.add(e.mul(t));
+    let p2 = foot.add(e.mul(-t));
+
+    return [p1, p2];
+}
+
+function ArcArcIntersection(arc1:CircleArc, arc2:CircleArc) : Vec2[] {
+    // 円/弧の中心
+    const c1 = arc1.getCenter();
+    const c2 = arc2.getCenter();
+
+    // 円/弧の半径
+    const r1 = arc1.getRadius();
+    const r2 = arc2.getRadius();
+
+    // 円/弧の中心の距離
+    const L = c1.dist(c2);
+
+    // r1*r1 - t*t = r2*r2 - (L - t)*(L - t)
+    //             = r2*r2 - L*L + 2Lt - t*t
+    // r1*r1 = r2*r2 - L*L + 2Lt
+    const t = (r1*r1 - r2*r2 + L*L)/ (2 * L);
+
+    // 円/弧の交点から、円/弧の中心を結ぶ直線におろした垂線の長さの二乗
+    const h2 = r1*r1 - t*t;
+    if(h2 < 0){
+        return [];
+    }
+
+    const h = Math.sqrt(h2);
+
+    // c1→c2の単位ベクトル
+    const e1 = c2.sub(c1).unit();
+
+    // e1の法線ベクトル
+    const e2 = new Vec2(- e1.y, e1.x);
+
+    // 円/弧の交点から、円/弧の中心を結ぶ直線におろした垂線の足
+    const foot = c1.add(e1.mul(t));
+    
+    // 交点の座標
+    let p1 = foot.add(e2.mul(h));
+    let p2 = foot.add(e2.mul(-h));
+
+    return [p1, p2];
+}
+
 function calcFootOfPerpendicular(pos:Vec2, line: LineSegment) : Vec2 {
     const p1 = line.handles[0].pos;
     const p2 = line.handles[1].pos;
@@ -1344,7 +1417,6 @@ export abstract class CompositeShape extends Shape {
         return this.handles.map(x => x.summary()).join(' ');
     }
 
-
     setEnable(enable: boolean){
         super.setEnable(enable);
         this.handles.forEach(x => x.setEnable(enable));
@@ -2256,11 +2328,22 @@ export class Rect extends Polygon {
     }
 }
 
-export class Circle extends CompositeShape {
+class CircleArc extends CompositeShape {
+    Color: string = "navy";
+
+    getRadius(){
+        return NaN;
+    }
+
+    getCenter(){
+        return this.handles[0].pos;
+    }
+}
+
+export class Circle extends CircleArc {
     byDiameter:boolean;
     center: Vec2|null = null;
     radius: number = this.toSvg(1);
-    Color: string = "navy";
     
     circle: SVGCircleElement;
 
@@ -2317,6 +2400,19 @@ export class Circle extends CompositeShape {
         return this;
     }
 
+    select(selected: boolean){
+        if(this.selected != selected){
+            this.selected = selected;
+
+            if(this.selected){
+                this.circle.setAttribute("stroke", "orange");
+            }
+            else{
+                this.circle.setAttribute("stroke", this.Color);
+            }
+        }
+    }
+
     setColor(c:string){
         this.Color = c;
         this.circle.setAttribute("stroke", this.Color);
@@ -2327,6 +2423,10 @@ export class Circle extends CompositeShape {
 
         this.circle.setAttribute("cx", "" + this.center.x);
         this.circle.setAttribute("cy", "" + this.center.y);
+    }
+
+    getRadius(){
+        return this.radius;
     }
 
     setRadius(pt: Vec2){
@@ -2810,18 +2910,22 @@ export class ParallelLine extends CompositeShape {
 
 export class Intersection extends Shape {
     lines : LineSegment[] = [];
-    intersection : Point|null = null;
+    arcs    : CircleArc[] = [];
+    intersections : Point[] = [];
 
     makeObj() : any {
-        return Object.assign(super.makeObj(), {
+        let obj = Object.assign(super.makeObj(), {
             lines: this.lines.map(x => x.toObj()),
-            intersection: this.intersection!.toObj()
+            arcs : this.arcs.map(x => x.toObj()),
+            intersections: this.intersections.map(x => x.toObj())
         });
+
+        return obj;
     }
 
     all(v: Widget[]){
         super.all(v);
-        this.intersection!.all(v);
+        this.intersections.forEach(x => x.all(v));
     }
 
     summary() : string {
@@ -2831,18 +2935,34 @@ export class Intersection extends Shape {
     setEnable(enable: boolean){
         super.setEnable(enable);
         
-        this.intersection!.setEnable(enable);
+        this.intersections.forEach(x => x.setEnable(enable));
     }
 
     makeEventGraph(src:Shape|null){
         super.makeEventGraph(src);
 
-        this.parentView.eventQueue.addEventMakeEventGraph(this.intersection!, this);
+        for(let pt of this.intersections){
+            this.parentView.eventQueue.addEventMakeEventGraph(pt, this);
+        }
     }
 
     processEvent =(sources: Shape[])=>{
-        this.intersection!.pos = linesIntersection(this.lines[0], this.lines[1]);
-        this.intersection!.setPos();
+        let points : Vec2[] = [];
+
+        if(this.lines.length == 2){
+            points.push( linesIntersection(this.lines[0], this.lines[1]) );
+        }
+        else if(this.lines.length == 1 && this.arcs.length == 1){
+            points = lineArcIntersection(this.lines[0], this.arcs[0]);
+        }
+        else if(this.arcs.length == 2){
+            points = ArcArcIntersection(this.arcs[0], this.arcs[1]);
+        }
+
+        for(let [i,pt] of points.entries()){
+            this.intersections[i].pos = pt;
+            this.intersections[i].setPos();
+        }
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -2853,21 +2973,54 @@ export class Intersection extends Shape {
 
             if(this.lines.length == 1){
 
-
                 line.select(true);
             }
-            else{
+        }
+        else{
+            const circle = this.parentView.getCircle(ev);
+            if(circle != null){
 
-                const v = linesIntersection(this.lines[0], this.lines[1]);
-                this.intersection = new Point({pos:v});
-
-                for(let line2 of this.lines){
-
-                    line2.addListener(this);
-                }
-
-                this.finishTool();
+                this.arcs.push(circle);
+                circle.select(true);
             }
+            else{
+                const arc = this.parentView.getArc(ev);
+                if(arc != null){
+
+                    this.arcs.push(arc);
+                    arc.select(true);
+                }
+            }    
+        }
+
+        if(this.lines.length == 2){
+            const v = linesIntersection(this.lines[0], this.lines[1]);
+            this.intersections.push(new Point({pos:v}));
+        }
+        else if(this.lines.length == 1 && this.arcs.length == 1){
+
+            let points = lineArcIntersection(this.lines[0], this.arcs[0]);
+
+            if(points.length != 0){
+
+                points.forEach(p => this.intersections.push(new Point({pos:p})));
+            }
+        }
+        else if(this.arcs.length == 2){
+
+            let points = ArcArcIntersection(this.arcs[0], this.arcs[1]);
+
+            if(points.length != 0){
+
+                points.forEach(p => this.intersections.push(new Point({pos:p})));
+            }
+        }
+
+        if(this.lines.length + this.arcs.length == 2){
+            this.lines.forEach(x => x.addListener(this));
+            this.arcs.forEach(x => x.addListener(this));
+
+            this.finishTool();
         }
     }
 
@@ -2897,9 +3050,8 @@ function calcLargeArcSweepFlag(q1: Vec2, q2: Vec2){
         return [ theta1, theta2, deltaTheta, largeArcSweepFlag];
 }
 
-export class Arc extends CompositeShape {
+export class Arc extends CircleArc {
     arc   : SVGPathElement;
-    Color : string = "black";
 
     constructor(){
         super();
@@ -2934,6 +3086,19 @@ export class Arc extends CompositeShape {
         return [ "Color" ];
     }
 
+    select(selected: boolean){
+        if(this.selected != selected){
+            this.selected = selected;
+
+            if(this.selected){
+                this.arc.setAttribute("stroke", "orange");
+            }
+            else{
+                this.arc.setAttribute("stroke", this.Color);
+            }
+        }
+    }
+
     setColor(c:string){
         this.Color = c;
 
@@ -2949,9 +3114,14 @@ export class Arc extends CompositeShape {
         this.drawArc(null);
     }
 
+    getRadius(){
+        let [p0, p1] = [ this.handles[0].pos, this.handles[1].pos ];
+        return p1.sub(p0).len();
+    }
+
     adjust(handle: Point) {
         let [p0, p1] = [ this.handles[0].pos, this.handles[1].pos ];
-        let radius = p1.sub(p0).len();
+        let radius = this.getRadius();
 
         const v = handle.pos.sub(p0);
         const theta = Math.atan2(v.y, v.x);
@@ -2980,7 +3150,7 @@ export class Arc extends CompositeShape {
 
         let [ theta1, theta2, deltaTheta, largeArcSweepFlag] = calcLargeArcSweepFlag(q1, q2);
 
-        let r = p1.sub(p0).len();
+        let r = this.getRadius();
 
         let x = p0.x + r * Math.cos(theta2);
         let y = p0.y + r * Math.sin(theta2);

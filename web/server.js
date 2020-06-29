@@ -1,43 +1,21 @@
 var http = require('http');
 const fs = require('fs');
 var server = http.createServer(function(req, res) {
-    console.log(`url    [${req.url}]`);
-    console.log(`method [${req.method}]`);
+    console.log(`${req.method} [${req.url}]`);
 
     if(req.method == "GET"){
 
         if(req.url == "/list"){
-            fs.readdir('json', function(err, files){
-                if (err) throw err;
-                console.log(files);
+            
+            let docs = getDocList();
+            let text = JSON.stringify(docs, null, 4);
 
-                files = files.filter(x => x.endsWith(".json")).map(x => x.replace(".json", ""));
+            res.writeHead(200, {"Content-Type": "application/json"});
+            res.end(text);
 
-                let name_titles = [];
-                let edges;
-                for(let name of files){
-                    let text = fs.readFileSync(`json/${name}.json`, 'utf8');
-                    let obj  = JSON.parse(text);
+            writeText(`list.json`, text);
 
-                    if(name == "edges"){
-
-                        edges = obj.edges;
-                    }
-                    else{
-
-                        let title = obj.title;
-
-                        name_titles.push( { id: name, title: title })
-                    }
-                }
-                
-                res.writeHead(200, {"Content-Type": "application/json"});
-
-                let text = JSON.stringify({ files: name_titles, edges: edges }, null, 4);
-                res.end(text);
-
-                writeText(`list.json`, text);
-            });
+            makeDot();
         }
         else if(req.url.startsWith("/")){
             let path = req.url.substring(1);
@@ -96,24 +74,31 @@ var server = http.createServer(function(req, res) {
         
         // 受信完了(end)イベント発生時
         req.on('end', function() {
-            console.log(body);
 
             let data = JSON.parse(body);
             let id = data.path;
 
+            let doc = JSON.parse(data.text);
+            let title = (doc.title != undefined ? doc.title : "");
             if(id == ""){
 
                 id = emptyId();
+                console.log(`新規 ${id} ${title}`);
             }
             else{
 
                 backup(id);
+                console.log(`更新 ${id} ${title}`);
             }
 
             writeText(`json/${id}.json`, data.text);
 
             res.write(JSON.stringify({ "status": "ok"}));
             res.end();
+
+            if(id == "edges"){
+                makeDot();
+            }
         });
     }
 
@@ -161,7 +146,61 @@ function backup(name){
             fs.renameSync(path1, path2);
             return;
         }
-    
     }
+}
+
+function getDocList(){
+    let files = fs.readdirSync('json');
+
+    files = files.filter(x => x.endsWith(".json")).map(x => x.replace(".json", ""));
+
+    let name_titles = [];
+    let edges;
+
+    for(let name of files){
+        let text = fs.readFileSync(`json/${name}.json`, 'utf8');
+        let obj  = JSON.parse(text);
+
+        if(name == "edges"){
+
+            edges = obj.edges;
+        }
+        else{
+
+            let title = obj.title;
+
+            name_titles.push( { id: name, title: title })
+        }
+    }
+    
+    return { files: name_titles, edges: edges };
+}
+
+function makeDot(){
+    let head = `digraph graph_name {
+        graph [
+          charset = "UTF-8";
+          label = "数学・物理・AIの依存関係",
+        ];
+    `;
+
+    let docs = getDocList();
+
+    let lines = [];
+    for(let doc of docs.files){
+        lines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}" ];`);
+    }
+
+    for(let edge of docs.edges){
+        lines.push(`b${edge.srcId} -> b${edge.dstId};`)
+    }
+
+    let text = head + lines.join('\n') + "\n}";
+    writeText(`graph.dot`, text);
+
+
+
+
+
 
 }
