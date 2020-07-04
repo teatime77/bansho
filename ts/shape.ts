@@ -66,7 +66,7 @@ function linesIntersection(l1:LineSegment, l2:LineSegment) : Vec2 {
     l1.p12.y, - l2.p12.y   v = l2.p1.y - l1.p1.y
     
     */
-    const m = new Mat2(l1.p12.x, - l2.p12.x, l1.p12.y, - l2.p12.y);
+    const m = new Mat2([[l1.p12.x, - l2.p12.x], [l1.p12.y, - l2.p12.y]]);
     const v = new Vec2(l2.p1.x - l1.p1.x, l2.p1.y - l1.p1.y);
     const mi = m.inv();
     const uv = mi.dot(v);
@@ -286,111 +286,6 @@ export function deselectShape(){
 
 export function initDraw(){
     setToolTypeEventListener();
-}
-
-export class Vec2 {
-    typeName: string = "Vec2";
-    x: number;
-    y: number;
-
-    constructor(x:number, y: number){
-        this.x = x;
-        this.y = y;
-    }
-
-    copy(){
-        return new Vec2(this.x, this.y);
-    }
-
-    equals(pt: Vec2): boolean {
-        return this.x == pt.x && this.y == pt.y;
-    }
-
-    add(pt: Vec2) : Vec2{
-        return new Vec2(this.x + pt.x, this.y + pt.y);
-    }
-
-    sub(pt: Vec2) : Vec2{
-        return new Vec2(this.x - pt.x, this.y - pt.y);
-    }
-
-    mul(c: number) : Vec2 {
-        return new Vec2(c * this.x, c * this.y);
-    }
-
-    len2(): number {
-        return this.x * this.x + this.y * this.y;
-    }
-
-    len(): number {
-        return Math.sqrt(this.len2());
-    }
-
-    dist(pt:Vec2) : number {
-        const dx = pt.x - this.x;
-        const dy = pt.y - this.y;
-
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    dot(pt:Vec2) : number{
-        return this.x * pt.x + this.y * pt.y;
-    }
-
-    unit() : Vec2{
-        const d = this.len();
-
-        if(d == 0){
-
-            return new Vec2(0, 0);
-        }
-
-        return new Vec2(this.x / d, this.y / d);
-    }
-
-    divide(t: number, pt: Vec2) : Vec2 {
-        const x = (1 - t) * this.x + t * pt.x;
-        const y = (1 - t) * this.y + t * pt.y;
-
-        return new Vec2(x, y);
-    }
-}
-
-export class Mat2 {
-    a11 : number;
-    a12 : number;
-    a21 : number;
-    a22 : number;
-
-    constructor(a11:number, a12:number, a21:number, a22:number){
-        this.a11 = a11;
-        this.a12 = a12;
-        this.a21 = a21;
-        this.a22 = a22;
-    }
-
-    print(){
-        bansho.msg(`${this.a11} ${this.a12}\n${this.a21} ${this.a22}`);
-    }
-
-    det(){
-        return this.a11 * this.a22 - this.a12 * this.a21;
-    }
-
-    mul(m:Mat2):Mat2 {
-        return new Mat2(this.a11 * m.a11 + this.a12 * m.a21, this.a11 * m.a12 + this.a12 * m.a22, this.a21 * m.a11 + this.a22 * m.a21, this.a21 * m.a12 + this.a22 * m.a22);
-    }
-
-    dot(v:Vec2) : Vec2{
-        return new Vec2(this.a11 * v.x + this.a12 * v.y, this.a21 * v.x + this.a22 * v.y);
-    }
-
-    inv() : Mat2 {
-        const det = this.det();
-        console.assert(det != 0);
-
-        return new Mat2(this.a22 / det, - this.a12 / det, - this.a21 / det, this.a11 / det)
-    }
 }
 
 export class ShapeEvent{
@@ -3598,6 +3493,10 @@ export class Image extends CompositeShape {
         this.image.setAttribute("y", "" + this.handles[0].pos.y);
         this.finishTool();
     }
+}
+
+export function testGpgpu(){
+    gpgputs.testBodyOnLoad();
 }
 
 }

@@ -453,6 +453,16 @@ function initSvgNodes(docs: any){
 
 
 export function showGraphviz(){
+    let a = new Mat3([[1,3,5], [2,3,7], [3,2,1]]);
+    let b = new Mat3([[7,2,5],[4,1,3],[3,7,5]]);
+    msg(`det:${a.det()} ${b.det()}`);
+
+    a.mul(2).print("a * 2");
+    a.mul(b).print("a * b");
+    a.inv().print("a inv");
+    a.inv().mul(a).print("a inv a");
+    b.inv().mul(b).print("b inv b");
+
     Glb.svgGraph = document.getElementById("svg-graph") as any as SVGSVGElement;
 
     fetchText("graph.svg", (text: string)=>{

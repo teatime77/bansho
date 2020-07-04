@@ -1,3 +1,4 @@
+console.log(__dirname);
 var http = require('http');
 const fs = require('fs');
 var server = http.createServer(function(req, res) {
@@ -24,6 +25,10 @@ var server = http.createServer(function(req, res) {
                 path = path.substring(0, k);
             }
 
+            if(path.startsWith("gpgpu.ts")){
+                path = "C:/usr/prj/" + path;
+            }
+
             if(path.endsWith(".ico")){
 
                 console.log("アイコン");
@@ -40,6 +45,7 @@ var server = http.createServer(function(req, res) {
                 }
                 else{
 
+                    console.log(`file not found: ${path}`);
                     res.statusCode = 404;
                 }
             }
@@ -52,6 +58,7 @@ var server = http.createServer(function(req, res) {
                 }
                 else{
 
+                    console.log(`file not found: ${path}`);
                     res.statusCode = 404;
                 }
             }
