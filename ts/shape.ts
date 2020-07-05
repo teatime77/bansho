@@ -399,8 +399,8 @@ export class View extends Widget {
         this.canvas.style.left = "0px";
         this.canvas.style.top = "0px";
         this.canvas.style.zIndex = "2";
-        this.canvas.width = 1024;
-        this.canvas.height = 1024;
+        this.canvas.width  = 512;
+        this.canvas.height = 512;
 
         this.div.appendChild(this.canvas);
 

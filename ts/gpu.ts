@@ -1,6 +1,7 @@
 /// <reference path="@types/shape.d.ts" />
 
 namespace bansho {
+export let gl : WebGL2RenderingContext;
 
 const headShader = `
 const vec3 uAmbientColor = vec3(0.2, 0.2, 0.2);
@@ -60,6 +61,50 @@ void main(void) {
 
 }`;
 }
+
+function spherePoints(n1: number, n2: number){ 
+    return `
+uniform mat4 uPMVMatrix;
+uniform float pointSize;
+uniform int   tick;
+
+in  vec4 A;
+out vec4 B;
+
+out vec4 fragmentColor;
+
+#define PI 3.14159265359
+    
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int it = idx % ${n1};
+    int iz = idx / ${n1};
+
+    float x, y, z;
+    if(tick == 0){
+
+        z = sin(-PI/2.0 + PI * float(iz) / ${n1}.0);
+        float r = sqrt(1.0 - z * z);
+        x = r * cos(2.0 * PI * float(it) / ${n2}.0);
+        y = r * sin(2.0 * PI * float(it) / ${n2}.0);
+    }
+    else{
+
+        x = A.x + 0.001 * cos(float(tick) / 100.0);
+        y = A.y + 0.001 * sin(float(tick) / 100.0);
+        z = A.z + 0.001 * sin(float(tick) / 100.0);
+    }
+
+    fragmentColor = vec4(abs(x), abs(y), abs(z), 1.0);
+
+    gl_PointSize  = pointSize;
+    gl_Position   = uPMVMatrix * vec4(x, y, z, 1.0);
+    B             = vec4(x, y, z, 1.0);
+}`;
+}
+
+
 
 function Tetrahedron(){
     let x = Math.cos(Math.PI / 6.0);
@@ -145,6 +190,8 @@ void main(void) {
 
 export function make3D(canvas: HTMLCanvasElement){
     let gpgpu = gpgputs.CreateGPGPU(canvas);
+    gl = gpgputs.gl;
+
     gpgpu.startDraw3D([
         (new gpgputs.Circle(new gpgputs.Color(1,0,0,1), 20)).scale(0.2, 0.1, 0.2).move(1, 0, 0.5),
         (new gpgputs.Tube(new gpgputs.Color(0,1,0,1), 20)).scale(0.1, 0.1, 2).move(-1, 0, 0),
@@ -158,9 +205,19 @@ export function make3D(canvas: HTMLCanvasElement){
         (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 3)).scale(0.3, 0.3, 0.3).move(-1.5, -1, 0),
         (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 4)).scale(0.3, 0.3, 0.3).move(-3, -2, 0),
 
-        new gpgputs.UserDef(sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6),
-        new gpgputs.UserDef(CubeShader()        , gpgputs.GPGPU.planeFragmentShader, 6 * 6),
-        new gpgputs.UserDef(Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(1, 1, 0),
+        new gpgputs.UserPoints(spherePoints(32, 32) , gpgputs.GPGPU.pointFragmentShader,
+            {
+                pointSize: 5,
+                A : new Float32Array(32 * 32 * 4),
+                B : new Float32Array(32 * 32 * 4)
+            }, 
+            (self:gpgputs.UserPoints)=>{
+                let B = (self.package.args as any).B as Float32Array;
+                (self.package.args as any).A = B.slice();
+            }),
+        new gpgputs.UserSurface(sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6),
+        new gpgputs.UserSurface(CubeShader()        , gpgputs.GPGPU.planeFragmentShader, 6 * 6),
+        new gpgputs.UserSurface(Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0),
     ]);
 
     return gpgpu;
