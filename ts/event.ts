@@ -242,7 +242,10 @@ export function setToolTypeEventListener(){
  */
 export function setViewEventListener(view: View){
     view.svg.addEventListener("click", view.svgClick);
-    view.svg.addEventListener("pointermove", view.svgPointermove);  
+    view.svg.addEventListener("pointerdown", view.svgPointerDown);  
+    view.svg.addEventListener("pointerup"  , view.svgPointerUp);  
+    view.svg.addEventListener("pointermove", view.svgPointerMove);  
+    view.svg.addEventListener("wheel"      , view.svgWheel);
 }
 
 /**

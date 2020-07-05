@@ -352,6 +352,8 @@ export class EventQueue {
 
 export class View extends Widget {
     div : HTMLDivElement;
+    canvas: HTMLCanvasElement;
+    gpgpu: gpgputs.GPGPU | null = null;
     svg : SVGSVGElement;
     div2 : HTMLDivElement;
     defs : SVGDefsElement;
@@ -392,8 +394,23 @@ export class View extends Widget {
         this.div.style.backgroundColor = "cornsilk";
         this.div.style.cssFloat = "right";
 
+        this.canvas = document.createElement("canvas");
+        this.canvas.style.position = "absolute";
+        this.canvas.style.left = "0px";
+        this.canvas.style.top = "0px";
+        this.canvas.style.zIndex = "2";
+        this.canvas.width = 1024;
+        this.canvas.height = 1024;
+
+        this.div.appendChild(this.canvas);
+
         this.svg = document.createElementNS("http://www.w3.org/2000/svg","svg") as SVGSVGElement;
 
+        this.svg.style.position = "absolute";
+        this.svg.style.left = "0px";
+        this.svg.style.top = "0px";
+
+        this.svg.style.zIndex = "3";
         this.svg.style.margin = "0px";
 
         this.svg.setAttribute("preserveAspectRatio", "none");
@@ -448,6 +465,8 @@ export class View extends Widget {
 
             setToolType();
         }
+
+        this.gpgpu = make3D(this.canvas);
 
         return this;
     }
@@ -508,6 +527,7 @@ export class View extends Widget {
 
     updateWidth(){
         this.div.style.width  = `${this.Width}px`;
+        this.canvas.style.width  = `${this.Width}px`;
         this.svg.style.width  = `${this.Width}px`;
         this.div2.style.width = `${this.Width}px`;
     }
@@ -545,6 +565,7 @@ export class View extends Widget {
 
     updateHeight(){
         this.div.style.height  = `${this.Height}px`;
+        this.canvas.style.height  = `${this.Height}px`;        
         this.svg.style.height  = `${this.Height}px`;
         this.div2.style.height = `${this.Height}px`;
     }
@@ -887,13 +908,35 @@ export class View extends Widget {
     }
 
 
-    svgPointermove = (ev: PointerEvent)=>{
+    svgPointerDown = (ev: PointerEvent)=>{
+        if(this.gpgpu != null && this.gpgpu.ui3D != null && this.gpgpu.ui3D.pointerdown != undefined){
+            this.gpgpu.ui3D.pointerdown(ev, this.gpgpu.drawParam);
+        }
+    }
+
+    svgPointerUp = (ev: PointerEvent)=>{
+        if(this.gpgpu != null && this.gpgpu.ui3D != null && this.gpgpu.ui3D.pointerup != undefined){
+            this.gpgpu.ui3D.pointerup(ev, this.gpgpu.drawParam);
+        }
+    }
+
+    svgWheel = (ev: WheelEvent)=>{
+        if(this.gpgpu != null && this.gpgpu.ui3D != null && this.gpgpu.ui3D.wheel != undefined){
+            this.gpgpu.ui3D.wheel(ev, this.gpgpu.drawParam);
+        }
+    }
+
+    svgPointerMove = (ev: PointerEvent)=>{
         if(this.capture != null){
             return;
         }
     
         if(this.tool != null){
             this.tool.pointermove(ev);
+        }
+
+        if(this.gpgpu != null && this.gpgpu.ui3D != null){
+            this.gpgpu.ui3D.pointermove(ev, this.gpgpu.drawParam);
         }
     }
     
@@ -3495,8 +3538,5 @@ export class Image extends CompositeShape {
     }
 }
 
-export function testGpgpu(){
-    gpgputs.testBodyOnLoad();
-}
 
 }
