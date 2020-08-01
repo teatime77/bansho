@@ -73,8 +73,8 @@ export function setEventListener(){
 
     // 開くボタン
     document.getElementById("get-doc")!.addEventListener("click", (ev: MouseEvent)=>{
-        let path  = glb.selFile.value.trim();
-        glb.openDoc(path);
+        glb.txtFile.value  = glb.selFile.value.trim();
+        glb.openDoc(glb.txtFile.value);
     });
 
     // 保存ボタン
@@ -184,6 +184,20 @@ export function setSpeechEventListener(uttr: SpeechSynthesisUtterance){
         msg(`speech bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
         prevCharIndex = ev.charIndex;
     };
+}
+
+/**
+ * プロパティのテキストのイベント処理
+ */
+export function setPropertyTextAreaEventListener(obj: Widget, inp: HTMLTextAreaElement, setter: Function){
+    inp.addEventListener("blur", function(act, inp, setter){
+        return function(ev: FocusEvent){
+            setter.apply(act, [ inp.value ]);
+            updateProperty(act);
+            updateSummary(act);
+        };
+    
+    }(obj, inp, setter));
 }
 
 /**

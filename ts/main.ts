@@ -497,6 +497,9 @@ export function parseObject(obj: any) : any {
     case TextSelection.name:
         return new TextSelection().make(obj);
 
+    case FuncLine.name:
+        return new FuncLine().make(obj);
+
     default:
         console.assert(false);
         return null as any as Widget;
@@ -505,6 +508,8 @@ export function parseObject(obj: any) : any {
 
 function showFileList(obj: any){    
     if(obj.files.length != 0){
+
+        obj.files.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
 
         for(let file of obj.files){
             let opt = document.createElement("option");

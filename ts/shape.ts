@@ -186,6 +186,7 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "Intersection":  return new Intersection();
         case "Angle":         return new Angle();
         case "Image":         return new Image({fileName:"./img/teatime77.png"});
+        case "FuncLine":      return new FuncLine();
     } 
 }
 
@@ -243,6 +244,13 @@ export function showProperty(act: Widget){
             sel.selectedIndex = act.Mark;
 
             setPropertySelectEventListener(act, sel, setter);
+        }
+        else if(act instanceof FuncLine && name == "Script"){
+            const text = document.createElement("textarea");
+            text.value = value;
+            setPropertyTextAreaEventListener(act, text, setter);
+
+            valueTd.appendChild(text);
         }
         else{
 
@@ -3536,6 +3544,115 @@ export class Image extends CompositeShape {
         this.image.setAttribute("y", "" + this.handles[0].pos.y);
         this.finishTool();
     }
+}
+
+export class FuncLine extends Shape {  
+    path: SVGPathElement;
+    Color: string = "navy";
+    points: Vec2[] = [];
+    Script: string = `    
+    in  float idx;
+    
+    out float x;
+    out float y;
+    
+    void main(void ) {
+        x = -2.0 + 4.0 * idx / 16.0;
+        y = x * x;
+    }`;
+
+    constructor(){
+        super();
+
+        this.path = document.createElementNS("http://www.w3.org/2000/svg","path");
+        this.path.setAttribute("stroke-width", `${this.toSvg(strokeWidth)}`);
+
+        this.path.setAttribute("fill", "none");
+        this.path.setAttribute("stroke", this.Color);
+
+        this.parentView.G0.appendChild(this.path);
+    }
+
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            Script: this.Script
+        });
+    }
+
+    make(obj: any) : Widget {
+        super.make(obj);
+
+        this.updateScript();
+
+        return this;
+    }
+
+    propertyNames() : string[] {
+        return [ "Script" ];
+    }
+
+    setScript(val: string){
+        this.Script = val;
+        this.updateScript();
+        this.drawPath();
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        this.finishTool();
+    }
+
+    drawPath(){
+        const d0 = "M" + this.points.map(p => `${p.x},${p.y}`).join(" ");
+        this.path.setAttribute("d", d0);
+    }
+
+    updateScript() {
+        const size = 16;
+
+        // 頂点シェーダのプログラムは文字列で記述します。
+        let vertex_shader =
+           `
+#define PI 3.14159265359
+
+in  float idx;
+
+out float x;
+out float y;
+
+void main(void ) {
+    float theta = 2.0 * PI * idx / ${size}.0;
+    x = cos(theta);
+    y = sin(theta);
+}`;
+
+        let x = new Float32Array(size);
+        let y = new Float32Array(size);
+    
+        // 計算のパラメータを作ります。
+        let pkg = new gpgputs.Package({
+            // idはプログラム内でユニークであれば何でも構いません。
+            id: "AddVec",
+    
+            // 頂点シェーダの文字列を指定します。
+            vertexShader: this.Script,
+    
+            // 頂点シェーダ内の入力と出力の変数名に値を割り当てます。
+            args: {
+                "idx": new Float32Array(range(size)),
+                "x"  : x,
+                "y"  : y,
+            }
+        });
+    
+        // パラメータを使い計算します。
+        this.parentView.gpgpu!.compute(pkg);
+    
+        // WebGLのオブジェクトをクリアします。
+        pkg.clear();
+
+        this.points = range(size).map(i => new Vec2(x[i], y[i]));
+    }
+
 }
 
 
