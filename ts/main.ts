@@ -500,6 +500,9 @@ export function parseObject(obj: any) : any {
     case FuncLine.name:
         return new FuncLine().make(obj);
 
+        case Surface.name:
+            return new Surface().make(obj);
+    
     default:
         console.assert(false);
         return null as any as Widget;
@@ -582,6 +585,8 @@ export function initEdit(){
     setEventListener();
 
     initDraw();
+
+    initSample3D();
 }
 
 export function initPlay(){

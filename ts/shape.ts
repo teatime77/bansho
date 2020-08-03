@@ -187,6 +187,7 @@ function makeToolByType(toolType: string): Shape|undefined {
         case "Angle":         return new Angle();
         case "Image":         return new Image({fileName:"./img/teatime77.png"});
         case "FuncLine":      return new FuncLine();
+        case "Surface":      return new Surface();
     } 
 }
 
@@ -245,7 +246,7 @@ export function showProperty(act: Widget){
 
             setPropertySelectEventListener(act, sel, setter);
         }
-        else if(act instanceof FuncLine && name == "Script"){
+        else if((act instanceof FuncLine || act instanceof Surface) && name == "Script"){
             const text = document.createElement("textarea");
             text.value = value;
             setPropertyTextAreaEventListener(act, text, setter);
@@ -3655,5 +3656,119 @@ void main(void ) {
 
 }
 
+
+export class Surface extends Shape {
+    Script: string = `    
+vec3 calc(float u, float v){
+    float z = cos(10.0 * PI * u) + sin(10.0 * PI * v);
+    return vec3(u, v, 0.01 * z);
+}    
+    `;
+
+    Script2: string = `    
+vec3 calc(float u, float v){
+    float x = sin(u) * cos(v);
+    float y = sin(u) * sin(v);
+    float z = cos(u);
+    
+    return vec3(x, y, z);
+}    
+    `;
+
+    surface: gpgputs.UserSurface | undefined;
+
+    constructor(){
+        super();
+    }
+
+    makeObj() : any {
+        return Object.assign(super.makeObj(), {
+            Script: this.Script
+        });
+    }
+
+    make(obj: any) : Widget {
+        super.make(obj);
+
+        this.updateScript();
+
+        return this;
+    }
+
+    propertyNames() : string[] {
+        return [ "Script" ];
+    }
+
+    setScript(val: string){
+        this.Script = val;
+        this.updateScript();
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        this.finishTool();
+        this.updateScript();
+    }
+
+    makeShader(startU: number, endU: number, startV: number, endV: number, nrow: number, ncol: number){
+        return `
+    ${headShader}
+
+    ${this.Script}
+    
+    void main(void) {
+        int idx = int(gl_VertexID);
+    
+        int ip   = idx % 6;
+        idx      /= 6;
+
+        int row  = idx / ${ncol};
+        int col  = idx % ${ncol};
+
+        float du = float(${(endU - startU) / ncol});
+        float dv = float(${(endV - startV) / nrow});
+
+        float offsetU = float(${startU}) + float(col) * du;
+        float offsetV = float(${startV}) + float(row) * dv;
+    
+        // 1,4  5
+        // 0    2,3
+    
+        float u = offsetU + (ip == 1 || ip == 4 || ip == 0 ? 0.0 : du);
+        float v = offsetV + (ip == 0 || ip == 2 || ip == 3 ? 0.0 : dv);
+
+        vec3 pt  = calc(u, v);
+        vec3 pt1 = calc(u + du, v);
+        vec3 pt2 = calc(u, v + dv);
+
+        float x = pt.x, y = pt.y, z = pt.z;
+
+        vec3 e = normalize(cross(pt1 - pt, pt2 - pt));
+        float nx = e.x, ny = e.y, nz = e.z;
+
+        fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 0.6);
+        // fragmentColor = vec4(1.0, 0.0, 0.0, 0.3);
+    
+        ${tailShader}
+    }`;
+    }
+    
+    updateScript() {
+        if(this.surface != undefined){
+            removeArrayElement(this.parentView.gpgpu!.drawables, this.surface);
+            this.surface.package.clear();
+        }
+
+        const nrow = 64;
+        const ncol = 64;
+        // const shader = this.makeShader(0.0, Math.PI, 0.0, 2 * Math.PI, nrow, ncol);
+        const shader = this.makeShader(-1, 1, -1, 1, nrow, ncol);
+        this.surface = new gpgputs.UserSurface(shader, gpgputs.GPGPU.planeFragmentShader, 6 * nrow * ncol);
+
+        // this.surface = new gpgputs.UserSurface(sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6);
+
+        this.parentView.gpgpu!.drawables.push(this.surface);
+    }
+
+}
 
 }

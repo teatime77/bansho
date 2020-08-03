@@ -17,6 +17,12 @@ export function last<T>(v:Array<T>) : T{
     return v[v.length - 1];
 }
 
+export function removeArrayElement<T>(arr:Array<T>, x: T){
+    let idx = arr.indexOf(x);
+    console.assert(idx != -1);
+    arr.splice(idx, 1);
+}
+
 export function removeHtmlElement(ele: Element){
     ele.parentElement!.removeChild(ele);
 }

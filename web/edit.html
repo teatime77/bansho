@@ -82,6 +82,8 @@ input[type="radio"]:checked + label {
 <div style="display: grid; grid-template-rows:110px 100px 50px 1fr; grid-template-columns:150px 1fr 300px 200px; width: 100%; height: 100%;">
     <div style="grid-row: 1; grid-column: 1/span 4; background-color: cornsilk; ">
         <button id="add-shape" >図形を挿入</button>
+        <select id="sample-3d" style="width: 8em;">
+        </select>
         <input type="radio" name="tool-type" value="select" checked />選択
         <input type="radio" name="tool-type" value="Point" />点
         <input type="radio" name="tool-type" value="LineSegment" />線分
@@ -100,6 +102,7 @@ input[type="radio"]:checked + label {
         <input type="radio" name="tool-type" value="Image" />画像
         <input type="radio" name="tool-type" value="DimensionLine" />寸法線
         <input type="radio" name="tool-type" value="FuncLine" />曲線
+        <input type="radio" name="tool-type" value="Surface" />曲面
         <br/>
         <button id="delete-action" >削除</button>
         <input  id="txt-file" type="text" style="width: 6em;" disabled />
