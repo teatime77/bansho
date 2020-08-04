@@ -3675,7 +3675,7 @@ vec3 calc(float u, float v){
 }    
     `;
 
-    surface: gpgputs.UserSurface | undefined;
+    surface: gpgputs.UserMesh | undefined;
 
     constructor(){
         super();
@@ -3762,9 +3762,7 @@ vec3 calc(float u, float v){
         const ncol = 64;
         // const shader = this.makeShader(0.0, Math.PI, 0.0, 2 * Math.PI, nrow, ncol);
         const shader = this.makeShader(-1, 1, -1, 1, nrow, ncol);
-        this.surface = new gpgputs.UserSurface(shader, gpgputs.GPGPU.planeFragmentShader, 6 * nrow * ncol);
-
-        // this.surface = new gpgputs.UserSurface(sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6);
+        this.surface = new gpgputs.UserMesh(gl.TRIANGLES, shader, gpgputs.GPGPU.planeFragmentShader, 6 * nrow * ncol);
 
         this.parentView.gpgpu!.drawables.push(this.surface);
     }

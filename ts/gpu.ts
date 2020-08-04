@@ -210,9 +210,6 @@ void main(void) {
 }`;
 }
 
-/*
-*/
-
 function ArrowShader(nrow: number, ncol: number){ 
     return `
 ${headShader}
@@ -261,13 +258,192 @@ void main(void) {
 }`;
 }
 
+function ArrowFanShader(nrow: number, ncol: number, npt: number){ 
+    return `
+${headShader}
+
+uniform int   tick;
+
+void calc(float u, float v, out vec3 p){
+    p.x = sin(u) * cos(v);
+    p.y = sin(u) * sin(v);
+    p.z = cos(u);
+}    
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int ip  = idx % ${npt};
+    idx /= ${npt};
+
+    int mod = idx % 3;
+    idx /= 3;
+
+    int row  = idx / ${ncol};
+    int col  = idx % ${ncol};
+
+    float u =       PI * float(row) / float(${nrow});
+    float v = 2.0 * PI * float(col) / float(${ncol});
+
+    vec3 p0;
+    calc(u, v, p0);
+    vec3 p1 = 0.9 * p0;
+    vec3 p2 = 0.8 * p0;
+
+    float x, y, z;
+    vec3 nv;
+
+    if(ip == 0){
+        
+        if(mod == 0){
+
+            x = p2.x;
+            y = p2.y;
+            z = p2.z;
+
+            nv = normalize(p2 - p1);
+        }
+        else if(mod == 1){
+
+            x = p1.x;
+            y = p1.y;
+            z = p1.z;
+
+            nv = normalize(p1 - p2);
+        }
+        else{
+
+            x = p0.x;
+            y = p0.y;
+            z = p0.z;
+
+            nv = normalize(p0 - p1);
+        }
+
+    }
+    else{
+        vec3 e1 = normalize(vec3(p1.y - p1.z, p1.z - p1.x, p1.x - p1.y));
+
+        vec3 e2 = normalize(cross(p1, e1));
+
+        float theta = 2.0 * PI * float(ip - 1) / float(${npt - 2});
+
+        float r;
+
+        vec3 p3;
+
+        if(mod != 2){
+
+            r = 0.05;
+            p3 = p1 + r * cos(theta) * e1 + r * sin(theta) * e2;
+        }
+        else{
+
+            r = 0.025;
+            p3 = p0 + r * cos(theta) * e1 + r * sin(theta) * e2;
+        }
+
+        if(mod == 0){
+            // 角錐の場合
+
+            nv = normalize(p3 - p1);
+        }
+        else{
+            // 円の場合
+
+            nv = normalize(p0 - p1);
+        }
+
+        x = p3.x;
+        y = p3.y;
+        z = p3.z;
+
+    }
+
+    float nx = nv.x, ny = nv.y, nz = nv.z;
+
+    // fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 1.0);
+    fragmentColor = vec4(0.5, 0.5, 0.5, 1.0);
+
+    ${tailShader}
+}`;
+}
+
+
+function ArrowTubeShader(nrow: number, ncol: number, npt: number){ 
+    return `
+${headShader}
+
+uniform int   tick;
+
+void calc(float u, float v, out vec3 p){
+    p.x = sin(u) * cos(v);
+    p.y = sin(u) * sin(v);
+    p.z = cos(u);
+}    
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int lh  = idx % 2;
+    idx /= 2;
+
+    int ip  = idx % ${npt};
+    idx /= ${npt};
+
+    int row  = idx / ${ncol};
+    int col  = idx % ${ncol};
+
+    float u =       PI * float(row) / float(${nrow});
+    float v = 2.0 * PI * float(col) / float(${ncol});
+
+    vec3 p0;
+    calc(u, v, p0);
+    vec3 p1 = 0.9 * p0;
+
+    float x, y, z;
+    vec3 nv;
+
+    vec3 e1 = normalize(vec3(p1.y - p1.z, p1.z - p1.x, p1.x - p1.y));
+
+    vec3 e2 = normalize(cross(p1, e1));
+
+    float theta = 2.0 * PI * float(ip - 1) / float(${npt - 2});
+
+    vec3 p3;
+
+    float r = 0.025;
+    if(lh == 0){
+
+        p3 = p0 + r * cos(theta) * e1 + r * sin(theta) * e2;
+        nv = normalize(p3 - p0);
+    }
+    else{
+
+        p3 = p1 + r * cos(theta) * e1 + r * sin(theta) * e2;
+        nv = normalize(p3 - p1);
+    }
+
+    x = p3.x;
+    y = p3.y;
+    z = p3.z;
+
+    float nx = nv.x, ny = nv.y, nz = nv.z;
+
+    // fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 1.0);
+    fragmentColor = vec4(0.5, 0.5, 0.5, 1.0);
+
+    ${tailShader}
+}`;
+}
+
 export function initSample3D(){
     const sel = document.getElementById("sample-3d") as HTMLSelectElement;
     const names = [
         "円",
         "管",
         "円柱",
-        "円錐",
+        "矢印",
         "点",
         "線",
         "正二十面体",
@@ -282,6 +458,7 @@ export function initSample3D(){
         "正四面体",
         "三角錐",
         "矢印",
+        "角錐",
     ];
 
     for(let name of names){
@@ -323,7 +500,10 @@ function getSample3D(idx: number) : gpgputs.Drawable {
         case 0: return (new gpgputs.Circle(new gpgputs.Color(1,0,0,1), 20)).scale(0.2, 0.1, 0.2).move(1, 0, 0.5);
         case 1: return (new gpgputs.Tube(new gpgputs.Color(0,1,0,1), 20)).scale(0.1, 0.1, 2).move(-1, 0, 0);
         case 2: return (new gpgputs.Pillar([gpgputs.Color.red, gpgputs.Color.green, gpgputs.Color.blue], 20)).scale(0.1, 0.1, 1).move(0, 3, 0);
-        case 3: return (new gpgputs.Cone(gpgputs.Color.red, 20)).scale(0.2, 0.2, 1).move(2, 0, 0.5);
+        case 3: return new gpgputs.ComponentDrawable([
+            new gpgputs.UserMesh(gl.TRIANGLE_FAN, ArrowFanShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 3 *  9, 9),
+            new gpgputs.UserMesh(gl.TRIANGLE_STRIP, ArrowTubeShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 2 *  9, 9)
+        ]);
         case 4: return new gpgputs.Points(new Float32Array([1.5, -1.3, 0, -1.5, -1.3, 0]), new Float32Array([1,0,0,1, 0,0,1,1]), 5);
         case 5: return new gpgputs.Lines([{x:1.5,y:-1.5,z:0} as gpgputs.Vertex,{x:-1.5,y:-1.5,z:0} as gpgputs.Vertex], gpgputs.Color.blue);
         case 6: return (new gpgputs.RegularIcosahedron(new gpgputs.Color(0,1,0,1))).scale(0.3, 0.3, 0.3).move(2, -2, 0);
@@ -341,12 +521,13 @@ function getSample3D(idx: number) : gpgputs.Drawable {
                 let B = (self.package.args as any).B as Float32Array;
                 (self.package.args as any).A = B.slice();
             });
-        case 12: return new gpgputs.UserLine(gl.LINE_STRIP, LineShader(32), gpgputs.GPGPU.pointFragmentShader, 32);
-        case 13: return new gpgputs.UserLine(gl.POINTS, LineShader(512), gpgputs.GPGPU.pointFragmentShader, 512);
-        case 14: return new gpgputs.UserSurface(sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6);
-        case 15: return new gpgputs.UserSurface(CubeShader()        , gpgputs.GPGPU.planeFragmentShader, 6 * 6);
-        case 16: return new gpgputs.UserSurface(Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0);
-        case 17: return new gpgputs.UserLine(gl.LINES, ArrowShader(8, 16), gpgputs.GPGPU.pointFragmentShader, 8 * 16 * 4);
+        case 12: return new gpgputs.UserMesh(gl.LINE_STRIP, LineShader(32), gpgputs.GPGPU.pointFragmentShader, 32);
+        case 13: return new gpgputs.UserMesh(gl.POINTS, LineShader(512), gpgputs.GPGPU.pointFragmentShader, 512);
+        case 14: return new gpgputs.UserMesh(gl.TRIANGLES, sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6);
+        case 15: return new gpgputs.UserMesh(gl.TRIANGLES, CubeShader()        , gpgputs.GPGPU.planeFragmentShader, 6 * 6);
+        case 16: return new gpgputs.UserMesh(gl.TRIANGLES, Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0);
+        case 17: return new gpgputs.UserMesh(gl.LINES, ArrowShader(8, 16), gpgputs.GPGPU.pointFragmentShader, 8 * 16 * 4);
+        case 18: return new gpgputs.UserMesh(gl.TRIANGLE_FAN, ArrowFanShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 3 *  9, 9);
     }
     throw new Error();
 }
