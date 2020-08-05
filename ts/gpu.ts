@@ -105,6 +105,134 @@ void main(void) {
 }
 
 
+function spherePointsTex(n1: number, n2: number){ 
+    return `
+uniform mat4  uPMVMatrix;
+uniform float pointSize;
+uniform int   tick;
+
+uniform sampler2D A;
+out vec4 B;
+
+out vec4 fragmentColor;
+
+#define PI 3.14159265359
+    
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int it = idx % ${n1};
+    int iz = idx / ${n1};
+
+    float x, y, z;
+    if(it == 0 && iz == 0){
+
+        z = 1.0 + 0.2 * cos(float(tick) / 100.0);
+        x = 0.0;
+        y = 0.0;
+    }
+    else{
+        if(tick == 0){
+
+            z = cos(PI * float(iz) / ${n1}.0);
+            float r = sqrt(1.0 - z * z);
+            x = r * cos(2.0 * PI * float(it) / ${n2}.0);
+            y = r * sin(2.0 * PI * float(it) / ${n2}.0);
+        }
+        else{
+
+            // Aのrow行i列の値を取得します。
+            vec4 a = texelFetch(A, ivec2(it, iz), 0);
+
+            x = a.x + 0.001 * cos(float(tick) / 100.0);
+            y = a.y + 0.001 * sin(float(tick) / 100.0);
+            z = a.z + 0.001 * sin(float(tick) / 100.0);
+        }
+    }
+
+    fragmentColor = vec4(abs(x), abs(y), abs(z), 1.0);
+
+    gl_PointSize  = pointSize;
+    gl_Position   = uPMVMatrix * vec4(x, y, z, 1.0);
+    B             = vec4(x, y, z, 1.0);
+}`;
+}
+
+
+function stringPoints(n1: number, K: number){ 
+    return `
+uniform mat4  uPMVMatrix;
+uniform float pointSize;
+uniform int   tick;
+
+uniform sampler2D inPos;
+uniform sampler2D inVel;
+out vec4 outPos;
+out vec4 outVel;
+
+out vec4 fragmentColor;
+
+#define PI 3.14159265359
+    
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    vec4 vel = vec4(0.0, 0.0, 0.0, 0.0);
+
+    float x, y, z;
+
+    float L = 3.2 / float(${n1});
+    float K = float(${K});
+
+    x = -1.6 + float(idx) * L;
+    z = 0.0;
+    if(idx == 0){
+
+        y = 0.2 * cos(float(tick) / 100.0);
+        // y = 0.0;
+    }
+    else if(idx == ${n1 - 1}){
+
+        y = 0.0;
+    }
+    else{
+        if(tick == 0){
+
+            vec4 p  = texelFetch(inPos, ivec2(idx    , 0), 0);
+            y = p.y;
+        }
+        else{
+
+            vec4 p1 = texelFetch(inPos, ivec2(idx - 1, 0), 0);
+            vec4 p  = texelFetch(inPos, ivec2(idx    , 0), 0);
+            vec4 p2 = texelFetch(inPos, ivec2(idx + 1, 0), 0);
+
+            vel  = texelFetch(inVel, ivec2(idx, 0), 0);
+
+            float l1 = length(p1 - p);
+            float f1 = K * (l1 - L);
+            float a1 = f1 * ((p1.y - p.y) / l1);
+
+            float l2 = length(p2 - p);
+            float f2 = K * (l2 - L);
+            float a2 = f2 * ((p2.y - p.y) / l2);
+
+            vel.y += a1 + a2;
+
+            y = p.y + vel.y;
+        }
+    }
+
+    // fragmentColor = vec4(abs(x), abs(y), abs(z), 1.0);
+    fragmentColor = vec4(0.0, 0.0, 1.0, 1.0);
+
+    gl_PointSize  = pointSize;
+    gl_Position   = uPMVMatrix * vec4(x, y, z, 1.0);
+    outPos        = vec4(x, y, z, 1.0);
+    outVel        = vel;
+}`;
+}
+
 
 function Tetrahedron(){
     let x = Math.cos(Math.PI / 6.0);
@@ -466,6 +594,8 @@ export function initSample3D(){
         "三角錐",
         "矢印",
         "角錐",
+        "線-Tex",
+        "弦",
     ];
 
     for(let name of names){
@@ -496,13 +626,13 @@ export function initSample3D(){
                 }
             }
 
-            let drawable = getSample3D(sel.selectedIndex);
+            let drawable = getSample3D(glb.view.gpgpu, sel.selectedIndex);
             glb.view.gpgpu.drawables.push(drawable)
         }
     })
 }
 
-function getSample3D(idx: number) : gpgputs.Drawable {
+function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
     switch(idx){
         case 0: return (new gpgputs.Circle(new gpgputs.Color(1,0,0,1), 20)).scale(0.2, 0.1, 0.2).move(1, 0, 0.5);
         case 1: return (new gpgputs.Tube(new gpgputs.Color(0,1,0,1), 20)).scale(0.1, 0.1, 2).move(-1, 0, 0);
@@ -518,7 +648,7 @@ function getSample3D(idx: number) : gpgputs.Drawable {
         case 8: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
         case 9: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 3)).scale(0.3, 0.3, 0.3).move(-1.5, -1, 0);
         case 10: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 4)).scale(0.3, 0.3, 0.3).move(-3, -2, 0);
-        case 11: { let dr = new gpgputs.UserPoints(spherePoints(32, 32) , gpgputs.GPGPU.pointFragmentShader,
+        case 11: { let dr = new gpgputs.UserDef(gl.POINTS, spherePoints(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
                 pointSize: 5,
                 A : new Float32Array(32 * 32 * 4),
@@ -535,6 +665,35 @@ function getSample3D(idx: number) : gpgputs.Drawable {
         case 16: return new gpgputs.UserMesh(gl.TRIANGLES, Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0);
         case 17: return new gpgputs.UserMesh(gl.LINES, ArrowShader(8, 16), gpgputs.GPGPU.pointFragmentShader, 8 * 16 * 4);
         case 18: return new gpgputs.UserMesh(gl.TRIANGLE_FAN, ArrowFanShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 3 *  9, 9);
+        case 19: { let dr = new gpgputs.UserDef(gl.POINTS, spherePointsTex(32, 32) , gpgputs.GPGPU.pointFragmentShader,
+            {
+                pointSize: 5,
+                A : gpgpu.makeTextureInfo("vec4", [32, 32], new Float32Array(32 * 32 * 4)),
+                B : new Float32Array(32 * 32 * 4)
+            });
+            dr.package.numInput = 32 * 32;
+            glb.view!.gpgpu!.makePackage(dr.package);
+            dr.package.bind("B", "A");
+            return dr;
+        }
+        case 20: { 
+            const sz = 4096;
+            let inPos = (new Float32Array(sz * 4)).map(x => 0.4 * Math.random() - 0.2);
+            inPos = new Float32Array(sz * 4);
+            let dr = new gpgputs.UserDef(gl.POINTS, stringPoints(sz, 0.9) , gpgputs.GPGPU.pointFragmentShader,
+            {
+                pointSize: 5,
+                inPos : gpgpu.makeTextureInfo("vec4", [1, sz], inPos),
+                inVel : gpgpu.makeTextureInfo("vec4", [1, sz], new Float32Array(sz * 4)),
+                outPos: new Float32Array(sz * 4),
+                outVel: new Float32Array(sz * 4)
+            });
+            dr.package.numInput = sz;
+            glb.view!.gpgpu!.makePackage(dr.package);
+            dr.package.bind("outPos", "inPos");
+            dr.package.bind("outVel", "inVel");
+            return dr;
+        }
     }
     throw new Error();
 }
