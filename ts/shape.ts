@@ -3633,7 +3633,9 @@ void main(void ) {
         let pkg = new gpgputs.Package({
             // idはプログラム内でユニークであれば何でも構いません。
             id: "AddVec",
-    
+
+            mode: gl.POINTS,
+            
             // 頂点シェーダの文字列を指定します。
             vertexShader: this.Script,
     

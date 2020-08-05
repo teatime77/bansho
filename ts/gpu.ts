@@ -190,7 +190,10 @@ void main(void) {
 
 function LineShader(len: number){ 
     return `
-${headShader}
+uniform mat4 uPMVMatrix;
+out vec4 fragmentColor;
+
+#define PI 3.14159265359
 
 uniform int   tick;
 
@@ -212,9 +215,13 @@ void main(void) {
 
 function ArrowShader(nrow: number, ncol: number){ 
     return `
-${headShader}
-
+uniform mat4 uPMVMatrix;
+uniform mat3 uNMatrix;
 uniform int   tick;
+
+out vec4 fragmentColor;
+
+#define PI 3.14159265359
 
 //void calc(float u, float v, out float x, out float y, out float z){
 void calc(float u, float v, out vec3 p){
@@ -511,16 +518,16 @@ function getSample3D(idx: number) : gpgputs.Drawable {
         case 8: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
         case 9: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 3)).scale(0.3, 0.3, 0.3).move(-1.5, -1, 0);
         case 10: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 4)).scale(0.3, 0.3, 0.3).move(-3, -2, 0);
-        case 11: return new gpgputs.UserPoints(spherePoints(32, 32) , gpgputs.GPGPU.pointFragmentShader,
+        case 11: { let dr = new gpgputs.UserPoints(spherePoints(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
                 pointSize: 5,
                 A : new Float32Array(32 * 32 * 4),
                 B : new Float32Array(32 * 32 * 4)
-            }, 
-            (self:gpgputs.UserPoints)=>{
-                let B = (self.package.args as any).B as Float32Array;
-                (self.package.args as any).A = B.slice();
             });
+            glb.view!.gpgpu!.makePackage(dr.package);
+            dr.package.bind("B", "A");
+            return dr;
+        }
         case 12: return new gpgputs.UserMesh(gl.LINE_STRIP, LineShader(32), gpgputs.GPGPU.pointFragmentShader, 32);
         case 13: return new gpgputs.UserMesh(gl.POINTS, LineShader(512), gpgputs.GPGPU.pointFragmentShader, 512);
         case 14: return new gpgputs.UserMesh(gl.TRIANGLES, sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6);
