@@ -1,5 +1,9 @@
 /// <reference path="@types/shape.d.ts" />
 
+declare let PseudoColor: string;
+declare function volumeWave(sx: number, sy: number, sz: number) : string;
+declare function ArrowWave(sx: number, sy: number, sz: number): string;
+
 namespace bansho {
 export let gl : WebGL2RenderingContext;
 
@@ -175,17 +179,17 @@ out vec4 fragmentColor;
 #define PI 3.14159265359
     
 void main(void) {
+    float L = 3.2 / float(${n1});
+    float K = float(${K});
+
     int idx = int(gl_VertexID);
 
     vec4 vel = vec4(0.0, 0.0, 0.0, 0.0);
 
-    float x, y, z;
+    float x = -1.6 + float(idx) * L;
+    float y = 0.0;
+    float z = 0.0;
 
-    float L = 3.2 / float(${n1});
-    float K = float(${K});
-
-    x = -1.6 + float(idx) * L;
-    z = 0.0;
     if(idx == 0){
 
         y = 0.2 * cos(float(tick) / 100.0);
@@ -232,6 +236,143 @@ void main(void) {
     outVel        = vel;
 }`;
 }
+
+
+function surfaceWave(sz: number, K: number){ 
+    return `
+const vec3 uAmbientColor = vec3(0.2, 0.2, 0.2);
+const vec3 uLightingDirection =  normalize( vec3(0.25, 0.25, 1) );
+const vec3 uDirectionalColor = vec3(0.8, 0.8, 0.8);
+
+uniform mat4 uPMVMatrix;
+uniform mat3 uNMatrix;
+    
+uniform float pointSize;
+uniform int   tick;
+    
+uniform sampler2D inPos;
+uniform sampler2D inVel;
+out vec4 outPos;
+out vec4 outVel;
+
+out vec4 fragmentColor;
+
+#define PI 3.14159265359
+
+${PseudoColor}
+
+void main(void) {
+    float L = 3.2 / float(${sz});
+    float K = float(${K});
+
+    int idx = int(gl_VertexID);
+
+    int row  = idx / ${sz};
+    int col  = idx % ${sz};
+
+    vec4 vel = vec4(0.0, 0.0, 0.0, 0.0);
+
+    float x = -1.6 + float(col) * L;
+    float y = -1.6 + float(row) * L;
+    float z = 0.0;
+
+    vec3 nv = vec3(0.0, 0.0, 1.0);
+
+    if(row == ${sz} / 2 && col == ${sz} / 2){
+
+        z = 0.2 * cos(float(tick) / 100.0);
+    }
+    else if(col == 0 || row == 0 || col == ${sz} - 1 || row == ${sz} - 1){
+        z = 0.0;
+    }
+/*
+    else if(row == 0         && col == 0         ||
+            row == 0         && col == ${sz} - 1 || 
+            row == ${sz} - 1 && col == 0         || 
+            row == ${sz} - 1 && col == ${sz} - 1){
+
+        z = 0.0;
+    }
+*/
+    else{
+        if(tick == 0){
+
+            vec4 p  = texelFetch(inPos, ivec2(col, row), 0);
+            z = p.z;
+        }
+        else{
+
+            vec4 p  = texelFetch(inPos, ivec2(col, row), 0);
+            vel     = texelFetch(inVel, ivec2(col, row), 0);
+
+            float dzx = 0.0, dzy = 0.0;
+            float sum_a = 0.0;
+            for(int i = 0; i < 4; i++){
+                int col1 = col, row1 = row;
+
+                switch(i){
+                case 0: col1--; break;
+                case 1: col1++; break;
+                case 2: row1--; break;
+                case 3: row1++; break;
+                }
+
+                if(col1 < 0 || row1 < 0 || col1 == ${sz} || row1 == ${sz}){
+                    continue;
+                }
+
+                vec4 p1 = texelFetch(inPos, ivec2(col1, row1), 0);
+
+                float l1 = length(p1 - p);
+                l1 = sqrt(2.0 * L * L + (p1.z - p.z) * (p1.z - p.z));
+                float f1 = K * (l1 - L);
+                float a1 = f1 * ((p1.z - p.z) / l1);
+
+                switch(i){
+                case 0: dzx += p.z  - p1.z; break;
+                case 1: dzx += p1.z - p.z; break;
+                case 2: dzy += p.z  - p1.z; break;
+                case 3: dzy += p1.z - p.z; break;
+                }
+
+                vec3 vx = vec3(2.0 * L, 0.0    , dzx);
+                vec3 vy = vec3(0.0    , 2.0 * L, dzy);
+
+                nv = normalize(cross(vx, vy));
+
+                if(isnan(a1)){
+                    continue;
+                }
+                
+                sum_a += a1;
+            }
+
+            vel.z += sum_a;
+
+            z = p.z + vel.z;
+            // z = p.z;
+        }
+    }
+
+    vec3 transformedNormal = uNMatrix * nv;
+
+    float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
+    vec3 vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+
+    vec3 pcolor   = PseudoColor(-0.2, 0.2, z);
+    // vec3 pcolor   = PseudoColor(-1.6, 1.6, x);
+    fragmentColor = vec4(pcolor * vLightWeighting, 1.0);
+
+    // fragmentColor = vec4(abs(x), abs(y), abs(z), 1.0);
+    // fragmentColor = vec4(0.0, 0.0, 1.0, 1.0);
+
+    gl_PointSize  = pointSize;
+    gl_Position   = uPMVMatrix * vec4(x, y, z, 1.0);
+    outPos        = vec4(x, y, z, 1.0);
+    outVel        = vel;
+}`;
+}
+
 
 
 function Tetrahedron(){
@@ -596,6 +737,8 @@ export function initSample3D(){
         "角錐",
         "線-Tex",
         "弦",
+        "面",
+        "電磁波",
     ];
 
     for(let name of names){
@@ -632,22 +775,35 @@ export function initSample3D(){
     })
 }
 
+
 function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
     switch(idx){
+        // 円
         case 0: return (new gpgputs.Circle(new gpgputs.Color(1,0,0,1), 20)).scale(0.2, 0.1, 0.2).move(1, 0, 0.5);
+        // 管
         case 1: return (new gpgputs.Tube(new gpgputs.Color(0,1,0,1), 20)).scale(0.1, 0.1, 2).move(-1, 0, 0);
+        // 円柱
         case 2: return (new gpgputs.Pillar([gpgputs.Color.red, gpgputs.Color.green, gpgputs.Color.blue], 20)).scale(0.1, 0.1, 1).move(0, 3, 0);
+        // 矢印
         case 3: return new gpgputs.ComponentDrawable([
             new gpgputs.UserMesh(gl.TRIANGLE_FAN, ArrowFanShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 3 *  9, 9),
             new gpgputs.UserMesh(gl.TRIANGLE_STRIP, ArrowTubeShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 2 *  9, 9)
         ]);
+        // 点
         case 4: return new gpgputs.Points(new Float32Array([1.5, -1.3, 0, -1.5, -1.3, 0]), new Float32Array([1,0,0,1, 0,0,1,1]), 5);
+        // 線
         case 5: return new gpgputs.Lines([{x:1.5,y:-1.5,z:0} as gpgputs.Vertex,{x:-1.5,y:-1.5,z:0} as gpgputs.Vertex], gpgputs.Color.blue);
+        // 正二十面体
         case 6: return (new gpgputs.RegularIcosahedron(new gpgputs.Color(0,1,0,1))).scale(0.3, 0.3, 0.3).move(2, -2, 0);
+        // 測地線多面体1
         case 7: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 1)).scale(0.3, 0.3, 0.3).move(3,  2, 0);
+        // 測地線多面体2
         case 8: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
+        // 測地線多面体3
         case 9: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 3)).scale(0.3, 0.3, 0.3).move(-1.5, -1, 0);
+        // 測地線多面体4
         case 10: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 4)).scale(0.3, 0.3, 0.3).move(-3, -2, 0);
+        // 点
         case 11: { let dr = new gpgputs.UserDef(gl.POINTS, spherePoints(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
                 pointSize: 5,
@@ -658,13 +814,21 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
             dr.package.bind("B", "A");
             return dr;
         }
+        // 線-LINE
         case 12: return new gpgputs.UserMesh(gl.LINE_STRIP, LineShader(32), gpgputs.GPGPU.pointFragmentShader, 32);
+        // 線-POINTS
         case 13: return new gpgputs.UserMesh(gl.POINTS, LineShader(512), gpgputs.GPGPU.pointFragmentShader, 512);
+        // 球
         case 14: return new gpgputs.UserMesh(gl.TRIANGLES, sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6);
+        // 正四面体
         case 15: return new gpgputs.UserMesh(gl.TRIANGLES, CubeShader()        , gpgputs.GPGPU.planeFragmentShader, 6 * 6);
+        // 三角錐
         case 16: return new gpgputs.UserMesh(gl.TRIANGLES, Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0);
+        // 矢印
         case 17: return new gpgputs.UserMesh(gl.LINES, ArrowShader(8, 16), gpgputs.GPGPU.pointFragmentShader, 8 * 16 * 4);
+        // 角錐
         case 18: return new gpgputs.UserMesh(gl.TRIANGLE_FAN, ArrowFanShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 3 *  9, 9);
+        // 線-Tex
         case 19: { let dr = new gpgputs.UserDef(gl.POINTS, spherePointsTex(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
                 pointSize: 5,
@@ -676,6 +840,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
             dr.package.bind("B", "A");
             return dr;
         }
+        // 弦
         case 20: { 
             const sz = 4096;
             let inPos = (new Float32Array(sz * 4)).map(x => 0.4 * Math.random() - 0.2);
@@ -693,6 +858,78 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
             dr.package.bind("outPos", "inPos");
             dr.package.bind("outVel", "inVel");
             return dr;
+        }
+        // 面
+        case 21: { 
+            const sz = 512;
+            let dr = new gpgputs.UserDef(gl.POINTS, surfaceWave(sz, 0.2) , gpgputs.GPGPU.pointFragmentShader,
+            {
+                pointSize: 1,
+                inPos : gpgpu.makeTextureInfo("vec4", [sz, sz], new Float32Array(sz * sz * 4)),
+                inVel : gpgpu.makeTextureInfo("vec4", [sz, sz], new Float32Array(sz * sz * 4)),
+                outPos: new Float32Array(sz * sz * 4),
+                outVel: new Float32Array(sz * sz * 4)
+            });
+            dr.package.numInput = sz * sz;
+            glb.view!.gpgpu!.makePackage(dr.package);
+            dr.package.bind("outPos", "inPos");
+            dr.package.bind("outVel", "inVel");
+            return dr;
+        }
+        // 電磁波
+        case 22: { 
+            const sx = 1024, sy = 1024, sz = 4;
+            let dr1 = new gpgputs.UserDef(gl.POINTS, volumeWave(sx, sy, sz) , gpgputs.GPGPU.minFragmentShader,
+            {
+                pointSize: 1,
+                inE : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),
+                inH : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),
+                outE: new Float32Array(sx * sy * sz * 3),
+                outH: new Float32Array(sx * sy * sz * 3)
+            });
+            dr1.package.numInput = sx * sy * sz;
+            glb.view!.gpgpu!.makePackage(dr1.package);
+            dr1.package.update = ()=>{
+                let idx = 0;
+                let args = dr1.package.args;
+
+                if(Math.max(sx, sy, sz) < args.tick || args.tick % 10 != 0){
+                    return;
+                }
+
+                let E = args.outE as Float32Array;
+                let H = args.outH as Float32Array;
+                // for(let i = 0; i < sz; i++){
+                //     for(let j = 0; j < sy; j++){
+                //         for(let k = 0; k < sx; k++){
+                //             if(E[idx] != 0 || H[idx] != 0 || E[idx+1] != 0 || H[idx+1] != 0 || E[idx+2] != 0 || H[idx+2] != 0){
+                //                 console.log(`tick:${args.tick} idx:${idx} (${i} ${j} ${k}) E:(${E[idx]},${E[idx+1]},${E[idx+2]}) H:(${H[idx]},${H[idx+1]},${H[idx+2]})`);
+                //             }
+
+                //             idx += 3;
+                //         }
+                //     }
+                // }
+                let emax = E.map(x => Math.abs(x)).reduce((x,y)=>Math.max(x,y), 0);
+                let hmax = H.map(x => Math.abs(x)).reduce((x,y)=>Math.max(x,y), 0);
+                console.log(`tick:${args.tick} max E:${emax} H:${hmax}`);
+            };
+
+            let dr2 = new gpgputs.UserDef(gl.LINES, ArrowWave(sx, sy, sz), gpgputs.GPGPU.pointFragmentShader, 
+            {
+                inE : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),
+                inH : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),
+            });
+            dr2.package.numInput = sx * sy * sz * 4;
+            glb.view!.gpgpu!.makePackage(dr2.package);
+
+            dr1.package.bind("outE", "inE");
+            dr1.package.bind("outH", "inH");
+
+            dr1.package.bind("outE", "inE", dr2.package);
+            dr1.package.bind("outH", "inH", dr2.package);
+
+            return new gpgputs.ComponentDrawable([dr1, dr2]);
         }
     }
     throw new Error();
