@@ -3,6 +3,8 @@
 declare let PseudoColor: string;
 declare function volumeWave(sx: number, sy: number, sz: number) : string;
 declare function ArrowWave(sx: number, sy: number, sz: number): string;
+declare function ArrowTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function testEMWave(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 
 namespace bansho {
 export let gl : WebGL2RenderingContext;
@@ -534,184 +536,7 @@ void main(void) {
 }`;
 }
 
-function ArrowFanShader(nrow: number, ncol: number, npt: number){ 
-    return `
-${headShader}
 
-uniform int   tick;
-
-void calc(float u, float v, out vec3 p){
-    p.x = sin(u) * cos(v);
-    p.y = sin(u) * sin(v);
-    p.z = cos(u);
-}    
-
-void main(void) {
-    int idx = int(gl_VertexID);
-
-    int ip  = idx % ${npt};
-    idx /= ${npt};
-
-    int mod = idx % 3;
-    idx /= 3;
-
-    int row  = idx / ${ncol};
-    int col  = idx % ${ncol};
-
-    float u =       PI * float(row) / float(${nrow});
-    float v = 2.0 * PI * float(col) / float(${ncol});
-
-    vec3 p0;
-    calc(u, v, p0);
-    vec3 p1 = 0.9 * p0;
-    vec3 p2 = 0.8 * p0;
-
-    float x, y, z;
-    vec3 nv;
-
-    if(ip == 0){
-        
-        if(mod == 0){
-
-            x = p2.x;
-            y = p2.y;
-            z = p2.z;
-
-            nv = normalize(p2 - p1);
-        }
-        else if(mod == 1){
-
-            x = p1.x;
-            y = p1.y;
-            z = p1.z;
-
-            nv = normalize(p1 - p2);
-        }
-        else{
-
-            x = p0.x;
-            y = p0.y;
-            z = p0.z;
-
-            nv = normalize(p0 - p1);
-        }
-
-    }
-    else{
-        vec3 e1 = normalize(vec3(p1.y - p1.z, p1.z - p1.x, p1.x - p1.y));
-
-        vec3 e2 = normalize(cross(p1, e1));
-
-        float theta = 2.0 * PI * float(ip - 1) / float(${npt - 2});
-
-        float r;
-
-        vec3 p3;
-
-        if(mod != 2){
-
-            r = 0.05;
-            p3 = p1 + r * cos(theta) * e1 + r * sin(theta) * e2;
-        }
-        else{
-
-            r = 0.025;
-            p3 = p0 + r * cos(theta) * e1 + r * sin(theta) * e2;
-        }
-
-        if(mod == 0){
-            // 角錐の場合
-
-            nv = normalize(p3 - p1);
-        }
-        else{
-            // 円の場合
-
-            nv = normalize(p0 - p1);
-        }
-
-        x = p3.x;
-        y = p3.y;
-        z = p3.z;
-
-    }
-
-    float nx = nv.x, ny = nv.y, nz = nv.z;
-
-    // fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 1.0);
-    fragmentColor = vec4(0.5, 0.5, 0.5, 1.0);
-
-    ${tailShader}
-}`;
-}
-
-
-function ArrowTubeShader(nrow: number, ncol: number, npt: number){ 
-    return `
-${headShader}
-
-uniform int   tick;
-
-void calc(float u, float v, out vec3 p){
-    p.x = sin(u) * cos(v);
-    p.y = sin(u) * sin(v);
-    p.z = cos(u);
-}    
-
-void main(void) {
-    int idx = int(gl_VertexID);
-
-    int lh  = idx % 2;
-    idx /= 2;
-
-    int ip  = idx % ${npt};
-    idx /= ${npt};
-
-    int row  = idx / ${ncol};
-    int col  = idx % ${ncol};
-
-    float u =       PI * float(row) / float(${nrow});
-    float v = 2.0 * PI * float(col) / float(${ncol});
-
-    vec3 p0;
-    calc(u, v, p0);
-    vec3 p1 = 0.9 * p0;
-
-    float x, y, z;
-    vec3 nv;
-
-    vec3 e1 = normalize(vec3(p1.y - p1.z, p1.z - p1.x, p1.x - p1.y));
-
-    vec3 e2 = normalize(cross(p1, e1));
-
-    float theta = 2.0 * PI * float(ip - 1) / float(${npt - 2});
-
-    vec3 p3;
-
-    float r = 0.025;
-    if(lh == 0){
-
-        p3 = p0 + r * cos(theta) * e1 + r * sin(theta) * e2;
-        nv = normalize(p3 - p0);
-    }
-    else{
-
-        p3 = p1 + r * cos(theta) * e1 + r * sin(theta) * e2;
-        nv = normalize(p3 - p1);
-    }
-
-    x = p3.x;
-    y = p3.y;
-    z = p3.z;
-
-    float nx = nv.x, ny = nv.y, nz = nv.z;
-
-    // fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 1.0);
-    fragmentColor = vec4(0.5, 0.5, 0.5, 1.0);
-
-    ${tailShader}
-}`;
-}
 
 export function initSample3D(){
     const sel = document.getElementById("sample-3d") as HTMLSelectElement;
@@ -734,7 +559,7 @@ export function initSample3D(){
         "正四面体",
         "三角錐",
         "矢印",
-        "角錐",
+        "空き",
         "線-Tex",
         "弦",
         "面",
@@ -785,10 +610,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
         // 円柱
         case 2: return (new gpgputs.Pillar([gpgputs.Color.red, gpgputs.Color.green, gpgputs.Color.blue], 20)).scale(0.1, 0.1, 1).move(0, 3, 0);
         // 矢印
-        case 3: return new gpgputs.ComponentDrawable([
-            new gpgputs.UserMesh(gl.TRIANGLE_FAN, ArrowFanShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 3 *  9, 9),
-            new gpgputs.UserMesh(gl.TRIANGLE_STRIP, ArrowTubeShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 2 *  9, 9)
-        ]);
+        case 3: return ArrowTest(gpgpu);
         // 点
         case 4: return new gpgputs.Points(new Float32Array([1.5, -1.3, 0, -1.5, -1.3, 0]), new Float32Array([1,0,0,1, 0,0,1,1]), 5);
         // 線
@@ -826,8 +648,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
         case 16: return new gpgputs.UserMesh(gl.TRIANGLES, Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0);
         // 矢印
         case 17: return new gpgputs.UserMesh(gl.LINES, ArrowShader(8, 16), gpgputs.GPGPU.pointFragmentShader, 8 * 16 * 4);
-        // 角錐
-        case 18: return new gpgputs.UserMesh(gl.TRIANGLE_FAN, ArrowFanShader(8, 16, 9), gpgputs.GPGPU.planeFragmentShader, 8 * 16 * 3 *  9, 9);
+        // 空き
+        case 18: throw new Error();
         // 線-Tex
         case 19: { let dr = new gpgputs.UserDef(gl.POINTS, spherePointsTex(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
@@ -877,60 +699,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
             return dr;
         }
         // 電磁波
-        case 22: { 
-            const sx = 1024, sy = 1024, sz = 4;
-            let dr1 = new gpgputs.UserDef(gl.POINTS, volumeWave(sx, sy, sz) , gpgputs.GPGPU.minFragmentShader,
-            {
-                pointSize: 1,
-                inE : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),
-                inH : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),
-                outE: new Float32Array(sx * sy * sz * 3),
-                outH: new Float32Array(sx * sy * sz * 3)
-            });
-            dr1.package.numInput = sx * sy * sz;
-            glb.view!.gpgpu!.makePackage(dr1.package);
-            dr1.package.update = ()=>{
-                let idx = 0;
-                let args = dr1.package.args;
-
-                if(Math.max(sx, sy, sz) < args.tick || args.tick % 10 != 0){
-                    return;
-                }
-
-                let E = args.outE as Float32Array;
-                let H = args.outH as Float32Array;
-                // for(let i = 0; i < sz; i++){
-                //     for(let j = 0; j < sy; j++){
-                //         for(let k = 0; k < sx; k++){
-                //             if(E[idx] != 0 || H[idx] != 0 || E[idx+1] != 0 || H[idx+1] != 0 || E[idx+2] != 0 || H[idx+2] != 0){
-                //                 console.log(`tick:${args.tick} idx:${idx} (${i} ${j} ${k}) E:(${E[idx]},${E[idx+1]},${E[idx+2]}) H:(${H[idx]},${H[idx+1]},${H[idx+2]})`);
-                //             }
-
-                //             idx += 3;
-                //         }
-                //     }
-                // }
-                let emax = E.map(x => Math.abs(x)).reduce((x,y)=>Math.max(x,y), 0);
-                let hmax = H.map(x => Math.abs(x)).reduce((x,y)=>Math.max(x,y), 0);
-                console.log(`tick:${args.tick} max E:${emax} H:${hmax}`);
-            };
-
-            let dr2 = new gpgputs.UserDef(gl.LINES, ArrowWave(sx, sy, sz), gpgputs.GPGPU.pointFragmentShader, 
-            {
-                inE : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),
-                inH : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),
-            });
-            dr2.package.numInput = sx * sy * sz * 4;
-            glb.view!.gpgpu!.makePackage(dr2.package);
-
-            dr1.package.bind("outE", "inE");
-            dr1.package.bind("outH", "inH");
-
-            dr1.package.bind("outE", "inE", dr2.package);
-            dr1.package.bind("outH", "inH", dr2.package);
-
-            return new gpgputs.ComponentDrawable([dr1, dr2]);
-        }
+        case 22: return testEMWave(gpgpu);
     }
     throw new Error();
 }
