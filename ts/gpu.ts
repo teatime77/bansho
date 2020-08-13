@@ -5,6 +5,8 @@ declare function volumeWave(sx: number, sy: number, sz: number) : string;
 declare function ArrowWave(sx: number, sy: number, sz: number): string;
 declare function ArrowTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testEMWave(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function multibodyTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function particleTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 
 namespace bansho {
 export let gl : WebGL2RenderingContext;
@@ -559,11 +561,12 @@ export function initSample3D(){
         "正四面体",
         "三角錐",
         "矢印",
-        "空き",
+        "多体問題",
         "線-Tex",
         "弦",
         "面",
         "電磁波",
+        "粒子",
     ];
 
     for(let name of names){
@@ -648,8 +651,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
         case 16: return new gpgputs.UserMesh(gl.TRIANGLES, Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0);
         // 矢印
         case 17: return new gpgputs.UserMesh(gl.LINES, ArrowShader(8, 16), gpgputs.GPGPU.pointFragmentShader, 8 * 16 * 4);
-        // 空き
-        case 18: throw new Error();
+        // 多体問題
+        case 18: return multibodyTest(gpgpu);
         // 線-Tex
         case 19: { let dr = new gpgputs.UserDef(gl.POINTS, spherePointsTex(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
@@ -700,6 +703,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
         }
         // 電磁波
         case 22: return testEMWave(gpgpu);
+        // 粒子
+        case 23: return particleTest(gpgpu);
     }
     throw new Error();
 }
