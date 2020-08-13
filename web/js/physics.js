@@ -235,12 +235,12 @@ function testEMWave(gpgpu){
         outE  : new Float32Array(sx * sy * sz * 3),
         outH  : new Float32Array(sx * sy * sz * 3)
     });
-    dr1.package.numInput = sx * sy * sz;
-    bansho.glb.view.gpgpu.makePackage(dr1.package);
-    // dr1.package.fps = 1;
-    dr1.package.update = ()=>{
+    dr1.numInput = sx * sy * sz;
+    bansho.glb.view.gpgpu.makePackage(dr1);
+    // dr1.fps = 1;
+    dr1.update = ()=>{
         let idx = 0;
-        let args = dr1.package.args;
+        let args = dr1.args;
 
         if(Math.max(sx, sy, sz) < args.tick || args.tick % 10 != 0){
             return;
@@ -269,8 +269,8 @@ function testEMWave(gpgpu){
     // let dr2 = Arrow3D(gpgpu, dr1, "outPos", "outE", sx, sy, sz, 0.0, 0.0, 1.0);
     // let dr3 = Arrow3D(gpgpu, dr1, "outPos", "outH", sx, sy, sz, 1.0, 0.0, 0.0);
 
-    dr1.package.bind("outE", "inE");
-    dr1.package.bind("outH", "inH");
+    dr1.bind("outE", "inE");
+    dr1.bind("outH", "inH");
 
     return new gpgputs.ComponentDrawable([dr1, dr2, dr3]);
 }
@@ -281,11 +281,11 @@ function ArrowLine(gpgpu, dr1, pos_name, vec_name, sx, sy, sz, r, g, b){
         inPos : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sz * sy * sx * 3)),
         inVec : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(sz * sy * sx * 3)),
     });
-    dr2.package.numInput = sz * sy * sx * 2;
-    bansho.glb.view.gpgpu.makePackage(dr2.package);
+    dr2.numInput = sz * sy * sx * 2;
+    bansho.glb.view.gpgpu.makePackage(dr2);
 
-    dr1.package.bind(pos_name, "inPos", dr2.package);
-    dr1.package.bind(vec_name, "inVec", dr2.package);
+    dr1.bind(pos_name, "inPos", dr2);
+    dr1.bind(vec_name, "inVec", dr2);
 
     return dr2;
 }
@@ -302,8 +302,8 @@ function ArrowTest(gpgpu){
         pos: new Float32Array(nrow * ncol * 3),
         vec: new Float32Array(nrow * ncol * 3)
     });
-    dr1.package.numInput = nrow * ncol;
-    bansho.glb.view.gpgpu.makePackage(dr1.package);
+    dr1.numInput = nrow * ncol;
+    bansho.glb.view.gpgpu.makePackage(dr1);
 
     return Arrow3D(gpgpu, dr1, "pos", "vec", ncol, nrow, 1, 0.5, 0.5, 0.5);
 }
@@ -315,24 +315,24 @@ function Arrow3D(gpgpu, dr1, pos_name, vec_name, sx, sy, sz, r, g, b){
         inPos : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(size * 3)),
         inVec : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(size * 3))
     });
-    dr2.package.numInput = size * 3 * 9;
-    dr2.package.numGroup = 9;
+    dr2.numInput = size * 3 * 9;
+    dr2.numGroup = 9;
 
     let dr3 = new gpgputs.UserDef(bansho.gl.TRIANGLE_STRIP, ArrowTubeShader(npt, sx, sy, sz, r, g, b), gpgputs.GPGPU.planeFragmentShader, {
         inPos : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(size * 3)),
         inVec : gpgpu.makeTextureInfo("vec3", [sz, sy, sx], new Float32Array(size * 3))
     });
-    dr3.package.numInput = size * 2 * npt;
-    dr3.package.numGroup = 2 * npt;
+    dr3.numInput = size * 2 * npt;
+    dr3.numGroup = 2 * npt;
 
-    bansho.glb.view.gpgpu.makePackage(dr2.package);
-    bansho.glb.view.gpgpu.makePackage(dr3.package);
+    bansho.glb.view.gpgpu.makePackage(dr2);
+    bansho.glb.view.gpgpu.makePackage(dr3);
 
-    dr1.package.bind(pos_name, "inPos", dr2.package);
-    dr1.package.bind(vec_name, "inVec", dr2.package);
+    dr1.bind(pos_name, "inPos", dr2);
+    dr1.bind(vec_name, "inVec", dr2);
 
-    dr1.package.bind(pos_name, "inPos", dr3.package);
-    dr1.package.bind(vec_name, "inVec", dr3.package);
+    dr1.bind(pos_name, "inPos", dr3);
+    dr1.bind(vec_name, "inVec", dr3);
 
     return new gpgputs.ComponentDrawable([dr1, dr2, dr3]);
 }
@@ -676,11 +676,11 @@ function multibodyTest(gpgpu){
         outVel: new Float32Array(sx * sy * sz * 3),
         dmp   : new Float32Array(sx * sy * sz)
     });
-    dr.package.numInput = sz * sy * sx;
-    // dr.package.fps = 1;
-    gpgpu.makePackage(dr.package);
-    dr.package.bind("outPos", "inPos");
-    dr.package.bind("outVel", "inVel");
+    dr.numInput = sz * sy * sx;
+    // dr.fps = 1;
+    gpgpu.makePackage(dr);
+    dr.bind("outPos", "inPos");
+    dr.bind("outVel", "inVel");
 
     gpgpu.drawParam.z = -200;
 
@@ -733,9 +733,9 @@ function particleTest(gpgpu){
         outVel: new Float32Array(sx * sy * sz * 3),
         dmp   : new Float32Array(sx * sy * sz)
     });
-    dr1.package.numInput = sz * sy * sx;
-    // dr.package.fps = 1;
-    gpgpu.makePackage(dr1.package);
+    dr1.numInput = sz * sy * sx;
+    // dr.fps = 1;
+    gpgpu.makePackage(dr1);
 
     gpgpu.drawParam.z = -200;
 
@@ -743,11 +743,11 @@ function particleTest(gpgpu){
     let dr2 = new gpgputs.UserDef(gl.TRIANGLES, particleShader(sz, sy, sx, n1, n2, 2), gpgputs.GPGPU.planeFragmentShader, {
         inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx], new Float32Array(sx * sy * sz * 3)),        
     });
-    dr2.package.numInput = sz * sy * sx * n1 * n2 * 6;
-    gpgpu.makePackage(dr2.package);
+    dr2.numInput = sz * sy * sx * n1 * n2 * 6;
+    gpgpu.makePackage(dr2);
 
-    dr1.package.bind("outPos", "inPos");
-    dr1.package.bind("outPos", "inPos", dr2.package);
+    dr1.bind("outPos", "inPos");
+    dr1.bind("outPos", "inPos", dr2);
 
     return new gpgputs.ComponentDrawable([dr1, dr2]);
 }

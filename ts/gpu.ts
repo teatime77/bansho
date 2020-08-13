@@ -582,19 +582,7 @@ export function initSample3D(){
 
             while(glb.view.gpgpu.drawables.length != 0){
                 let old = glb.view.gpgpu!.drawables.pop()!;
-                if(old.package != undefined){
-
-                    old.package.clear();
-                }
-                else{
-
-                    if(old instanceof gpgputs.ComponentDrawable){
-                        old.children.forEach(x => x.package.clear());
-                    }
-                    else{
-                        console.log("clear err");
-                    }
-                }
+                old.clear();
             }
 
             let drawable = getSample3D(glb.view.gpgpu, sel.selectedIndex);
@@ -604,7 +592,7 @@ export function initSample3D(){
 }
 
 
-function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
+function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
     switch(idx){
         // 円
         case 0: return (new gpgputs.Circle(new gpgputs.Color(1,0,0,1), 20)).scale(0.2, 0.1, 0.2).move(1, 0, 0.5);
@@ -635,8 +623,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
                 A : new Float32Array(32 * 32 * 4),
                 B : new Float32Array(32 * 32 * 4)
             });
-            glb.view!.gpgpu!.makePackage(dr.package);
-            dr.package.bind("B", "A");
+            glb.view!.gpgpu!.makePackage(dr);
+            dr.bind("B", "A");
             return dr;
         }
         // 線-LINE
@@ -660,9 +648,9 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
                 A : gpgpu.makeTextureInfo("vec4", [32, 32], new Float32Array(32 * 32 * 4)),
                 B : new Float32Array(32 * 32 * 4)
             });
-            dr.package.numInput = 32 * 32;
-            glb.view!.gpgpu!.makePackage(dr.package);
-            dr.package.bind("B", "A");
+            dr.numInput = 32 * 32;
+            glb.view!.gpgpu!.makePackage(dr);
+            dr.bind("B", "A");
             return dr;
         }
         // 弦
@@ -678,10 +666,10 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
                 outPos: new Float32Array(sz * 4),
                 outVel: new Float32Array(sz * 4)
             });
-            dr.package.numInput = sz;
-            glb.view!.gpgpu!.makePackage(dr.package);
-            dr.package.bind("outPos", "inPos");
-            dr.package.bind("outVel", "inVel");
+            dr.numInput = sz;
+            glb.view!.gpgpu!.makePackage(dr);
+            dr.bind("outPos", "inPos");
+            dr.bind("outVel", "inVel");
             return dr;
         }
         // 面
@@ -695,10 +683,10 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.Drawable {
                 outPos: new Float32Array(sz * sz * 4),
                 outVel: new Float32Array(sz * sz * 4)
             });
-            dr.package.numInput = sz * sz;
-            glb.view!.gpgpu!.makePackage(dr.package);
-            dr.package.bind("outPos", "inPos");
-            dr.package.bind("outVel", "inVel");
+            dr.numInput = sz * sz;
+            glb.view!.gpgpu!.makePackage(dr);
+            dr.bind("outPos", "inPos");
+            dr.bind("outVel", "inVel");
             return dr;
         }
         // 電磁波

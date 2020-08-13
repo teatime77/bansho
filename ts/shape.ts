@@ -3757,7 +3757,7 @@ vec3 calc(float u, float v){
     updateScript() {
         if(this.surface != undefined){
             removeArrayElement(this.parentView.gpgpu!.drawables, this.surface);
-            this.surface.package.clear();
+            this.surface.clear();
         }
 
         const nrow = 64;
