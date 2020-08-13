@@ -593,6 +593,8 @@ export function initSample3D(){
 
 
 function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
+    gpgpu.drawParam = new gpgputs.DrawParam(0, 0, 0, 0, -5.0);
+
     switch(idx){
         // 円
         case 0: return (new gpgputs.Circle(new gpgputs.Color(1,0,0,1), 20)).scale(0.2, 0.1, 0.2).move(1, 0, 0.5);
@@ -645,7 +647,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
         case 19: { let dr = new gpgputs.UserDef(gl.POINTS, spherePointsTex(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
                 pointSize: 5,
-                A : gpgpu.makeTextureInfo("vec4", [32, 32], new Float32Array(32 * 32 * 4)),
+                A : gpgpu.makeTextureInfo("vec4", [32, 32]),
                 B : new Float32Array(32 * 32 * 4)
             });
             dr.numInput = 32 * 32;
@@ -662,7 +664,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
             {
                 pointSize: 5,
                 inPos : gpgpu.makeTextureInfo("vec4", [1, sz], inPos),
-                inVel : gpgpu.makeTextureInfo("vec4", [1, sz], new Float32Array(sz * 4)),
+                inVel : gpgpu.makeTextureInfo("vec4", [1, sz]),
                 outPos: new Float32Array(sz * 4),
                 outVel: new Float32Array(sz * 4)
             });
@@ -678,8 +680,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
             let dr = new gpgputs.UserDef(gl.POINTS, surfaceWave(sz, 0.2) , gpgputs.GPGPU.pointFragmentShader,
             {
                 pointSize: 1,
-                inPos : gpgpu.makeTextureInfo("vec4", [sz, sz], new Float32Array(sz * sz * 4)),
-                inVel : gpgpu.makeTextureInfo("vec4", [sz, sz], new Float32Array(sz * sz * 4)),
+                inPos : gpgpu.makeTextureInfo("vec4", [sz, sz]),
+                inVel : gpgpu.makeTextureInfo("vec4", [sz, sz]),
                 outPos: new Float32Array(sz * sz * 4),
                 outVel: new Float32Array(sz * sz * 4)
             });
