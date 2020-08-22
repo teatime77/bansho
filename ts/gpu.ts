@@ -6,7 +6,10 @@ declare function ArrowWave(sx: number, sy: number, sz: number): string;
 declare function ArrowTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testEMWave(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function multibodyTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
-declare function particleTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function ElasticCollision(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function CubeShader() : string;
+declare function InverseSquare(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function BathtubVortex(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 
 namespace bansho {
 export let gl : WebGL2RenderingContext;
@@ -420,46 +423,6 @@ function Tetrahedron(){
     }`;
 }
 
-function CubeShader(){ 
-    return `
-${headShader}
-
-void main(void) {
-    int idx = int(gl_VertexID);
-
-    int ip   = idx % 6;
-    int face = idx / 6;
-
-    // 1,4  5
-    // 0    2,3
-
-    float f[3];
-    f[0] = (ip == 1 || ip == 4 || ip == 5 ? 1.0 : -1.0);
-    f[1] = (ip == 2 || ip == 3 || ip == 5 ? 1.0 : -1.0);
-    f[2] = (face % 2 == 0 ? -1.0 : 1.0);
-
-    int i = face / 2;
-    float x = f[i];
-    float y = f[(i+1) % 3];
-    float z = f[(i+2) % 3];
-
-    float nx = 0.0, ny = 0.0, nz = 0.0;
-    if(i == 0){
-        nz = z;
-    }
-    else if(i == 1){
-        ny = y;
-    }
-    else{
-        nx = x;
-    }
-
-    fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 0.3);
-
-    ${tailShader}
-}`;
-}
-
 
 function LineShader(len: number){ 
     return `
@@ -540,7 +503,7 @@ void main(void) {
 
 
 
-export function initSample3D(){
+function initSample3D(gpgpu: gpgputs.GPGPU){
     const sel = document.getElementById("sample-3d") as HTMLSelectElement;
     const names = [
         "円",
@@ -552,8 +515,8 @@ export function initSample3D(){
         "正二十面体",
         "測地線多面体1",
         "測地線多面体2",
-        "測地線多面体3",
-        "測地線多面体4",
+        "バスタブ渦",
+        "逆二乗",
         "点",
         "線-LINE",
         "線-POINTS",
@@ -566,7 +529,7 @@ export function initSample3D(){
         "弦",
         "面",
         "電磁波",
-        "粒子",
+        "弾性衝突",
     ];
 
     for(let name of names){
@@ -576,18 +539,13 @@ export function initSample3D(){
     }    
 
     sel.addEventListener("input", (ev: Event)=>{
-        console.log(`sel input ${sel.selectedIndex}`);
-
-        if(glb.view != null && glb.view.gpgpu != null){
-
-            while(glb.view.gpgpu.drawables.length != 0){
-                let old = glb.view.gpgpu!.drawables.pop()!;
-                old.clear();
-            }
-
-            let drawable = getSample3D(glb.view.gpgpu, sel.selectedIndex);
-            glb.view.gpgpu.drawables.push(drawable)
+        while(gpgpu.drawables.length != 0){
+            let old = gpgpu.drawables.pop()!;
+            old.clear();
         }
+
+        let drawable = getSample3D(gpgpu, sel.selectedIndex);
+        gpgpu.drawables.push(drawable)
     })
 }
 
@@ -614,10 +572,10 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
         case 7: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 1)).scale(0.3, 0.3, 0.3).move(3,  2, 0);
         // 測地線多面体2
         case 8: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
-        // 測地線多面体3
-        case 9: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 3)).scale(0.3, 0.3, 0.3).move(-1.5, -1, 0);
-        // 測地線多面体4
-        case 10: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 4)).scale(0.3, 0.3, 0.3).move(-3, -2, 0);
+        // バスタブ渦
+        case 9: return BathtubVortex(gpgpu);
+        // 逆二乗
+        case 10: return InverseSquare(gpgpu);
         // 点
         case 11: { let dr = new gpgputs.UserDef(gl.POINTS, spherePoints(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
@@ -625,7 +583,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
                 A : new Float32Array(32 * 32 * 4),
                 B : new Float32Array(32 * 32 * 4)
             });
-            glb.view!.gpgpu!.makePackage(dr);
+            gpgpu.makePackage(dr);
             dr.bind("B", "A");
             return dr;
         }
@@ -651,7 +609,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
                 B : new Float32Array(32 * 32 * 4)
             });
             dr.numInput = 32 * 32;
-            glb.view!.gpgpu!.makePackage(dr);
+            gpgpu.makePackage(dr);
             dr.bind("B", "A");
             return dr;
         }
@@ -669,7 +627,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
                 outVel: new Float32Array(sz * 4)
             });
             dr.numInput = sz;
-            glb.view!.gpgpu!.makePackage(dr);
+            gpgpu.makePackage(dr);
             dr.bind("outPos", "inPos");
             dr.bind("outVel", "inVel");
             return dr;
@@ -686,15 +644,15 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
                 outVel: new Float32Array(sz * sz * 4)
             });
             dr.numInput = sz * sz;
-            glb.view!.gpgpu!.makePackage(dr);
+            gpgpu.makePackage(dr);
             dr.bind("outPos", "inPos");
             dr.bind("outVel", "inVel");
             return dr;
         }
         // 電磁波
         case 22: return testEMWave(gpgpu);
-        // 粒子
-        case 23: return particleTest(gpgpu);
+        // 弾性衝突
+        case 23: return ElasticCollision(gpgpu);
     }
     throw new Error();
 }
@@ -710,10 +668,10 @@ export function make3D(canvas: HTMLCanvasElement){
 }
 
 export function testGpgpu(){
-    // gpgputs.testBodyOnLoad();
-
     var canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
-    make3D(canvas);
+    let gpgpu = make3D(canvas);
+
+    initSample3D(gpgpu);
 }
 
 

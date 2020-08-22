@@ -49,6 +49,49 @@ vec3 PseudoColor(float min_val, float max_val, float val){
 `;
 
 //--------------------------------------------------
+// 立方体
+//--------------------------------------------------
+function CubeShader(){ 
+    return `
+${bansho.headShader}
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int ip   = idx % 6;
+    int face = idx / 6;
+
+    // 1,4  5
+    // 0    2,3
+
+    float f[3];
+    f[0] = (ip == 1 || ip == 4 || ip == 5 ? 1.0 : -1.0);
+    f[1] = (ip == 2 || ip == 3 || ip == 5 ? 1.0 : -1.0);
+    f[2] = (face % 2 == 0 ? -1.0 : 1.0);
+
+    int i = face / 2;
+    float x = f[i];
+    float y = f[(i+1) % 3];
+    float z = f[(i+2) % 3];
+
+    float nx = 0.0, ny = 0.0, nz = 0.0;
+    if(i == 0){
+        nz = z;
+    }
+    else if(i == 1){
+        ny = y;
+    }
+    else{
+        nx = x;
+    }
+
+    fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 0.3);
+
+    ${bansho.tailShader}
+}`;
+}
+
+//--------------------------------------------------
 // 線の矢印
 //--------------------------------------------------
 
@@ -99,7 +142,7 @@ function ArrowLine(gpgpu, dr1, pos_name, vec_name, sx, sy, sz, r, g, b){
         inVec : gpgpu.makeTextureInfo("vec3", [sz, sy, sx]),
     });
     dr2.numInput = sz * sy * sx * 2;
-    bansho.glb.view.gpgpu.makePackage(dr2);
+    gpgpu.makePackage(dr2);
 
     dr1.bind(pos_name, "inPos", dr2);
     dr1.bind(vec_name, "inVec", dr2);
@@ -129,8 +172,8 @@ function Arrow3D(gpgpu, dr1, pos_name, vec_name, sx, sy, sz, r, g, b){
     dr3.numInput = size * 2 * npt;
     dr3.numGroup = 2 * npt;
 
-    bansho.glb.view.gpgpu.makePackage(dr2);
-    bansho.glb.view.gpgpu.makePackage(dr3);
+    gpgpu.makePackage(dr2);
+    gpgpu.makePackage(dr3);
 
     dr1.bind(pos_name, "inPos", dr2);
     dr1.bind(vec_name, "inVec", dr2);
@@ -437,7 +480,7 @@ function ArrowTest(gpgpu){
         vec: new Float32Array(nrow * ncol * 3)
     });
     dr1.numInput = nrow * ncol;
-    bansho.glb.view.gpgpu.makePackage(dr1);
+    gpgpu.makePackage(dr1);
 
     return Arrow3D(gpgpu, dr1, "pos", "vec", ncol, nrow, 1, 0.5, 0.5, 0.5);
 }
@@ -489,7 +532,7 @@ function testEMWave(gpgpu){
         inH : gpgpu.makeTextureInfo("vec3", [sz, sy, sx]),
     });
     dr1.numInput = sx * sy * sz;
-    bansho.glb.view.gpgpu.makePackage(dr1);
+    gpgpu.makePackage(dr1);
     // dr1.fps = 1;
     dr1.update = ()=>{
         let idx = 0;
@@ -787,60 +830,483 @@ function multibodyTest(gpgpu){
 
 
 //--------------------------------------------------
-// 粒子
+// 弾性衝突
 //--------------------------------------------------
 
-function particleTest(gpgpu){
-    let gl = bansho.gl;
-    let sx = 20, sy = 20; sz = 20;
-    let inPos = new Float32Array(sx * sy * sz * 3).map(x => 3 * Math.random() - 1.5);
-    let inVel = new Float32Array(sx * sy * sz * 3).map(x => 0.05 * Math.random() - 0.025);
-    let inMass  = new Float32Array(sx * sy * sz).map(x => 0.5 + Math.random());
-    // let inMass  = new Float32Array(bansho.range(sx * sy * sz).map(x => 11 * x));
+function particleShader(sz, sy, sx, Cr){ 
+    return `
 
+precision highp sampler3D;
 
-    inPos = new Float32Array(sx * sy * sz * 3);
-    inVel = new Float32Array(sx * sy * sz * 3);
-    let cx = 0.7;
-    for(let i = 6; i < inPos.length; i+= 3){
-        let th = 2 * Math.PI * Math.random();
-        let r = 0.5 + 40.0 * Math.random();
-        let v = 0.4 * Math.random();
-        inPos[i  ] = cx + r * Math.cos(th);
-        inPos[i+1] = r * Math.sin(th);
-        inPos[i+2] = 0.2 * Math.random() - 0.1;
-        inVel[i  ] = - v * Math.sin(th);
-        inVel[i+1] =   v * Math.cos(th);
+uniform mat4 uPMVMatrix;
+uniform int   tick;
 
-        cx *= -1;
+uniform sampler3D inPos;
+uniform sampler3D inVel;
+uniform sampler3D inMass;
+
+out vec3  outPos;
+out vec3  outVel;
+out float outMass;
+
+out vec4 fragmentColor;
+
+int rnd_cnt = 0;
+float rnd(){
+    return sin(3571.3559 * float(gl_VertexID + rnd_cnt++));
+}
+
+bool isNaN(float f){
+    return !(-10000.0 < f && f <= 0.0 || 0.0 <= f && f < 10000.0);
+}
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    ${getIndex(sz, sy, sx)}
+
+    vec3 pos;
+    vec3 vel;
+
+    float mass;
+
+    if(tick == 0){
+        pos = vec3(rnd(), rnd(), rnd());
+        vel = vec3(0.1 * rnd(), 0.1 * rnd(), 0.1 * rnd());
+        // vel = vec3(0.0, 0.0, 0.0);
+        mass = 1.0 + abs(rnd());
+    }
+    else{
+        pos  = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
+        vel  = vec3(texelFetch(inVel, ivec3(col, row, dep), 0));
+        mass = texelFetch(inMass, ivec3(col, row, dep), 0).r;
+
+        vec3 F = vec3(0.0, 0.0, 0.0);
+        vec3 dvel = vec3(0.0, 0.0, 0.0);
+        for(int dep1 = 0; dep1 < ${sz}; dep1++){
+            for(int row1 = 0; row1 < ${sy}; row1++){
+                for(int col1 = 0; col1 < ${sx}; col1++){
+                    vec3 pos1 = vec3(texelFetch(inPos, ivec3(col1, row1, dep1), 0));
+                    vec3 vel1 = vec3(texelFetch(inVel, ivec3(col1, row1, dep1), 0));
+                    float mass1 = texelFetch(inMass, ivec3(col1, row1, dep1), 0).r;
+
+                    float r = length(pos1 - pos);
+                    if(r != 0.0 && r < 0.12){
+                        if(length((pos1 + + 0.1 * vel1) - (pos + 0.1 * vel)) < r){
+
+                            // vec3 vel2 = 0.5 * (${Cr} * (vel1 - vel) + vel1 + vel);
+                            vel = vel1;
+                            // dvel += vel2 - vel;
+                            // vel = vel2;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // vel += dvel;
+        vel.z -= 0.01;
+
+        pos += vel;
+
+        float bdr = 1.0;
+
+        if(1.0 < abs(pos.x)){
+            pos.x = sign(pos.x);
+            if(1.0 < abs(pos.x + vel.x)){
+                vel.x *= - ${Cr};
+            }
+        }
+
+        if(1.0 < abs(pos.y)){
+            pos.y = sign(pos.y);
+            if(1.0 < abs(pos.y + vel.y)){
+                vel.y *= - ${Cr};
+            }
+        }
+
+        if(1.0 < abs(pos.z)){
+            pos.z = sign(pos.z);
+            if(1.0 < abs(pos.z + vel.z)){
+                vel.z *= - ${Cr};
+            }
+        }
+
+        pos.x = isNaN(pos.x) ? rnd() : pos.x;
+        pos.y = isNaN(pos.y) ? rnd() : pos.y;
+        pos.z = isNaN(pos.z) ? rnd() : pos.z;
+
+        vel.x = isNaN(vel.x) ? rnd() : vel.x;
+        vel.y = isNaN(vel.y) ? rnd() : vel.y;
+        vel.z = isNaN(vel.z) ? rnd() : vel.z;
     }
 
-    inMass[0] = 1000000;
-    inPos[0] = 0.7;
+    fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
 
-    // inMass[3] = 1000000;
-    // inPos[3] = 0.7;
-    
+    gl_Position   = uPMVMatrix * vec4(pos, 1.0);
+    outPos  = pos;
+    outVel  = vel;
+    outMass = mass;
+}`;
+}
 
-    let dr1 = new gpgputs.UserDef(gl.POINTS, multibody(sz, sy, sx) , gpgputs.GPGPU.pointFragmentShader,
+function ElasticCollision(gpgpu){
+    let gl = bansho.gl;
+    let sx = 20, sy = 20; sz = 20;
+    let Cr = 0.9;
+
+    let dr1 = new gpgputs.UserDef(gl.POINTS, particleShader(sz, sy, sx, Cr) , gpgputs.GPGPU.pointFragmentShader,
     {
-        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx], inPos),
-        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx], inVel),
-        inMass: gpgpu.makeTextureInfo("float", [sz, sy, sx], inMass)
+        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
+        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
+        inMass: gpgpu.makeTextureInfo("float", [sz, sy, sx])
     });
 
     dr1.numInput = sz * sy * sx;
     gpgpu.makePackage(dr1);
 
-    gpgpu.drawParam.z = -200;
+    let dr2 = particlePackage(gpgpu, sz, sy, sx, 8, 8, 0.01);
 
-    let n1 = 8, n2 = 8, radius = 2;
-    let dr2 = particlePackage(gpgpu, sz, sy, sx, n1, n2, radius);
+    let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
 
+    dr1.bind("outMass", "inMass");
     dr1.bind("outPos", "inPos");
+    dr1.bind("outVel", "inVel");
+
+    dr1.bind("outPos", "inPos", dr2);
+
+    return new gpgputs.ComponentDrawable([dr1, dr2, dr3]);
+}
+
+//--------------------------------------------------
+// 逆二乗
+//--------------------------------------------------
+
+function InverseSquareShader(sz, sy, sx, Cr){ 
+    return `
+
+precision highp sampler3D;
+
+uniform mat4 uPMVMatrix;
+uniform int   tick;
+
+uniform sampler3D inPos;
+uniform sampler3D inVel;
+uniform sampler3D inMass;
+
+out vec3  outPos;
+out vec3  outVel;
+out float outMass;
+
+out vec4 fragmentColor;
+
+
+float rand(vec2 co){
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
+vec3 rand3(int col, int row, int dep, int idx){
+    float f1 = rand(vec2(float(col+1), float(row+2)));
+    float f2 = rand(vec2(f1          , float(dep+3)));
+    float f3 = rand(vec2(f2          , float(idx+4)));
+
+    return 2.0 * vec3(f1, f2, f3) - 1.0;
+}
+
+bool isNaN(float f){
+    return !(-10000.0 < f && f <= 0.0 || 0.0 <= f && f < 10000.0);
+}
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    ${getIndex(sz, sy, sx)}
+
+    vec3 pos;
+    vec3 vel;
+
+    float mass;
+    float bdr = 0.9;
+
+    if(tick == 0){
+        pos = bdr * rand3(col, row, dep, gl_VertexID);
+        // vel = vec3(0.1 * rnd(), 0.1 * rnd(), 0.1 * rnd());
+        vel = vec3(0.0, 0.0, 0.0);
+        mass = 1.0;
+    }
+    else{
+        pos  = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
+        vel  = vec3(texelFetch(inVel, ivec3(col, row, dep), 0));
+        // vel = vec3(0.0, 0.0, 0.0);
+        mass = texelFetch(inMass, ivec3(col, row, dep), 0).r;
+
+        vec3 F = vec3(0.0, 0.0, 0.0);
+        for(int dep1 = 0; dep1 < ${sz}; dep1++){
+            for(int row1 = 0; row1 < ${sy}; row1++){
+                for(int col1 = 0; col1 < ${sx}; col1++){
+                    vec3 pos1 = vec3(texelFetch(inPos, ivec3(col1, row1, dep1), 0));
+                    vec3 vel1 = vec3(texelFetch(inVel, ivec3(col1, row1, dep1), 0));
+                    float mass1 = texelFetch(inMass, ivec3(col1, row1, dep1), 0).r;
+
+                    float r = length(pos1 - pos);
+                    if(0.0 < r && r < 0.1){
+
+                        F += 0.0001 * (pos - pos1) / r;
+                    }
+                }
+            }
+        }
+
+        // vec3 p0 = vec3(uPMVMatrix * vec4(0.0, 0.0, 0.0, 1.0));
+        // vec3 p1 = vec3(uPMVMatrix * vec4(0.0, 0.0, 1.0, 1.0));
+        // vec3 gr = normalize(p1 - p0);
+        vec3 gr = normalize(vec3(uPMVMatrix * vec4(0.0, 1.0, 0.0, 0.0)));
+        vel -= 0.0001 * gr;
+
+        // vel.z -= 0.0001;
+
+
+        if(bdr < abs(pos.x) && abs(pos.x) <= abs(pos.x + vel.x) ){
+            vel.x = ${Cr} * (- vel.x - sign(pos.x)*(abs(pos.x) - bdr));
+        }
+
+        if(-bdr > pos.y && abs(pos.y) <= abs(pos.y + vel.y) ){
+            vel.y = - ${Cr} * (vel.y + bdr - abs(pos.y));
+        }
+
+        if(bdr < abs(pos.z) && abs(pos.z) <= abs(pos.z + vel.z) ){
+            vel.z = ${Cr} * (- vel.z - sign(pos.z)*(abs(pos.z) - bdr));
+        }
+
+        vel += F;
+
+        // vel += 0.001 * vec3(rnd(), rnd(), rnd());
+
+        pos += vel;
+
+        if(isNaN(length(pos))){
+            pos = bdr * rand3(col, row, dep, gl_VertexID + tick);
+        }
+
+        if(isNaN(length(vel))){
+            vel = vec3(0.0, 0.0, 0.0);
+        }
+    }
+
+    fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
+
+    gl_Position   = uPMVMatrix * vec4(pos, 1.0);
+    outPos  = pos;
+    outVel  = vel;
+    outMass = mass;
+}`;
+}
+
+function InverseSquare(gpgpu){
+    let gl = bansho.gl;
+    let sx = 20, sy = 20; sz = 10;
+    let Cr = 0.5;
+
+    let dr1 = new gpgputs.UserDef(gl.POINTS, InverseSquareShader(sz, sy, sx, Cr) , gpgputs.GPGPU.pointFragmentShader,
+    {
+        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
+        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
+        inMass: gpgpu.makeTextureInfo("float", [sz, sy, sx])
+    });
+
+    dr1.numInput = sz * sy * sx;
+    gpgpu.makePackage(dr1);
+
+    let dr2 = particlePackage(gpgpu, sz, sy, sx, 8, 8, 0.04);
+
+    let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
+
+    dr1.bind("outMass", "inMass");
+    dr1.bind("outPos", "inPos");
+    dr1.bind("outVel", "inVel");
+
+    dr1.bind("outPos", "inPos", dr2);
+
+    return new gpgputs.ComponentDrawable([dr1, dr2, dr3]);
+}
+
+
+//--------------------------------------------------
+// バスタブ渦
+//--------------------------------------------------
+
+function BathtubVortexShader(sz, sy, sx, Cr){ 
+    return `
+
+precision highp sampler3D;
+
+#define PI 3.14159265359
+
+uniform mat4 uPMVMatrix;
+uniform int   tick;
+
+uniform sampler3D inPos;
+uniform sampler3D inVel;
+uniform sampler3D inMass;
+
+out vec3  outPos;
+out vec3  outVel;
+out float outMass;
+
+out vec4 fragmentColor;
+
+
+float rand(vec2 co){
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
+vec3 rand3(int col, int row, int dep, int idx){
+    float f1 = rand(vec2(float(col+1), float(row+2)));
+    float f2 = rand(vec2(f1          , float(dep+3)));
+    float f3 = rand(vec2(f2          , float(idx+4)));
+
+    return 2.0 * vec3(f1, f2, f3) - 1.0;
+}
+
+bool isNaN(float f){
+    return !(-10000.0 < f && f <= 0.0 || 0.0 <= f && f < 10000.0);
+}
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    ${getIndex(sz, sy, sx)}
+
+    vec3 pos;
+    vec3 vel;
+
+    float mass;
+    float bdr = 0.9;
+
+    if(tick == 0){
+        pos = bdr * rand3(col, row, dep, gl_VertexID);
+        vel = vec3(0.0, 0.0, 0.0);
+        mass = 1.0;
+    }
+    else{
+        pos  = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
+        vel  = vec3(texelFetch(inVel, ivec3(col, row, dep), 0));
+        // vel = vec3(0.0, 0.0, 0.0);
+        mass = texelFetch(inMass, ivec3(col, row, dep), 0).r;
+
+        vec3 F = vec3(0.0, 0.0, 0.0);
+        for(int dep1 = 0; dep1 < ${sz}; dep1++){
+            for(int row1 = 0; row1 < ${sy}; row1++){
+                for(int col1 = 0; col1 < ${sx}; col1++){
+                    vec3 pos1 = vec3(texelFetch(inPos, ivec3(col1, row1, dep1), 0));
+                    vec3 vel1 = vec3(texelFetch(inVel, ivec3(col1, row1, dep1), 0));
+                    float mass1 = texelFetch(inMass, ivec3(col1, row1, dep1), 0).r;
+
+                    float r = length(pos1 - pos);
+                    if(0.0 < r && r < 0.1){
+
+                        F += 0.0001 * (pos - pos1) / r;
+                    }
+                }
+            }
+        }
+
+        vel.z -= 0.01;
+
+
+
+        vec3 c = vec3(0.0, 0.0, 2.0);
+        float r1 = length(c - pos);
+        if(3.0 < r1){
+
+            if(length(vec2(pos.x, pos.y)) < 0.1){
+
+                float th = 2.0 * PI * rand(vec2(float(tick), float(gl_VertexID)));
+                pos.z = -0.6;
+                float r2 = sqrt(3.0*3.0 - (c.z - pos.z)*(c.z - pos.z) );
+                pos.x = r2 * cos(th);
+                pos.y = r2 * sin(th);
+                // vel = vec3(0.0, 0.0, 0.0);
+                vel = 0.01 * vec3(pos.y, -pos.x, 0.0);
+            }
+            else{
+
+                vel += 0.01 * normalize(c - pos);
+                pos  = c + 3.0 * normalize(pos - c);
+            }
+        }
+
+        // if(-bdr > pos.z && abs(pos.z) <= abs(pos.z + vel.z) ){
+        //     if(pos.z < -bdr - 0.3){
+
+        //         pos = bdr * rand3(col, row, dep, gl_VertexID);
+        //         pos.z = 0.3;
+        //         vel = vec3(0.0, 0.0, 0.0);        
+        //     }
+        //     else if(pos.z < -bdr - 0.1){
+        //     }
+        //     else{
+
+        //         if(0.1 < length(vec2(pos.x, pos.y)) ){
+
+        //             vel.z = - ${Cr} * (vel.z + bdr - abs(pos.z));
+        //         }
+        //         else{
+        //             pos.z -= 0.1;
+        //             F   = vec3(0.0, 0.0, vel.z);
+        //             vel = vec3(0.0, 0.0, 0.0);
+        //         }
+        //     }
+        // }
+
+        vel += F;
+
+        pos += vel;
+
+        // if(isNaN(length(pos))){
+        //     pos = bdr * rand3(col, row, dep, gl_VertexID + tick);
+        // }
+
+        // if(isNaN(length(vel))){
+        //     vel = vec3(0.0, 0.0, 0.0);
+        // }
+    }
+
+    fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
+
+    gl_Position   = uPMVMatrix * vec4(pos, 1.0);
+    outPos  = pos;
+    outVel  = vel;
+    outMass = mass;
+}`;
+}
+
+function BathtubVortex(gpgpu){
+    let gl = bansho.gl;
+    let sx = 20, sy = 20; sz = 10;
+    let Cr = 0.5;
+
+    let dr1 = new gpgputs.UserDef(gl.POINTS, BathtubVortexShader(sz, sy, sx, Cr) , gpgputs.GPGPU.pointFragmentShader,
+    {
+        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
+        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
+        inMass: gpgpu.makeTextureInfo("float", [sz, sy, sx])
+    });
+
+    dr1.numInput = sz * sy * sx;
+    gpgpu.makePackage(dr1);
+
+    let dr2 = particlePackage(gpgpu, sz, sy, sx, 8, 8, 0.04);
+
+    // let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
+
+    dr1.bind("outMass", "inMass");
+    dr1.bind("outPos", "inPos");
+    dr1.bind("outVel", "inVel");
+
     dr1.bind("outPos", "inPos", dr2);
 
     return new gpgputs.ComponentDrawable([dr1, dr2]);
 }
-
 

@@ -585,8 +585,6 @@ export function initEdit(){
     setEventListener();
 
     initDraw();
-
-    initSample3D();
 }
 
 export function initPlay(){
