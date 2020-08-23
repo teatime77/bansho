@@ -1,20 +1,5 @@
 
 //--------------------------------------------------
-// 
-//--------------------------------------------------
-
-function getIndex(sz, sy, sx){
-return `
-    int col  = idx % ${sx};
-    idx     /= ${sx};
-
-    int row  = idx % ${sy};
-    int dep  = idx / ${sy};
-`;
-}
-
-
-//--------------------------------------------------
 // 疑似カラー
 //--------------------------------------------------
 
@@ -95,7 +80,7 @@ void main(void) {
 // 線の矢印
 //--------------------------------------------------
 
-function ArrowLineShader(sx, sy, sz, r, g, b){ 
+function ArrowLineShader(sx, r, g, b){ 
     return `
 
 precision highp sampler3D;
@@ -103,8 +88,8 @@ precision highp sampler3D;
 uniform mat4 uPMVMatrix;
 uniform mat3 uNMatrix;
 
-uniform sampler3D inPos;
-uniform sampler3D inVec;
+uniform sampler2D inPos;
+uniform sampler2D inVec;
 
 out vec4 fragmentColor;
 
@@ -115,15 +100,12 @@ void main(void) {
     idx    /= 2;
 
     int col  = idx % ${sx};
-    idx     /= ${sx};
+    int row  = idx / ${sx};
 
-    int row  = idx % ${sy};
-    int dep  = idx / ${sy};
-
-    vec4 pos = texelFetch(inPos, ivec3(col, row, dep), 0);
+    vec4 pos = texelFetch(inPos, ivec2(col, row), 0);
 
     if(ip == 1){
-        vec4 vec = texelFetch(inVec, ivec3(col, row, dep), 0);
+        vec4 vec = texelFetch(inVec, ivec2(col, row), 0);
         pos += vec;
     }
 
@@ -133,15 +115,32 @@ void main(void) {
 }`;
 }
 
+function Factorization(cnt){
+    let i1 = 1, i2 = cnt;
 
+    for(let d of [ 5, 3, 2 ]){
+        while(i2 % d == 0){
+            i2 /= d;
+            i1 *= d;
 
-function ArrowLine(gpgpu, dr1, pos_name, vec_name, sx, sy, sz, r, g, b){
-    let dr2 = new gpgputs.UserDef(bansho.gl.LINES, ArrowLineShader(sx, sy, sz, r, g, b), gpgputs.GPGPU.pointFragmentShader, 
+            if(Math.sqrt(cnt) <= i1){
+                return [ i1, i2 ];
+            }
+        }
+    }
+    return [ i1, i2 ];
+}
+
+function ArrowLine(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
+    let [ sy, sx ] = Factorization(cnt);
+    console.log(`因数分解 ${cnt} = ${sy} x ${sx}`);
+
+    let dr2 = new gpgputs.UserDef(bansho.gl.LINES, ArrowLineShader(sx, r, g, b), gpgputs.GPGPU.pointFragmentShader, 
     {
-        inPos : gpgpu.makeTextureInfo("vec3", [sz, sy, sx]),
-        inVec : gpgpu.makeTextureInfo("vec3", [sz, sy, sx]),
+        inPos : gpgpu.makeTextureInfo("vec3", [sy, sx]),
+        inVec : gpgpu.makeTextureInfo("vec3", [sy, sx]),
     });
-    dr2.numInput = sz * sy * sx * 2;
+    dr2.numInput = cnt * 2;
     gpgpu.makePackage(dr2);
 
     dr1.bind(pos_name, "inPos", dr2);
@@ -155,21 +154,23 @@ function ArrowLine(gpgpu, dr1, pos_name, vec_name, sx, sy, sz, r, g, b){
 // 3D矢印
 //--------------------------------------------------
 
-function Arrow3D(gpgpu, dr1, pos_name, vec_name, sx, sy, sz, r, g, b){
-    let size = sx * sy * sz;
+function Arrow3D(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
+    let [ sy, sx ] = Factorization(cnt);
+    console.log(`3D矢印 因数分解 ${cnt} = ${sy} x ${sx}`);
+
     const npt = 9;
-    let dr2 = new gpgputs.UserDef(bansho.gl.TRIANGLE_FAN, ArrowFanShader(npt, sx, sy, sz, r, g, b), gpgputs.GPGPU.planeFragmentShader, {
-        inPos : gpgpu.makeTextureInfo("vec3", [sz, sy, sx]),
-        inVec : gpgpu.makeTextureInfo("vec3", [sz, sy, sx])
+    let dr2 = new gpgputs.UserDef(bansho.gl.TRIANGLE_FAN, ArrowFanShader(npt, sx, r, g, b), gpgputs.GPGPU.planeFragmentShader, {
+        inPos : gpgpu.makeTextureInfo("vec3", [sy, sx]),
+        inVec : gpgpu.makeTextureInfo("vec3", [sy, sx])
     });
-    dr2.numInput = size * 3 * 9;
+    dr2.numInput = cnt * 3 * 9;
     dr2.numGroup = 9;
 
-    let dr3 = new gpgputs.UserDef(bansho.gl.TRIANGLE_STRIP, ArrowTubeShader(npt, sx, sy, sz, r, g, b), gpgputs.GPGPU.planeFragmentShader, {
-        inPos : gpgpu.makeTextureInfo("vec3", [sz, sy, sx]),
-        inVec : gpgpu.makeTextureInfo("vec3", [sz, sy, sx])
+    let dr3 = new gpgputs.UserDef(bansho.gl.TRIANGLE_STRIP, ArrowTubeShader(npt, sx, r, g, b), gpgputs.GPGPU.planeFragmentShader, {
+        inPos : gpgpu.makeTextureInfo("vec3", [sy, sx]),
+        inVec : gpgpu.makeTextureInfo("vec3", [sy, sx])
     });
-    dr3.numInput = size * 2 * npt;
+    dr3.numInput = cnt * 2 * npt;
     dr3.numGroup = 2 * npt;
 
     gpgpu.makePackage(dr2);
@@ -189,17 +190,15 @@ function Arrow3D(gpgpu, dr1, pos_name, vec_name, sx, sy, sz, r, g, b){
 // 矢印の円錐と円
 //--------------------------------------------------
 
-function ArrowFanShader(npt, sx, sy, sz, r, g, b){ 
+function ArrowFanShader(npt, sx, r, g, b){ 
     return `
-
-precision highp sampler3D;
 
 ${bansho.headShader}
 
 uniform int   tick;
 
-uniform sampler3D inPos;
-uniform sampler3D inVec;
+uniform sampler2D inPos;
+uniform sampler2D inVec;
 
 void main(void) {
     int idx = int(gl_VertexID);
@@ -211,12 +210,10 @@ void main(void) {
     idx /= 3;
 
     int col  = idx % ${sx};
-    idx     /= ${sx};
-    int row  = idx % ${sy};
-    int dep  = idx / ${sy};
+    int row  = idx / ${sx};
 
-    vec3 pos = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
-    vec3 vec = vec3(texelFetch(inVec, ivec3(col, row, dep), 0));
+    vec3 pos = vec3(texelFetch(inPos, ivec2(col, row), 0));
+    vec3 vec = vec3(texelFetch(inVec, ivec2(col, row), 0));
 
     // 円錐の底面の円の中心
     vec3 p1 = pos + 0.8 * vec;;
@@ -321,17 +318,15 @@ void main(void) {
 // 矢印の円柱部分
 //--------------------------------------------------
 
-function ArrowTubeShader(npt, sx, sy, sz, r, g, b){ 
+function ArrowTubeShader(npt, sx, r, g, b){ 
     return `
-
-precision highp sampler3D;
 
 ${bansho.headShader}
 
 uniform int   tick;
 
-uniform sampler3D inPos;
-uniform sampler3D inVec;
+uniform sampler2D inPos;
+uniform sampler2D inVec;
 
 void main(void) {
     int idx = int(gl_VertexID);
@@ -343,12 +338,10 @@ void main(void) {
     idx /= ${npt};
 
     int col  = idx % ${sx};
-    idx     /= ${sx};
-    int row  = idx % ${sy};
-    int dep  = idx / ${sy};
+    int row  = idx / ${sx};
 
-    vec3 pos = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
-    vec3 vec = vec3(texelFetch(inVec, ivec3(col, row, dep), 0));
+    vec3 pos = vec3(texelFetch(inPos, ivec2(col, row), 0));
+    vec3 vec = vec3(texelFetch(inVec, ivec2(col, row), 0));
 
     vec3 e1 = normalize(vec3(vec.y - vec.z, vec.z - vec.x, vec.x - vec.y));
 
@@ -393,10 +386,11 @@ void main(void) {
 // 粒子
 //--------------------------------------------------
 
-function particlePackage(gpgpu, sz, sy, sx, n1, n2, radius){
-    let shader = `
+function particlePackage(gpgpu, cnt, n1, n2, radius){
+    let [ sy, sx ] = Factorization(cnt);
+    console.log(`粒子 因数分解 ${cnt} = ${sy} x ${sx}`);
 
-precision highp sampler3D;
+    let shader = `
 
 const vec3 uAmbientColor = vec3(0.2, 0.2, 0.2);
 const vec3 uLightingDirection =  normalize( vec3(0.25, 0.25, 1) );
@@ -410,7 +404,7 @@ out vec4 fragmentColor;
 
 #define PI 3.14159265359
 
-uniform sampler3D inPos;
+uniform sampler2D inPos;
 
 void main(void) {
     int idx = int(gl_VertexID);
@@ -428,7 +422,8 @@ void main(void) {
     // 1,4  5
     // 0    2,3
 
-    ${getIndex(sz, sy, sx)}
+    int col  = idx % ${sx};
+    int row  = idx / ${sx};
 
     if(ip == 1 || ip == 4 || ip == 5){
         iz++;
@@ -446,7 +441,7 @@ void main(void) {
 
     fragmentColor = vec4(0.5, 0.5, 0.5, 5.0);
 
-    vec3 pos = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
+    vec3 pos = vec3(texelFetch(inPos, ivec2(col, row), 0));
     vec3 pos2 = pos + float(${radius}) * vec3(x, y, z);
 
     gl_Position = uPMVMatrix * vec4(pos2, 1.0);
@@ -458,9 +453,9 @@ void main(void) {
 }`;
 
     let pkg = new gpgputs.UserDef(bansho.gl.TRIANGLES, shader, gpgputs.GPGPU.planeFragmentShader, {
-        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx])
+        inPos : gpgpu.makeTextureInfo("vec3" , [sy, sx])
     });
-    pkg.numInput = sz * sy * sx * n1 * n2 * 6;
+    pkg.numInput = cnt * n1 * n2 * 6;
     gpgpu.makePackage(pkg);
 
     return pkg;
@@ -482,7 +477,7 @@ function ArrowTest(gpgpu){
     dr1.numInput = nrow * ncol;
     gpgpu.makePackage(dr1);
 
-    return Arrow3D(gpgpu, dr1, "pos", "vec", ncol, nrow, 1, 0.5, 0.5, 0.5);
+    return Arrow3D(gpgpu, dr1, "pos", "vec", dr1.numInput, 0.5, 0.5, 0.5);
 }
 
 
@@ -560,10 +555,8 @@ function testEMWave(gpgpu){
         console.log(`tick:${args.tick} max E:${emax} H:${hmax}`);
     };
 
-    let dr2 = ArrowLine(gpgpu, dr1, "outPos", "outE", sx, sy, sz, 0.0, 0.0, 1.0);
-    let dr3 = ArrowLine(gpgpu, dr1, "outPos", "outH", sx, sy, sz, 1.0, 0.0, 0.0);
-    // let dr2 = Arrow3D(gpgpu, dr1, "outPos", "outE", sx, sy, sz, 0.0, 0.0, 1.0);
-    // let dr3 = Arrow3D(gpgpu, dr1, "outPos", "outH", sx, sy, sz, 1.0, 0.0, 0.0);
+    let dr2 = ArrowLine(gpgpu, dr1, "outPos", "outE", dr1.numInput, 0.0, 0.0, 1.0);
+    let dr3 = ArrowLine(gpgpu, dr1, "outPos", "outH", dr1.numInput, 1.0, 0.0, 0.0);
 
     dr1.bind("outE", "inE");
     dr1.bind("outH", "inH");
@@ -710,17 +703,15 @@ void main(void) {
 // 多体問題
 //--------------------------------------------------
 
-function multibody(sz, sy, sx){ 
+function multibody(cnt){ 
     return `
-
-precision highp sampler3D;
 
 uniform mat4 uPMVMatrix;
 uniform int   tick;
 
-uniform sampler3D inPos;
-uniform sampler3D inVel;
-uniform sampler3D inMass;
+uniform sampler2D inPos;
+uniform sampler2D inVel;
+uniform sampler2D inMass;
 
 out vec3 outPos;
 out vec3 outVel;
@@ -731,30 +722,24 @@ out vec4 fragmentColor;
 void main(void) {
     int idx = int(gl_VertexID);
 
-    ${getIndex(sz, sy, sx)}
-
-    vec3 pos = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
-    vec3 vel = vec3(texelFetch(inVel, ivec3(col, row, dep), 0));
+    vec3 pos = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
+    vec3 vel = vec3(texelFetch(inVel, ivec2(idx, 0), 0));
     if(tick % 1 == 0){
 
-        float mass = texelFetch(inMass, ivec3(col, row, dep), 0).r;
+        float mass = texelFetch(inMass, ivec2(idx, 0), 0).r;
         dmp    = mass;
 
         vec3 F = vec3(0.0, 0.0, 0.0);
-        for(int dep1 = 0; dep1 < ${sz}; dep1++){
-            for(int row1 = 0; row1 < ${sy}; row1++){
-                for(int col1 = 0; col1 < ${sx}; col1++){
-                    vec3 pos1 = vec3(texelFetch(inPos, ivec3(col1, row1, dep1), 0));
-                    float mass1 = texelFetch(inMass, ivec3(col1, row1, dep1), 0).r;
+        for(int idx1 = 0; idx1 < ${cnt}; idx1++){
+            vec3 pos1 = vec3(texelFetch(inPos, ivec2(idx1, 0), 0));
+            float mass1 = texelFetch(inMass, ivec2(idx1, 0), 0).r;
 
-                    float r = length(pos1 - pos);
-            
-                    if(r != 0.0){
+            float r = length(pos1 - pos);
+    
+            if(r != 0.0){
 
-                        r *= 100.0;
-                        F += (mass * mass1 * 0.01 / (r * r)) * normalize(pos1 - pos);
-                    }
-                }
+                r *= 100.0;
+                F += (mass * mass1 * 0.01 / (r * r)) * normalize(pos1 - pos);
             }
         }
 
@@ -782,11 +767,10 @@ void main(void) {
 function multibodyTest(gpgpu){
     let gl = bansho.gl;
     let sx = 20, sy = 20; sz = 20;
+    let cnt = sx * sy * sz;
     let inPos = new Float32Array(sx * sy * sz * 3).map(x => 3 * Math.random() - 1.5);
     let inVel = new Float32Array(sx * sy * sz * 3).map(x => 0.05 * Math.random() - 0.025);
     let inMass  = new Float32Array(sx * sy * sz).map(x => 0.5 + Math.random());
-    // let inMass  = new Float32Array(bansho.range(sx * sy * sz).map(x => 11 * x));
-
 
     inPos = new Float32Array(sx * sy * sz * 3);
     inVel = new Float32Array(sx * sy * sz * 3);
@@ -806,16 +790,13 @@ function multibodyTest(gpgpu){
 
     inMass[0] = 1000000;
     inPos[0] = 0.7;
+   
 
-    // inMass[3] = 1000000;
-    // inPos[3] = 0.7;
-    
-
-    let dr = new gpgputs.UserDef(gl.POINTS, multibody(sz, sy, sx) , gpgputs.GPGPU.pointFragmentShader,
+    let dr = new gpgputs.UserDef(gl.POINTS, multibody(cnt) , gpgputs.GPGPU.pointFragmentShader,
     {
-        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx], inPos),
-        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx], inVel),
-        inMass: gpgpu.makeTextureInfo("float", [sz, sy, sx], inMass),
+        inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt], inPos),
+        inVel : gpgpu.makeTextureInfo("vec3" , [1, cnt], inVel),
+        inMass: gpgpu.makeTextureInfo("float", [1, cnt], inMass),
     });
     dr.numInput = sz * sy * sx;
     // dr.fps = 1;
@@ -833,17 +814,15 @@ function multibodyTest(gpgpu){
 // 弾性衝突
 //--------------------------------------------------
 
-function particleShader(sz, sy, sx, Cr){ 
+function particleShader(cnt, Cr){ 
     return `
-
-precision highp sampler3D;
 
 uniform mat4 uPMVMatrix;
 uniform int   tick;
 
-uniform sampler3D inPos;
-uniform sampler3D inVel;
-uniform sampler3D inMass;
+uniform sampler2D inPos;
+uniform sampler2D inVel;
+uniform sampler2D inMass;
 
 out vec3  outPos;
 out vec3  outVel;
@@ -853,7 +832,7 @@ out vec4 fragmentColor;
 
 int rnd_cnt = 0;
 float rnd(){
-    return sin(3571.3559 * float(gl_VertexID + rnd_cnt++));
+    return 2.0 * fract( sin(float(gl_VertexID) * 12.9898 + float(rnd_cnt++) * 78.233) * 43758.5453) - 1.0;
 }
 
 bool isNaN(float f){
@@ -861,10 +840,6 @@ bool isNaN(float f){
 }
 
 void main(void) {
-    int idx = int(gl_VertexID);
-
-    ${getIndex(sz, sy, sx)}
-
     vec3 pos;
     vec3 vel;
 
@@ -877,30 +852,26 @@ void main(void) {
         mass = 1.0 + abs(rnd());
     }
     else{
-        pos  = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
-        vel  = vec3(texelFetch(inVel, ivec3(col, row, dep), 0));
-        mass = texelFetch(inMass, ivec3(col, row, dep), 0).r;
+        pos  = vec3(texelFetch(inPos, ivec2(gl_VertexID, 0), 0));
+        vel  = vec3(texelFetch(inVel, ivec2(gl_VertexID, 0), 0));
+        mass = texelFetch(inMass, ivec2(gl_VertexID, 0), 0).r;
 
         vec3 F = vec3(0.0, 0.0, 0.0);
         vec3 dvel = vec3(0.0, 0.0, 0.0);
-        for(int dep1 = 0; dep1 < ${sz}; dep1++){
-            for(int row1 = 0; row1 < ${sy}; row1++){
-                for(int col1 = 0; col1 < ${sx}; col1++){
-                    vec3 pos1 = vec3(texelFetch(inPos, ivec3(col1, row1, dep1), 0));
-                    vec3 vel1 = vec3(texelFetch(inVel, ivec3(col1, row1, dep1), 0));
-                    float mass1 = texelFetch(inMass, ivec3(col1, row1, dep1), 0).r;
+        for(int idx1 = 0; idx1 < ${cnt}; idx1++){
+            vec3 pos1 = vec3(texelFetch(inPos, ivec2(idx1, 0), 0));
+            vec3 vel1 = vec3(texelFetch(inVel, ivec2(idx1, 0), 0));
+            float mass1 = texelFetch(inMass, ivec2(idx1, 0), 0).r;
 
-                    float r = length(pos1 - pos);
-                    if(r != 0.0 && r < 0.12){
-                        if(length((pos1 + + 0.1 * vel1) - (pos + 0.1 * vel)) < r){
+            float r = length(pos1 - pos);
+            if(r != 0.0 && r < 0.12){
+                if(length((pos1 + + 0.1 * vel1) - (pos + 0.1 * vel)) < r){
 
-                            // vec3 vel2 = 0.5 * (${Cr} * (vel1 - vel) + vel1 + vel);
-                            vel = vel1;
-                            // dvel += vel2 - vel;
-                            // vel = vel2;
-                            break;
-                        }
-                    }
+                    // vec3 vel2 = 0.5 * (${Cr} * (vel1 - vel) + vel1 + vel);
+                    vel = vel1;
+                    // dvel += vel2 - vel;
+                    // vel = vel2;
+                    break;
                 }
             }
         }
@@ -954,19 +925,20 @@ void main(void) {
 function ElasticCollision(gpgpu){
     let gl = bansho.gl;
     let sx = 20, sy = 20; sz = 20;
+    let cnt = sz * sy * sx;
     let Cr = 0.9;
 
-    let dr1 = new gpgputs.UserDef(gl.POINTS, particleShader(sz, sy, sx, Cr) , gpgputs.GPGPU.pointFragmentShader,
+    let dr1 = new gpgputs.UserDef(gl.POINTS, particleShader(cnt, Cr) , gpgputs.GPGPU.pointFragmentShader,
     {
-        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
-        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
-        inMass: gpgpu.makeTextureInfo("float", [sz, sy, sx])
+        inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
+        inVel : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
+        inMass: gpgpu.makeTextureInfo("float", [1, cnt])
     });
 
     dr1.numInput = sz * sy * sx;
     gpgpu.makePackage(dr1);
 
-    let dr2 = particlePackage(gpgpu, sz, sy, sx, 8, 8, 0.01);
+    let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.01);
 
     let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
 
@@ -983,17 +955,15 @@ function ElasticCollision(gpgpu){
 // 逆二乗
 //--------------------------------------------------
 
-function InverseSquareShader(sz, sy, sx, Cr){ 
+function InverseSquareShader(cnt, Cr){ 
     return `
-
-precision highp sampler3D;
 
 uniform mat4 uPMVMatrix;
 uniform int   tick;
 
-uniform sampler3D inPos;
-uniform sampler3D inVel;
-uniform sampler3D inMass;
+uniform sampler2D inPos;
+uniform sampler2D inVel;
+uniform sampler2D inMass;
 
 out vec3  outPos;
 out vec3  outVel;
@@ -1001,17 +971,9 @@ out float outMass;
 
 out vec4 fragmentColor;
 
-
-float rand(vec2 co){
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
-}
-
-vec3 rand3(int col, int row, int dep, int idx){
-    float f1 = rand(vec2(float(col+1), float(row+2)));
-    float f2 = rand(vec2(f1          , float(dep+3)));
-    float f3 = rand(vec2(f2          , float(idx+4)));
-
-    return 2.0 * vec3(f1, f2, f3) - 1.0;
+int rnd_cnt = 0;
+float rnd(){
+    return 2.0 * fract( sin(float(gl_VertexID) * 12.9898 + float(rnd_cnt++) * 78.233) * 43758.5453) - 1.0;
 }
 
 bool isNaN(float f){
@@ -1019,10 +981,6 @@ bool isNaN(float f){
 }
 
 void main(void) {
-    int idx = int(gl_VertexID);
-
-    ${getIndex(sz, sy, sx)}
-
     vec3 pos;
     vec3 vel;
 
@@ -1030,37 +988,28 @@ void main(void) {
     float bdr = 0.9;
 
     if(tick == 0){
-        pos = bdr * rand3(col, row, dep, gl_VertexID);
-        // vel = vec3(0.1 * rnd(), 0.1 * rnd(), 0.1 * rnd());
+        pos = bdr * vec3(rnd(), rnd(), rnd());
         vel = vec3(0.0, 0.0, 0.0);
         mass = 1.0;
     }
     else{
-        pos  = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
-        vel  = vec3(texelFetch(inVel, ivec3(col, row, dep), 0));
-        // vel = vec3(0.0, 0.0, 0.0);
-        mass = texelFetch(inMass, ivec3(col, row, dep), 0).r;
+        pos  = vec3(texelFetch(inPos , ivec2(gl_VertexID, 0), 0));
+        vel  = vec3(texelFetch(inVel , ivec2(gl_VertexID, 0), 0));
+        mass =      texelFetch(inMass, ivec2(gl_VertexID, 0), 0).r;
 
         vec3 F = vec3(0.0, 0.0, 0.0);
-        for(int dep1 = 0; dep1 < ${sz}; dep1++){
-            for(int row1 = 0; row1 < ${sy}; row1++){
-                for(int col1 = 0; col1 < ${sx}; col1++){
-                    vec3 pos1 = vec3(texelFetch(inPos, ivec3(col1, row1, dep1), 0));
-                    vec3 vel1 = vec3(texelFetch(inVel, ivec3(col1, row1, dep1), 0));
-                    float mass1 = texelFetch(inMass, ivec3(col1, row1, dep1), 0).r;
+        for(int idx1 = 0; idx1 < ${cnt}; idx1++){
+            vec3 pos1   = vec3(texelFetch(inPos,  ivec2(idx1, 0), 0));
+            vec3 vel1   = vec3(texelFetch(inVel,  ivec2(idx1, 0), 0));
+            float mass1 =      texelFetch(inMass, ivec2(idx1, 0), 0).r;
 
-                    float r = length(pos1 - pos);
-                    if(0.0 < r && r < 0.1){
+            float r = length(pos1 - pos);
+            if(0.0 < r && r < 0.1){
 
-                        F += 0.0001 * (pos - pos1) / r;
-                    }
-                }
+                F += 0.0001 * (pos - pos1) / r;
             }
         }
 
-        // vec3 p0 = vec3(uPMVMatrix * vec4(0.0, 0.0, 0.0, 1.0));
-        // vec3 p1 = vec3(uPMVMatrix * vec4(0.0, 0.0, 1.0, 1.0));
-        // vec3 gr = normalize(p1 - p0);
         vec3 gr = normalize(vec3(uPMVMatrix * vec4(0.0, 1.0, 0.0, 0.0)));
         vel -= 0.0001 * gr;
 
@@ -1086,7 +1035,7 @@ void main(void) {
         pos += vel;
 
         if(isNaN(length(pos))){
-            pos = bdr * rand3(col, row, dep, gl_VertexID + tick);
+            pos = bdr * vec3(rnd(), rnd(), rnd());
         }
 
         if(isNaN(length(vel))){
@@ -1106,19 +1055,20 @@ void main(void) {
 function InverseSquare(gpgpu){
     let gl = bansho.gl;
     let sx = 20, sy = 20; sz = 10;
+    let cnt = sz * sy * sx;
     let Cr = 0.5;
 
-    let dr1 = new gpgputs.UserDef(gl.POINTS, InverseSquareShader(sz, sy, sx, Cr) , gpgputs.GPGPU.pointFragmentShader,
+    let dr1 = new gpgputs.UserDef(gl.POINTS, InverseSquareShader(cnt, Cr) , gpgputs.GPGPU.pointFragmentShader,
     {
-        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
-        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
-        inMass: gpgpu.makeTextureInfo("float", [sz, sy, sx])
+        inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
+        inVel : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
+        inMass: gpgpu.makeTextureInfo("float", [1, cnt])
     });
 
     dr1.numInput = sz * sy * sx;
     gpgpu.makePackage(dr1);
 
-    let dr2 = particlePackage(gpgpu, sz, sy, sx, 8, 8, 0.04);
+    let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.04);
 
     let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
 
@@ -1136,19 +1086,17 @@ function InverseSquare(gpgpu){
 // バスタブ渦
 //--------------------------------------------------
 
-function BathtubVortexShader(sz, sy, sx, Cr){ 
+function BathtubVortexShader(cnt, Cr){ 
     return `
-
-precision highp sampler3D;
 
 #define PI 3.14159265359
 
 uniform mat4 uPMVMatrix;
 uniform int   tick;
 
-uniform sampler3D inPos;
-uniform sampler3D inVel;
-uniform sampler3D inMass;
+uniform sampler2D inPos;
+uniform sampler2D inVel;
+uniform sampler2D inMass;
 
 out vec3  outPos;
 out vec3  outVel;
@@ -1156,17 +1104,9 @@ out float outMass;
 
 out vec4 fragmentColor;
 
-
-float rand(vec2 co){
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
-}
-
-vec3 rand3(int col, int row, int dep, int idx){
-    float f1 = rand(vec2(float(col+1), float(row+2)));
-    float f2 = rand(vec2(f1          , float(dep+3)));
-    float f3 = rand(vec2(f2          , float(idx+4)));
-
-    return 2.0 * vec3(f1, f2, f3) - 1.0;
+int rnd_cnt = 0;
+float rnd(){
+    return 2.0 * fract( sin(float(gl_VertexID) * 12.9898 + float(rnd_cnt++) * 78.233) * 43758.5453) - 1.0;
 }
 
 bool isNaN(float f){
@@ -1174,10 +1114,6 @@ bool isNaN(float f){
 }
 
 void main(void) {
-    int idx = int(gl_VertexID);
-
-    ${getIndex(sz, sy, sx)}
-
     vec3 pos;
     vec3 vel;
 
@@ -1185,36 +1121,29 @@ void main(void) {
     float bdr = 0.9;
 
     if(tick == 0){
-        pos = bdr * rand3(col, row, dep, gl_VertexID);
+        pos = bdr * vec3(rnd(), rnd(), rnd());
         vel = vec3(0.0, 0.0, 0.0);
         mass = 1.0;
     }
     else{
-        pos  = vec3(texelFetch(inPos, ivec3(col, row, dep), 0));
-        vel  = vec3(texelFetch(inVel, ivec3(col, row, dep), 0));
-        // vel = vec3(0.0, 0.0, 0.0);
-        mass = texelFetch(inMass, ivec3(col, row, dep), 0).r;
+        pos  = vec3(texelFetch(inPos , ivec2(gl_VertexID, 0), 0));
+        vel  = vec3(texelFetch(inVel , ivec2(gl_VertexID, 0), 0));
+        mass =      texelFetch(inMass, ivec2(gl_VertexID, 0), 0).r;
 
         vec3 F = vec3(0.0, 0.0, 0.0);
-        for(int dep1 = 0; dep1 < ${sz}; dep1++){
-            for(int row1 = 0; row1 < ${sy}; row1++){
-                for(int col1 = 0; col1 < ${sx}; col1++){
-                    vec3 pos1 = vec3(texelFetch(inPos, ivec3(col1, row1, dep1), 0));
-                    vec3 vel1 = vec3(texelFetch(inVel, ivec3(col1, row1, dep1), 0));
-                    float mass1 = texelFetch(inMass, ivec3(col1, row1, dep1), 0).r;
+        for(int idx1 = 0; idx1 < ${cnt}; idx1++){
+            vec3 pos1   = vec3(texelFetch(inPos , ivec2(idx1, 0), 0));
+            vec3 vel1   = vec3(texelFetch(inVel , ivec2(idx1, 0), 0));
+            float mass1 =      texelFetch(inMass, ivec2(idx1, 0), 0).r;
 
-                    float r = length(pos1 - pos);
-                    if(0.0 < r && r < 0.1){
+            float r = length(pos1 - pos);
+            if(0.0 < r && r < 0.1){
 
-                        F += 0.0001 * (pos - pos1) / r;
-                    }
-                }
+                F += 0.0001 * (pos - pos1) / r;
             }
         }
 
         vel.z -= 0.01;
-
-
 
         vec3 c = vec3(0.0, 0.0, 2.0);
         float r1 = length(c - pos);
@@ -1222,7 +1151,7 @@ void main(void) {
 
             if(length(vec2(pos.x, pos.y)) < 0.1){
 
-                float th = 2.0 * PI * rand(vec2(float(tick), float(gl_VertexID)));
+                float th = 2.0 * PI * sin(float(tick)) * rnd();
                 pos.z = -0.6;
                 float r2 = sqrt(3.0*3.0 - (c.z - pos.z)*(c.z - pos.z) );
                 pos.x = r2 * cos(th);
@@ -1237,40 +1166,9 @@ void main(void) {
             }
         }
 
-        // if(-bdr > pos.z && abs(pos.z) <= abs(pos.z + vel.z) ){
-        //     if(pos.z < -bdr - 0.3){
-
-        //         pos = bdr * rand3(col, row, dep, gl_VertexID);
-        //         pos.z = 0.3;
-        //         vel = vec3(0.0, 0.0, 0.0);        
-        //     }
-        //     else if(pos.z < -bdr - 0.1){
-        //     }
-        //     else{
-
-        //         if(0.1 < length(vec2(pos.x, pos.y)) ){
-
-        //             vel.z = - ${Cr} * (vel.z + bdr - abs(pos.z));
-        //         }
-        //         else{
-        //             pos.z -= 0.1;
-        //             F   = vec3(0.0, 0.0, vel.z);
-        //             vel = vec3(0.0, 0.0, 0.0);
-        //         }
-        //     }
-        // }
-
         vel += F;
 
         pos += vel;
-
-        // if(isNaN(length(pos))){
-        //     pos = bdr * rand3(col, row, dep, gl_VertexID + tick);
-        // }
-
-        // if(isNaN(length(vel))){
-        //     vel = vec3(0.0, 0.0, 0.0);
-        // }
     }
 
     fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
@@ -1285,19 +1183,20 @@ void main(void) {
 function BathtubVortex(gpgpu){
     let gl = bansho.gl;
     let sx = 20, sy = 20; sz = 10;
+    let cnt = sz * sy * sx;
     let Cr = 0.5;
 
-    let dr1 = new gpgputs.UserDef(gl.POINTS, BathtubVortexShader(sz, sy, sx, Cr) , gpgputs.GPGPU.pointFragmentShader,
+    let dr1 = new gpgputs.UserDef(gl.POINTS, BathtubVortexShader(cnt, Cr) , gpgputs.GPGPU.pointFragmentShader,
     {
-        inPos : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
-        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
-        inMass: gpgpu.makeTextureInfo("float", [sz, sy, sx])
+        inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
+        inVel : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
+        inMass: gpgpu.makeTextureInfo("float", [1, cnt])
     });
 
     dr1.numInput = sz * sy * sx;
     gpgpu.makePackage(dr1);
 
-    let dr2 = particlePackage(gpgpu, sz, sy, sx, 8, 8, 0.04);
+    let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.04);
 
     // let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
 
@@ -1310,3 +1209,174 @@ function BathtubVortex(gpgpu){
     return new gpgputs.ComponentDrawable([dr1, dr2]);
 }
 
+
+//--------------------------------------------------
+// 曲面
+//--------------------------------------------------
+
+function SurfaceShader(sz){ 
+    return `
+
+${bansho.headShader}
+
+uniform int   tick;
+
+uniform sampler2D inPos;
+
+${PseudoColor}
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int ip  = idx % 2;
+    idx    /= 2;
+
+    int col  = idx % ${sz};
+    int row  = idx / ${sz};
+    if(ip == 1 && row + 1 < ${sz}){
+        row++;
+    }
+
+    vec3 pos = vec3(texelFetch(inPos, ivec2(col, row), 0));
+
+    vec3 x1 = pos, x2 = pos;
+    vec3 y1 = pos, y2 = pos;
+
+    if(0 <= col - 1){
+        x1 = texelFetch(inPos, ivec2(col - 1, row), 0).xyz;
+    }
+    if(col + 1 < ${sz}){
+        x2 = texelFetch(inPos, ivec2(col + 1, row), 0).xyz;
+    }
+    if(0 <= row - 1){
+        y1 = texelFetch(inPos, ivec2(col, row - 1), 0).xyz;
+    }
+    if(row + 1 < ${sz}){
+        y2 = texelFetch(inPos, ivec2(col, row + 1), 0).xyz;
+    }
+
+    vec3 nrm = normalize(cross(x2 - x1, y2 - y1));
+
+    fragmentColor = vec4(PseudoColor(-0.01, 0.01, pos.z), 1.0);
+
+    gl_Position = uPMVMatrix * vec4(pos, 1.0);
+
+    float directionalLightWeighting = max(dot(nrm, uLightingDirection), 0.0);
+    vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+}`;
+}
+
+function surfaceWave(sz, K){ 
+    return `
+uniform int   tick;
+    
+uniform sampler2D inPos;
+uniform sampler2D inVel;
+out vec3 outPos;
+out vec3 outVel;
+
+#define PI 3.14159265359
+
+${PseudoColor}
+
+void main(void) {
+    float L = 3.2 / float(${sz});
+    float K = float(${K});
+
+    int idx = int(gl_VertexID);
+
+    int col  = idx % ${sz};
+    int row  = idx / ${sz};
+
+    vec3 vel = vec3(0.0, 0.0, 0.0);
+
+    float x = -1.6 + float(col) * L;
+    float y = -1.6 + float(row) * L;
+    float z = 0.0;
+
+    if(row == ${sz} / 2 && col == ${sz} / 2){
+
+        z = 0.2 * cos(float(tick) / 100.0);
+    }
+    else if(col == 0 || row == 0 || col == ${sz} - 1 || row == ${sz} - 1){
+        z = 0.0;
+    }
+    else{
+        if(tick == 0){
+
+        }
+        else{
+
+            vec3 p  = texelFetch(inPos, ivec2(col, row), 0).xyz;
+            vel     = texelFetch(inVel, ivec2(col, row), 0).xyz;
+
+            float sum_a = 0.0;
+            for(int i = 0; i < 4; i++){
+                int col1 = col, row1 = row;
+
+                switch(i){
+                case 0: col1--; break;
+                case 1: col1++; break;
+                case 2: row1--; break;
+                case 3: row1++; break;
+                }
+
+                if(col1 < 0 || row1 < 0 || col1 == ${sz} || row1 == ${sz}){
+                    continue;
+                }
+
+                vec3 p1 = texelFetch(inPos, ivec2(col1, row1), 0).xyz;
+
+                float l1 = length(p1 - p);
+                l1 = sqrt(2.0 * L * L + (p1.z - p.z) * (p1.z - p.z));
+                float f1 = K * (l1 - L);
+                float a1 = f1 * ((p1.z - p.z) / l1);
+
+                if(isnan(a1)){
+                    continue;
+                }
+                
+                sum_a += a1;
+            }
+
+            vel.z += sum_a;
+
+            z = p.z + vel.z;
+            // z = p.z;
+        }
+    }
+
+    outPos        = vec3(x, y, z);
+    outVel        = vel;
+}`;
+}
+
+function testSurface(gpgpu){ 
+    let gl = bansho.gl;
+    const sz = 512;
+    let dr1 = new gpgputs.UserDef(gl.POINTS, surfaceWave(sz, 0.2) , gpgputs.GPGPU.minFragmentShader,
+    {
+        pointSize: 1,
+        inPos : gpgpu.makeTextureInfo("vec3", [sz, sz]),
+        inVel : gpgpu.makeTextureInfo("vec3", [sz, sz]),
+        outPos: new Float32Array(sz * sz * 3),
+        outVel: new Float32Array(sz * sz * 3)
+    });
+    dr1.numInput = sz * sz;
+
+    let dr2 = new gpgputs.UserDef(bansho.gl.TRIANGLE_STRIP, SurfaceShader(sz), gpgputs.GPGPU.planeFragmentShader, {
+        inPos : gpgpu.makeTextureInfo("vec3", [sz, sz]),
+    });
+    dr2.numInput = sz * sz * 2;
+    dr2.numGroup = sz * 2;
+
+    gpgpu.makePackage(dr1);
+    gpgpu.makePackage(dr2);
+
+    dr1.bind("outPos", "inPos");
+    dr1.bind("outVel", "inVel");
+
+    dr1.bind("outPos", "inPos", dr2);
+
+    return new gpgputs.ComponentDrawable([dr1, dr2]);
+}
