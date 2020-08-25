@@ -115,24 +115,8 @@ void main(void) {
 }`;
 }
 
-function Factorization(cnt){
-    let i1 = 1, i2 = cnt;
-
-    for(let d of [ 5, 3, 2 ]){
-        while(i2 % d == 0){
-            i2 /= d;
-            i1 *= d;
-
-            if(Math.sqrt(cnt) <= i1){
-                return [ i1, i2 ];
-            }
-        }
-    }
-    return [ i1, i2 ];
-}
-
 function ArrowLine(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
-    let [ sy, sx ] = Factorization(cnt);
+    let [ sy, sx ] = bansho.Factorization(cnt);
     console.log(`因数分解 ${cnt} = ${sy} x ${sx}`);
 
     let dr2 = new gpgputs.UserDef(bansho.gl.LINES, ArrowLineShader(sx, r, g, b), gpgputs.GPGPU.pointFragmentShader, 
@@ -155,7 +139,7 @@ function ArrowLine(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
 //--------------------------------------------------
 
 function Arrow3D(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
-    let [ sy, sx ] = Factorization(cnt);
+    let [ sy, sx ] = bansho.Factorization(cnt);
     console.log(`3D矢印 因数分解 ${cnt} = ${sy} x ${sx}`);
 
     const npt = 9;
@@ -381,86 +365,6 @@ void main(void) {
     ${bansho.tailShader}
 }`;
 }
-
-//--------------------------------------------------
-// 粒子
-//--------------------------------------------------
-
-function particlePackage(gpgpu, cnt, n1, n2, radius){
-    let [ sy, sx ] = Factorization(cnt);
-    console.log(`粒子 因数分解 ${cnt} = ${sy} x ${sx}`);
-
-    let shader = `
-
-const vec3 uAmbientColor = vec3(0.2, 0.2, 0.2);
-const vec3 uLightingDirection =  normalize( vec3(0.25, 0.25, 1) );
-const vec3 uDirectionalColor = vec3(0.8, 0.8, 0.8);
-
-uniform mat4 uPMVMatrix;
-uniform mat3 uNMatrix;
-
-out vec3 vLightWeighting;
-out vec4 fragmentColor;
-
-#define PI 3.14159265359
-
-uniform sampler2D inPos;
-
-void main(void) {
-    int idx = int(gl_VertexID);
-
-    int ip  = idx % 6;
-    idx    /= 6;
-
-    int it = idx % ${n1};
-    idx    /= ${n1};
-
-
-    int iz = idx % ${n2};
-    idx    /= ${n2};
-
-    // 1,4  5
-    // 0    2,3
-
-    int col  = idx % ${sx};
-    int row  = idx / ${sx};
-
-    if(ip == 1 || ip == 4 || ip == 5){
-        iz++;
-    }
-    if(ip == 2 || ip == 3 || ip == 5){
-        it++;
-    }
-
-    float z = sin(-PI/2.0 + PI * float(iz) / ${n1}.0);
-    float r = sqrt(1.0 - z * z);
-    float x = r * cos(2.0 * PI * float(it) / ${n2}.0);
-    float y = r * sin(2.0 * PI * float(it) / ${n2}.0);
-
-    float nx = x, ny = y, nz = z;
-
-    fragmentColor = vec4(0.5, 0.5, 0.5, 5.0);
-
-    vec3 pos = vec3(texelFetch(inPos, ivec2(col, row), 0));
-    vec3 pos2 = pos + float(${radius}) * vec3(x, y, z);
-
-    gl_Position = uPMVMatrix * vec4(pos2, 1.0);
-
-    vec3 transformedNormal = uNMatrix * vec3(nx, ny, nz);
-
-    float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
-    vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
-}`;
-
-    let pkg = new gpgputs.UserDef(bansho.gl.TRIANGLES, shader, gpgputs.GPGPU.planeFragmentShader, {
-        inPos : gpgpu.makeTextureInfo("vec3" , [sy, sx])
-    });
-    pkg.numInput = cnt * n1 * n2 * 6;
-    gpgpu.makePackage(pkg);
-
-    return pkg;
-}
-
 
 //--------------------------------------------------
 // 3D矢印のテスト
@@ -924,8 +828,7 @@ void main(void) {
 
 function ElasticCollision(gpgpu){
     let gl = bansho.gl;
-    let sx = 20, sy = 20; sz = 20;
-    let cnt = sz * sy * sx;
+    let cnt = 8000;
     let Cr = 0.9;
 
     let dr1 = new gpgputs.UserDef(gl.POINTS, particleShader(cnt, Cr) , gpgputs.GPGPU.pointFragmentShader,
@@ -935,10 +838,13 @@ function ElasticCollision(gpgpu){
         inMass: gpgpu.makeTextureInfo("float", [1, cnt])
     });
 
-    dr1.numInput = sz * sy * sx;
+    dr1.numInput = cnt;
     gpgpu.makePackage(dr1);
 
-    let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.01);
+    // let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.01);
+    let dr2 = new bansho.SpherePkg();
+    dr2.setShape([cnt]);
+    gpgpu.makePackage(dr2);
 
     let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
 
@@ -1054,8 +960,7 @@ void main(void) {
 
 function InverseSquare(gpgpu){
     let gl = bansho.gl;
-    let sx = 20, sy = 20; sz = 10;
-    let cnt = sz * sy * sx;
+    let cnt = 4000;
     let Cr = 0.5;
 
     let dr1 = new gpgputs.UserDef(gl.POINTS, InverseSquareShader(cnt, Cr) , gpgputs.GPGPU.pointFragmentShader,
@@ -1065,10 +970,13 @@ function InverseSquare(gpgpu){
         inMass: gpgpu.makeTextureInfo("float", [1, cnt])
     });
 
-    dr1.numInput = sz * sy * sx;
+    dr1.numInput = cnt;
     gpgpu.makePackage(dr1);
 
-    let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.04);
+    // let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.04);
+    let dr2 = new bansho.SpherePkg();
+    dr2.setShape([cnt]);
+    gpgpu.makePackage(dr2);
 
     let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
 
@@ -1086,8 +994,7 @@ function InverseSquare(gpgpu){
 // バスタブ渦
 //--------------------------------------------------
 
-function BathtubVortexShader(cnt, Cr){ 
-    return `
+let BathtubVortexShader = `
 
 #define PI 3.14159265359
 
@@ -1114,6 +1021,7 @@ bool isNaN(float f){
 }
 
 void main(void) {
+    int cnt = textureSize(inPos, 0).x;
     vec3 pos;
     vec3 vel;
 
@@ -1131,7 +1039,7 @@ void main(void) {
         mass =      texelFetch(inMass, ivec2(gl_VertexID, 0), 0).r;
 
         vec3 F = vec3(0.0, 0.0, 0.0);
-        for(int idx1 = 0; idx1 < ${cnt}; idx1++){
+        for(int idx1 = 0; idx1 < cnt; idx1++){
             vec3 pos1   = vec3(texelFetch(inPos , ivec2(idx1, 0), 0));
             vec3 vel1   = vec3(texelFetch(inVel , ivec2(idx1, 0), 0));
             float mass1 =      texelFetch(inMass, ivec2(idx1, 0), 0).r;
@@ -1178,25 +1086,25 @@ void main(void) {
     outVel  = vel;
     outMass = mass;
 }`;
-}
+
 
 function BathtubVortex(gpgpu){
     let gl = bansho.gl;
-    let sx = 20, sy = 20; sz = 10;
-    let cnt = sz * sy * sx;
-    let Cr = 0.5;
+    let cnt = 4000;
 
-    let dr1 = new gpgputs.UserDef(gl.POINTS, BathtubVortexShader(cnt, Cr) , gpgputs.GPGPU.pointFragmentShader,
+    let dr1 = new gpgputs.UserDef(gl.POINTS, BathtubVortexShader, gpgputs.GPGPU.minFragmentShader,
     {
         inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
         inVel : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
         inMass: gpgpu.makeTextureInfo("float", [1, cnt])
     });
 
-    dr1.numInput = sz * sy * sx;
+    dr1.numInput = cnt;
     gpgpu.makePackage(dr1);
 
-    let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.04);
+    let dr2 = new bansho.SpherePkg();
+    dr2.setShape([cnt]);
+    gpgpu.makePackage(dr2);
 
     // let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
 
@@ -1266,7 +1174,7 @@ void main(void) {
 }`;
 }
 
-function surfaceWave(sz, K){ 
+function surfaceWave(){ 
     return `
 uniform int   tick;
     
@@ -1280,13 +1188,14 @@ out vec3 outVel;
 ${PseudoColor}
 
 void main(void) {
-    float L = 3.2 / float(${sz});
-    float K = float(${K});
+    int sz = textureSize(inPos, 0).x;
+    float L = 3.2 / float(sz);
+    float K = 0.2;
 
     int idx = int(gl_VertexID);
 
-    int col  = idx % ${sz};
-    int row  = idx / ${sz};
+    int col  = idx % sz;
+    int row  = idx / sz;
 
     vec3 vel = vec3(0.0, 0.0, 0.0);
 
@@ -1294,11 +1203,11 @@ void main(void) {
     float y = -1.6 + float(row) * L;
     float z = 0.0;
 
-    if(row == ${sz} / 2 && col == ${sz} / 2){
+    if(row == sz / 2 && col == sz / 2){
 
         z = 0.2 * cos(float(tick) / 100.0);
     }
-    else if(col == 0 || row == 0 || col == ${sz} - 1 || row == ${sz} - 1){
+    else if(col == 0 || row == 0 || col == sz - 1 || row == sz - 1){
         z = 0.0;
     }
     else{
@@ -1321,7 +1230,7 @@ void main(void) {
                 case 3: row1++; break;
                 }
 
-                if(col1 < 0 || row1 < 0 || col1 == ${sz} || row1 == ${sz}){
+                if(col1 < 0 || row1 < 0 || col1 == sz || row1 == sz){
                     continue;
                 }
 
@@ -1354,7 +1263,7 @@ void main(void) {
 function testSurface(gpgpu){ 
     let gl = bansho.gl;
     const sz = 512;
-    let dr1 = new gpgputs.UserDef(gl.POINTS, surfaceWave(sz, 0.2) , gpgputs.GPGPU.minFragmentShader,
+    let dr1 = new gpgputs.UserDef(gl.POINTS, surfaceWave() , gpgputs.GPGPU.minFragmentShader,
     {
         pointSize: 1,
         inPos : gpgpu.makeTextureInfo("vec3", [sz, sz]),

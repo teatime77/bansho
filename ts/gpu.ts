@@ -402,10 +402,7 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
     }    
 
     sel.addEventListener("input", (ev: Event)=>{
-        while(gpgpu.drawables.length != 0){
-            let old = gpgpu.drawables.pop()!;
-            old.clear();
-        }
+        gpgpu.clearAll();
 
         let drawable = getSample3D(gpgpu, sel.selectedIndex);
         gpgpu.drawables.push(drawable)

@@ -585,6 +585,8 @@ export function initEdit(){
     setEventListener();
 
     initDraw();
+
+    initBinder();
 }
 
 export function initPlay(){
