@@ -26,12 +26,40 @@ window.MathJax = {
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script src="lib/dagre.min.js"></script>
 
+<!-- >>=========>>=========>>=========>>=========>>=========>> -->
+
+<script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-analytics.js"></script>
+
+<script>
+  // Your web app's Firebase configuration
+  var firebaseConfig = {
+    apiKey: "AIzaSyBv9TmZDK1S1GkDiYkAuGNW5g67nQ51kxo",
+    authDomain: "ban-sho.firebaseapp.com",
+    databaseURL: "https://ban-sho.firebaseio.com",
+    projectId: "ban-sho",
+    storageBucket: "ban-sho.appspot.com",
+    messagingSenderId: "794711869305",
+    appId: "1:794711869305:web:a1f7fa66ae75f74fc051a8",
+    measurementId: "G-233TZFKFTH"
+  };
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  firebase.analytics();
+</script>
+
+<!-- <<=========<<=========<<=========<<=========<<=========<< -->
+
+
 <script src="js/util.js?ver=1" ></script>
 <script src="js/widget.js?ver=1" ></script>
 <script src="js/event.js?ver=1" ></script>
 <script src="js/speech.js?ver=1" ></script>
 <script src="js/main.js?ver=1" ></script>
 <script src="js/shape.js?ver=1" ></script>
+<script src="js/firebase.js?ver=1" ></script>
 <script src="js/graph.js?ver=1" ></script>
 
 

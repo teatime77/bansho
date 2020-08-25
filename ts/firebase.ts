@@ -228,7 +228,7 @@ function readFileTree(userUid: string){
     });
 }
 
-export function initFirebase(){
+export function initFirebase(fnc:()=>void){
     firebase.auth().onAuthStateChanged(function(user: any) {
         loginUid = null;
         guestUid = defaultUid;
@@ -260,9 +260,7 @@ export function initFirebase(){
             msg("ログアウト");
         }
 
-        rootFile = { name: "root", id: 123} as FileInfo;
-        writeUserData();
-        //-- readFileTree(guestUid);
+        fnc();
     });
 
     db = firebase.firestore();
@@ -279,6 +277,122 @@ export function initFirebase(){
 
     dropZone.addEventListener('dragover', handleDragOver, false);
     dropZone.addEventListener('drop', handleFileSelect, false);
+}
+
+function writeDB(id: string, data: any, msg: string, fnc:()=>void){
+    db.collection('users').doc(loginUid!).collection('docs').doc(id).set(data)
+    .then(function() {
+        console.log(msg);
+        fnc();
+    })
+    .catch(function(error : any) {
+        console.error("Error adding document: ", error);
+    });
+}
+
+let pendingFiles : any[];
+function fetchAllDoc(){
+    if(pendingFiles.length != 0){
+        let file = pendingFiles.pop();
+
+        console.log(`fetch ${file.id} ${file.title}`);
+        fetchText(`json/${file.id}.json`, (text: string)=>{
+            console.log(text);
+            console.log("");
+
+            db.collection('users').doc(loginUid!).collection('docs').doc(file.id).set({
+                text   : text
+            })
+            .then(function() {
+                msg(`[${file.id}]${file.title} に書き込みました。`);
+                fetchAllDoc();
+            })
+            .catch(function(error : any) {
+                console.error("Error adding document: ", error);
+            });
+        });
+    }
+}
+
+export function fetchDB(id: string, fnc:(data: any)=>void){
+    db.collection('users').doc(loginUid!).collection('docs').doc(id).get()
+    .then(function(doc) {
+        if (doc.exists) {
+            let data = doc.data();
+            fnc(data);
+        } else {
+            // doc.data() will be undefined in this case
+            console.log("No such document!");
+        }
+    })
+    .catch(function(error) {
+        console.log("Error getting document:", error);
+    });
+
+
+}
+
+function dbUpload(){
+    rootFile = { name: "root", id: 123} as FileInfo;
+    writeUserData();
+    //-- readFileTree(guestUid);
+
+    fetchFileList((obj: any)=>{
+
+        let file_map : { [id: string]: string } = {};
+        for(let file of obj.files){
+            console.log(`${file.id} ${file.title}`);
+            file_map[file.id] = file.title;
+        }
+
+        for(let edge of obj.edges){
+            console.log(`${edge.srcId}: ${file_map[edge.srcId]} --${edge.label}-> ${edge.dstId}: ${file_map[edge.dstId]}`);
+        }
+
+        let max_id = Math.max(... obj.files.map((x:any) => parseInt(x.id)));
+        max_id++;
+        console.log(`max_id: ${max_id}`);
+
+        let map_data = {
+            text   : JSON.stringify({ edges: obj.edges })
+        };
+
+        writeDB(
+            `${max_id}`, map_data, `[${max_id}]$ にマップを書き込みました。`,
+            ()=>{
+                let root = {
+                    doc: obj.files,
+                    map: [ 
+                        {
+                            id: max_id,
+                            title: "依存関係"
+                        }
+                    ],
+                    img: []
+                };
+    
+                writeDB(
+                    "index", root, `[${max_id}]$ にマップを書き込みました。`,
+                    ()=>{
+                        pendingFiles = obj.files.slice(0, 10);
+                        pendingFiles.push();
+                        fetchAllDoc();    
+                    }
+                );
+            }
+        );
+    });
+}
+
+export function initDB(){
+    initFirebase(()=>{
+        let upload_btn = getElement("db-upload") as HTMLButtonElement;
+        upload_btn.disabled = false;
+
+        upload_btn.addEventListener("click", (ev: MouseEvent)=>{
+            dbUpload();
+        });
+    });
 }
 
 function writeUserData(){

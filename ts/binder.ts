@@ -7,10 +7,6 @@ let gpgpu: gpgputs.GPGPU;
 let viz : any;
 let varsAll : Variable[] = [];
 
-export function getElement(id: string){
-    return document.getElementById(id)!;
-}
-
 let packageDlg: HTMLDialogElement;
 let divParts : HTMLDivElement;
 

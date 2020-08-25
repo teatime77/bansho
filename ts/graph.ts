@@ -372,13 +372,17 @@ function initEdges(edges: any[]){
 }
 
 function getFileList(docs: any){
-    for(let doc of docs.files){
+    for(let doc of docs.doc){
         let box = new TextBox([], doc.title);
         box.id = parseInt(doc.id);
         blocks.push(box);
     }
 
-    initEdges(docs.edges);
+    fetchDB(`${docs.map[0].id}`, (data:any)=>{
+        let obj = JSON.parse(data.text);
+        initEdges(obj.edges);
+    });
+
 }
 
 function saveGraph(){
@@ -421,7 +425,9 @@ export function initGraph(){
         blocks.push(box);
     }
 
-    fetchFileList(getFileList);
+    initFirebase(()=>{
+        fetchDB("index", getFileList);
+    });
 }
 
 function showHtml(file_name: string, id: string){

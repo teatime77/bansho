@@ -310,9 +310,11 @@ export class Glb {
     }
     
     openDoc(path: string){
-        fetchText(`json/${path}.json`, (text: string)=>{
-            this.initDoc(JSON.parse(text));
+        fetchDB(path, (data: any)=>{
+            this.initDoc(JSON.parse(data.text));
         });
+        // fetchText(`json/${path}.json`, (text: string)=>{
+        // });
     }
 
     
@@ -510,11 +512,11 @@ export function parseObject(obj: any) : any {
 }
 
 function showFileList(obj: any){    
-    if(obj.files.length != 0){
+    if(obj.doc.length != 0){
 
-        obj.files.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
+        obj.doc.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
 
-        for(let file of obj.files){
+        for(let file of obj.doc){
             let opt = document.createElement("option");
             opt.value = file.id;
             opt.textContent = file.title;
@@ -578,8 +580,6 @@ export function initEdit(){
     glb = new Glb(true);
     msg("$$ab$$ $$cd$$".replace(/\$\$/g, "\n\$\$\n"))
 
-    fetchFileList(showFileList);
-
     initSpeech();
 
     setEventListener();
@@ -587,6 +587,10 @@ export function initEdit(){
     initDraw();
 
     initBinder();
+
+    initFirebase(()=>{
+        fetchDB("index", showFileList);
+    });
 }
 
 export function initPlay(){

@@ -23,6 +23,10 @@ export function removeArrayElement<T>(arr:Array<T>, x: T){
     arr.splice(idx, 1);
 }
 
+export function getElement(id: string){
+    return document.getElementById(id)!;
+}
+
 export function removeHtmlElement(ele: Element){
     ele.parentElement!.removeChild(ele);
 }
