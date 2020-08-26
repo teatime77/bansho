@@ -2,11 +2,15 @@
 namespace bansho{
 declare var MathJax:any;
 declare var dagre:any;
+declare var Viz: any;
+
 const padding = 10;
 
 var dom_list : (HTMLElement | SVGSVGElement)[] = [];
 let blocks: TextBox[] = [];
 let srcBox: TextBox | null = null;
+let docMap: { [id: string]: any };
+let edgeMap: { [id: string]: any };
 
 function makeTexTextHtml(text: string){
     let lines : string[] = [];
@@ -371,16 +375,83 @@ function initEdges(edges: any[]){
     showGraph();
 }
 
-function getFileList(docs: any){
-    for(let doc of docs.doc){
-        let box = new TextBox([], doc.title);
-        box.id = parseInt(doc.id);
-        blocks.push(box);
+function setEvent(index: any, map: any){
+    for(let doc of index.doc){
+        let box = getElement(`${doc.id}`);
+        box.addEventListener("click", function(ev:MouseEvent){
+            let doc1 = docMap[this.id];
+            console.log(`click ${doc1.id} ${doc1.title}`);
+        });
     }
+    
+    for(let edge of map.edges){
+        let dom = getElement(`${edge.srcId}:${edge.dstId}`);
+        if(dom == null){
+            console.log(`err edge ${edge.srcId}:${edge.dstId}`);
+            continue;
+        }
+        dom.addEventListener("click", function(ev:MouseEvent){
+            let edge = edgeMap[this.id];
+            console.log(`click ${edge.srcId} -> ${edge.dstId}`);
+        });
+    }
+}
+
+function makeDot(index: any, map: any){
+    let lines : string[] = [];
+
+    docMap = {};
+    for(let doc of index.doc){
+        docMap["" + doc.id] = doc;
+        lines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}" ];` );
+    }
+
+    edgeMap = {};
+    for(let edge of map.edges){
+        let id = `${edge.srcId}:${edge.dstId}`;
+        edgeMap[id] = edge;
+        lines.push(`b${edge.srcId} -> b${edge.dstId} [ id="${id}" ];`);
+    }
+
+    let dot = `
+    digraph graph_name {
+        graph [
+          charset = "UTF-8";
+          label = "数学・物理・AIの依存関係",
+        ];
+        ${lines.join('\n')}
+    }
+    `;
+
+    var viz = new Viz();
+
+    // dot = 'digraph { a -> b }';
+    viz.renderSVGElement(dot)
+    .then(function(element: any) {
+        document.body.appendChild(element);
+        setEvent(index, map);
+    })
+    .catch((error:any) => {
+        // Create a new Viz instance (@see Caveats page for more info)
+        viz = new Viz();
+
+        // Possibly display the error
+        console.error(error);
+    });
+
+}
+
+function getFileList(docs: any){
+    // for(let doc of docs.doc){
+    //     let box = new TextBox([], doc.title);
+    //     box.id = parseInt(doc.id);
+    //     blocks.push(box);
+    // }
 
     fetchDB(`${docs.map[0].id}`, (data:any)=>{
         let obj = JSON.parse(data.text);
-        initEdges(obj.edges);
+        makeDot(docs, obj);
+        // initEdges(obj.edges);
     });
 
 }
