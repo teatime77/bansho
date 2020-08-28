@@ -13,6 +13,7 @@ declare function BathtubVortex(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testSurface(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testD2Q9_1(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testD2Q9_2(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function testD3Q15(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 
 namespace bansho {
 export let gl : WebGL2RenderingContext;
@@ -373,7 +374,7 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
     const sel = document.getElementById("sample-3d") as HTMLSelectElement;
     const names = [
         "円",
-        "管",
+        "D3Q15",
         "円柱",
         "矢印3D",
         "点",
@@ -397,6 +398,7 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
         "電磁波",
         "弾性衝突",
         "測地線多面体",
+        "管",
     ];
 
     for(let name of names){
@@ -420,8 +422,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
     switch(idx){
         // 円
         case 0: return (new gpgputs.Circle(new gpgputs.Color(1,0,0,1), 20)).scale(0.2, 0.1, 0.2).move(1, 0, 0.5);
-        // 管
-        case 1: return (new gpgputs.Tube(new gpgputs.Color(0,1,0,1), 20)).scale(0.1, 0.1, 2).move(-1, 0, 0);
+        // D3Q15
+        case 1: return testD3Q15(gpgpu);
         // 円柱
         case 2: return (new gpgputs.Pillar([gpgputs.Color.red, gpgputs.Color.green, gpgputs.Color.blue], 20)).scale(0.1, 0.1, 1).move(0, 3, 0);
         // 矢印3D
@@ -504,6 +506,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
         case 23: return ElasticCollision(gpgpu);
         // 測地線多面体
         case 24: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
+        // 管
+        case 25: return (new gpgputs.Tube(new gpgputs.Color(0,1,0,1), 20)).scale(0.1, 0.1, 2).move(-1, 0, 0);
     }
     throw new Error();
 }

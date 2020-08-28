@@ -1827,3 +1827,255 @@ function testD2Q9_2(gpgpu){
 
     return new gpgputs.ComponentDrawable([dr1, dr2, dr3, dr4]);
 }
+
+
+//--------------------------------------------------
+// D3Q15
+//--------------------------------------------------
+
+let D3Q15_head_1 = `
+int sx = textureSize(inF, 0).x / 15;
+int sy = textureSize(inF, 0).y;
+int sz = textureSize(inF, 0).z;
+
+int idx = int(gl_VertexID);
+
+int ip  = idx % 15;
+idx    /= 15;
+
+int ix  = idx % sx;
+idx    /= sx;
+
+int iy  = idx % sy;
+int iz  = idx / sy;
+`;
+
+let D3Q15_head_2 = `
+int sx = textureSize(inF, 0).x / 15;
+int sy = textureSize(inF, 0).y;
+int sz = textureSize(inF, 0).z;
+
+int idx = int(gl_VertexID);
+
+int ix  = idx % sx;
+idx    /= sx;
+
+int iy  = idx % sy;
+int iz  = idx / sy;
+`;
+
+let eTbl = `
+const int E[15 * 3] = int[](
+    0,  0,  0,
+
+   -1,  0,  0,
+    1,  0,  0,
+    0, -1,  0,
+    0,  1,  0,
+    0,  0, -1,
+    0,  0,  1,
+
+   -1, -1, -1,
+   -1, -1,  1,
+
+   -1,  1, -1,
+   -1,  1,  1,
+
+    1, -1, -1,
+    1, -1,  1,
+
+    1,  1, -1,
+    1,  1,  1
+);
+`;
+
+let D3Q15_F_1 = `
+precision highp sampler3D;
+
+uniform int   tick;
+
+uniform sampler3D inF;
+
+out float outF;
+
+${eTbl}
+
+void main(void) {
+    ${D3Q15_head_1}
+
+    if(tick == 0){
+
+        outF = 0.0;
+
+        if(ix == sx / 2 && iy == sy / 2 && iz == sz / 2){
+            if(1 <= ip && ip <= 6){
+                outF = 1.0 / float(sx);
+            }
+        }
+
+        return;
+    }
+
+    if(sx / 2 <= tick){
+        outF = texelFetch(inF, ivec3(ip + 15 * ix, iy, iz), 0).r;
+        return;
+    }
+        
+    int j = ip * 3;
+    int ix1 = ix - E[j  ];
+    int iy1 = iy - E[j+1];
+    int iz1 = iz - E[j+2];
+
+    if(0 <= ix1 && ix1 < sx && 0 <= iy1 && iy1 < sy){
+        outF = texelFetch(inF, ivec3(ip + 15 * ix1, iy1, iz1), 0).r;
+    }
+    else{
+        outF = 0.0;
+    }
+}`;
+
+let D3Q15_RhoVelPos = `
+precision highp sampler3D;
+
+uniform sampler3D inF;
+
+out vec3  outPos;
+out float outRho;
+out vec3  outVel;
+
+${eTbl}
+
+void main(void) {
+    ${D3Q15_head_2}
+
+    float x = 2.0 * float(ix) / float(sx) - 1.0;
+    float y = 2.0 * float(iy) / float(sy) - 1.0;
+    float z = 2.0 * float(iz) / float(sz) - 1.0;
+
+    float f[15];
+    float rho = 0.0;
+
+    vec3 u = vec3(0.0, 0.0, 0.0);
+    for(int i = 0; i < 15; i++){
+        float t = texelFetch(inF, ivec3(i + 15 * ix, iy, iz), 0).r;
+
+        f[i] = t;
+        rho += f[i];
+
+        int base = i * 3;
+        u += t * vec3(float(E[base]), float(E[base + 1]), float(E[base + 2]));
+    }
+
+    if(rho != 0.0){
+        u /= rho;
+    }
+
+    outVel = 0.1 * u;
+    outPos = vec3(x, y, z);
+    outRho = rho;
+}`;
+
+
+let D3Q15_F_2 = `
+precision highp sampler3D;
+
+uniform int   tick;
+
+uniform sampler3D inRho;
+uniform sampler3D inVel;
+uniform sampler3D inF;
+
+out float outF;
+
+#define C   1.5
+#define C2  (1.0 / (C * C))
+#define C4  (C2 * C2)
+
+${eTbl}
+
+void main(void) {
+    float tau = 0.1;
+    ${D3Q15_head_1}
+
+    if(sx / 2 <= tick){
+        outF = texelFetch(inF, ivec3(ip + 15 * ix, iy, iz), 0).r;
+        return;
+    }
+
+    vec3  ei;
+    float wi;
+
+    if(ip == 0){
+        wi = 1.0 / 3.0;
+    }
+    else if(1 <= ip && ip <= 6){
+        wi = 1.0 / 18.0;
+    }
+    else{
+        wi = 1.0 / 36.0;
+    }
+
+    int j = 3 * ip;
+    ei = vec3(float(E[j]), float(E[j+1]), float(E[j+2]));
+
+    ei *= C;
+
+    float rho = texelFetch(inRho, ivec3(ix, iy, iz), 0).r;
+    vec3  u   = texelFetch(inVel, ivec3(ix, iy, iz), 0).xyz;
+    float f   = texelFetch(inF  , ivec3(ip + 15 * ix, iy, iz), 0).r;
+
+    float ei_u = dot(ei, u);
+    float feq = wi * rho * (1.0 + ei_u * (3.0 * C2) + ei_u * ei_u * (9.0 * C4 / 2.0) - dot(u, u) * (3.0 * C2 / 2.0) );
+
+    outF = f + tau * (feq - f);
+}
+
+`;
+
+function testD3Q15(gpgpu){
+    let gl = bansho.gl;
+    let sz = 50, sy = 50, sx = 100;
+
+    let dr1 = new gpgputs.UserDef(gl.POINTS, D3Q15_F_1, gpgputs.GPGPU.minFragmentShader,
+    {
+        inF : gpgpu.makeTextureInfo("float", [sz, sy, sx * 15]),
+        outF: new Float32Array(sz * sy * sx * 15),
+    });
+    dr1.numInput = sz * sy * sx * 15;
+
+    let dr2 = new gpgputs.UserDef(gl.POINTS, D3Q15_RhoVelPos, gpgputs.GPGPU.minFragmentShader,
+    {
+        inF     : gpgpu.makeTextureInfo("float", [sz, sy, sx * 15]),
+        outPos  : new Float32Array(sz * sy * sx * 3),
+        outRho  : new Float32Array(sz * sy * sx),
+        outVel  : new Float32Array(sz * sy * sx * 3)
+    });
+    dr2.numInput = sz * sy * sx;
+
+    let dr3 = new gpgputs.UserDef(gl.POINTS, D3Q15_F_2, gpgputs.GPGPU.minFragmentShader,
+    {
+        inRho : gpgpu.makeTextureInfo("float", [sz, sy, sx]),
+        inVel : gpgpu.makeTextureInfo("vec3" , [sz, sy, sx]),
+        inF   : gpgpu.makeTextureInfo("float", [sz, sy, sx * 15]),
+        outF  : new Float32Array(sz * sy * sx * 15),
+    });
+    dr3.numInput = sz * sy * sx * 15;
+    
+    gpgpu.makePackage(dr1);
+    gpgpu.makePackage(dr2);
+    gpgpu.makePackage(dr3);
+
+    dr1.bind("outF", "inF", dr2);
+    dr1.bind("outF", "inF", dr3);
+
+    dr2.bind("outRho", "inRho", dr3);
+    dr2.bind("outVel", "inVel", dr3);
+    
+    dr3.bind("outF", "inF", dr1);
+
+
+    let dr4 = Arrow1D(gpgpu, dr2, "outPos", dr2, "outVel", dr2.numInput);
+
+    return new gpgputs.ComponentDrawable([dr1, dr2, dr3, dr4]);
+}
+
