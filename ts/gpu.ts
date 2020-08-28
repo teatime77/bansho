@@ -2,7 +2,8 @@
 
 declare function volumeWave(sx: number, sy: number, sz: number) : string;
 declare function ArrowWave(sx: number, sy: number, sz: number): string;
-declare function ArrowTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function testArrow3D(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function testArrow1D(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testEMWave(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function multibodyTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function ElasticCollision(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
@@ -10,6 +11,8 @@ declare function CubeShader() : string;
 declare function InverseSquare(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function BathtubVortex(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testSurface(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function testD2Q9_1(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function testD2Q9_2(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 
 namespace bansho {
 export let gl : WebGL2RenderingContext;
@@ -372,12 +375,12 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
         "円",
         "管",
         "円柱",
-        "矢印",
+        "矢印3D",
         "点",
         "線",
         "正二十面体",
-        "測地線多面体1",
-        "測地線多面体2",
+        "D2Q9-1",
+        "D2Q9-2",
         "バスタブ渦",
         "逆二乗",
         "点",
@@ -393,6 +396,7 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
         "面",
         "電磁波",
         "弾性衝突",
+        "測地線多面体",
     ];
 
     for(let name of names){
@@ -420,18 +424,18 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
         case 1: return (new gpgputs.Tube(new gpgputs.Color(0,1,0,1), 20)).scale(0.1, 0.1, 2).move(-1, 0, 0);
         // 円柱
         case 2: return (new gpgputs.Pillar([gpgputs.Color.red, gpgputs.Color.green, gpgputs.Color.blue], 20)).scale(0.1, 0.1, 1).move(0, 3, 0);
-        // 矢印
-        case 3: return ArrowTest(gpgpu);
+        // 矢印3D
+        case 3: return testArrow3D(gpgpu);
         // 点
         case 4: return new gpgputs.Points(new Float32Array([1.5, -1.3, 0, -1.5, -1.3, 0]), new Float32Array([1,0,0,1, 0,0,1,1]), 5);
         // 線
         case 5: return new gpgputs.Lines([{x:1.5,y:-1.5,z:0} as gpgputs.Vertex,{x:-1.5,y:-1.5,z:0} as gpgputs.Vertex], gpgputs.Color.blue);
         // 正二十面体
         case 6: return (new gpgputs.RegularIcosahedron(new gpgputs.Color(0,1,0,1))).scale(0.3, 0.3, 0.3).move(2, -2, 0);
-        // 測地線多面体1
-        case 7: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 1)).scale(0.3, 0.3, 0.3).move(3,  2, 0);
-        // 測地線多面体2
-        case 8: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
+        // D2Q9-1
+        case 7: return testD2Q9_1(gpgpu);
+        // D2Q9-2
+        case 8: return testD2Q9_2(gpgpu);
         // バスタブ渦
         case 9: return BathtubVortex(gpgpu);
         // 逆二乗
@@ -458,7 +462,7 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
         // 三角錐
         case 16: return new gpgputs.UserMesh(gl.TRIANGLES, Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0);
         // 矢印
-        case 17: return new gpgputs.UserMesh(gl.LINES, ArrowShader(8, 16), gpgputs.GPGPU.pointFragmentShader, 8 * 16 * 4);
+        case 17: return testArrow1D(gpgpu);
         // 多体問題
         case 18: return multibodyTest(gpgpu);
         // 線-Tex
@@ -498,6 +502,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
         case 22: return testEMWave(gpgpu);
         // 弾性衝突
         case 23: return ElasticCollision(gpgpu);
+        // 測地線多面体
+        case 24: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
     }
     throw new Error();
 }

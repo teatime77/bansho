@@ -370,7 +370,7 @@ void main(void) {
 // 3D矢印のテスト
 //--------------------------------------------------
 
-function ArrowTest(gpgpu){
+function testArrow3D(gpgpu){
     let nrow = 16, ncol = 16;
 
     let dr1 = new gpgputs.UserDef(bansho.gl.POINTS, ArrowTestData(nrow, ncol) , gpgputs.GPGPU.minFragmentShader,
@@ -413,6 +413,92 @@ void main(void) {
     vec = 0.3 * normalize(pos);
 }
     `;
+}
+
+
+//--------------------------------------------------
+// 1D矢印のテスト
+//--------------------------------------------------
+
+let Arrow1DShader = `
+precision highp sampler3D;
+
+uniform sampler2D inPos;
+uniform sampler2D inVec;
+
+uniform mat4 uPMVMatrix;
+uniform mat3 uNMatrix;
+uniform int   tick;
+
+out vec4 fragmentColor;
+
+
+void main(void) {
+    int sx = textureSize(inPos, 0).x;
+
+    int idx = int(gl_VertexID);
+
+    int ip  = idx % 2;
+    idx    /= 2;
+
+    int row  = idx / sx;
+    int col  = idx % sx;
+
+    vec3 pos = vec3(texelFetch(inPos, ivec2(col, row), 0));
+
+    if(ip == 1){
+
+        vec3 vec = vec3(texelFetch(inVec, ivec2(col, row), 0));
+        pos += vec;
+    }
+
+    if(ip == 0){
+
+        fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+    else{
+
+        fragmentColor = vec4(0.0, 0.0, 1.0, 1.0);
+    }
+    // fragmentColor = vec4(abs(pos.x), abs(pos.y), abs(pos.z), 1.0);
+
+    gl_PointSize  = 5.0;
+    gl_Position = uPMVMatrix * vec4(pos, 1.0);
+}`;
+
+
+function Arrow1D(gpgpu, dr1, pos_name, dr2, vec_name, cnt){
+    let [ sy, sx ] = bansho.Factorization(cnt);
+    console.log(`3D矢印 因数分解 ${cnt} = ${sy} x ${sx}`);
+
+    let dr3 = new gpgputs.UserDef(bansho.gl.LINES, Arrow1DShader, gpgputs.GPGPU.pointFragmentShader, {
+        inPos : gpgpu.makeTextureInfo("vec3", [sy, sx]),
+        inVec : gpgpu.makeTextureInfo("vec3", [sy, sx])
+    });
+    dr3.numInput = cnt * 2;
+
+    gpgpu.makePackage(dr3);
+
+    dr1.bind(pos_name, "inPos", dr3);
+    dr2.bind(vec_name, "inVec", dr3);
+
+    return dr3;
+}
+
+function testArrow1D(gpgpu){
+    let nrow = 16, ncol = 16;
+
+    let dr1 = new gpgputs.UserDef(bansho.gl.POINTS, ArrowTestData(nrow, ncol) , gpgputs.GPGPU.minFragmentShader,
+    {
+        pos: new Float32Array(nrow * ncol * 3),
+        vec: new Float32Array(nrow * ncol * 3)
+    });
+    dr1.numInput = nrow * ncol;
+    gpgpu.makePackage(dr1);
+
+    let dr2 = Arrow1D(gpgpu, dr1, "pos", dr1, "vec", dr1.numInput);
+
+    return new gpgputs.ComponentDrawable([dr1, dr2]);
 }
 
 //--------------------------------------------------
@@ -1288,4 +1374,456 @@ function testSurface(gpgpu){
     dr1.bind("outPos", "inPos", dr2);
 
     return new gpgputs.ComponentDrawable([dr1, dr2]);
+}
+
+//--------------------------------------------------
+// D2Q9-1
+//--------------------------------------------------
+
+
+let D2Q9Shader = `
+precision highp sampler3D;
+
+#define PI 3.14159265359
+
+uniform int   tick;
+
+uniform sampler2D inVec;
+uniform sampler2D inF0;
+uniform sampler3D inF1;
+uniform sampler3D inF2;
+
+out float outF0;
+out vec4  outF1;
+out vec4  outF2;
+
+out vec3 outVec;
+
+#define C   1.5
+#define C2  (1.0 / (C * C))
+#define C4  (C2 * C2)
+
+void main(void) {
+    int sx = textureSize(inF1, 0).y;
+    int sy = textureSize(inF1, 0).z;
+
+    int idx = int(gl_VertexID);
+
+    int iy  = idx / sx;
+    int ix  = idx % sx;
+
+    if(tick == 0){
+
+        outF0 = 0.0;
+        outF1 = vec4(0.0, 0.0, 0.0, 0.0);
+        outF2 = vec4(0.0, 0.0, 0.0, 0.0);
+
+        outVec = vec3(0.0, 0.0, 0.0);
+
+        if(ix == sx / 2 && iy == sy / 2){
+            outF1 = vec4(1.0, 1.0, 1.0, 1.0);
+        }
+
+        return;
+    }
+
+    float f1[4], f2[4];
+
+    float f0 = texelFetch(inF0, ivec2(   ix, iy), 0).r;
+    for(int i = 0; i < 4; i++){
+        f1[i] = texelFetch(inF1, ivec3(i, ix, iy), 0).r;
+        f2[i] = texelFetch(inF2, ivec3(i, ix, iy), 0).r;
+    }
+
+    if(sx <= tick){
+        outF0 = f0;
+        outF1 = vec4(f1[0], f1[1], f1[2], f1[3]);
+        outF2 = vec4(f2[0], f2[1], f2[2], f2[3]);
+        outVec = texelFetch(inVec, ivec2(ix, iy), 0).xyz;
+        return;
+    }
+
+    if(tick % 2 == 1){
+
+        float rho = f0 + f1[0] + f1[1] + f1[2] + f1[3]
+                       + f2[0] + f2[1] + f2[2] + f2[3];
+
+        float ux = (f1[1] - f1[0]) + (f2[1] + f2[3]) - (f2[0] + f2[2]);
+        float uy = (f1[3] - f1[2]) + (f2[2] + f2[3]) - (f2[0] + f2[1]);
+
+        if(rho != 0.0){
+            ux /= rho;
+            uy /= rho;
+        }
+        vec2 u = vec2(ux, uy);
+
+        vec2  ei;
+        float wi;
+        for(int i = 0; i < 9; i++){
+            switch(i){
+            case 0: ei = vec2( 0.0,  0.0); wi = 4.0 /  9.0; break;
+
+            case 1: ei = vec2(-1.0,  0.0); wi = 1.0 /  9.0; break;
+            case 2: ei = vec2( 1.0,  0.0); wi = 1.0 /  9.0; break;
+            case 3: ei = vec2( 0.0, -1.0); wi = 1.0 /  9.0; break;
+            case 4: ei = vec2( 0.0,  1.0); wi = 1.0 /  9.0; break;
+
+            case 5: ei = vec2(-1.0, -1.0); wi = 1.0 / 36.0; break;
+            case 6: ei = vec2( 1.0, -1.0); wi = 1.0 / 36.0; break;
+            case 7: ei = vec2(-1.0,  1.0); wi = 1.0 / 36.0; break;
+            case 8: ei = vec2( 1.0,  1.0); wi = 1.0 / 36.0; break;
+            }
+
+            ei *= C;
+
+            float ei_u = dot(ei, u);
+            float feq = wi * rho * (1.0 + ei_u * (3.0 * C2) + ei_u * ei_u * (9.0 * C4 / 2.0) - dot(u, u) * (3.0 * C2 / 2.0) );
+
+            float tau = 0.1;
+            if(i == 0){
+                f0 += tau * (feq - f0);
+            }
+            else if(i <= 4){
+                f1[i - 1] += tau * (feq - f1[i - 1]);
+            }
+            else{
+                f2[i - 5] += tau * (feq - f2[i - 5]);
+            }
+        }
+
+        outVec = 0.1 * vec3(u, 0.0);
+    }
+    else{
+        outVec = texelFetch(inVec, ivec2(ix, iy), 0).xyz;
+
+        for(int i = 0; i < 4; i++){
+            int ix1 = ix, iy1 = iy;
+
+            //    3
+            //  0   1
+            //    2
+
+            switch(i){
+                case 0: ix1++; break;
+                case 1: ix1--; break;
+                case 2: iy1++; break;
+                case 3: iy1--; break;
+            }
+
+            if(0 <= ix1 && ix1 < sx && 0 <= iy1 && iy1 < sy){
+                f1[i] = texelFetch(inF1, ivec3(i, ix1, iy1), 0).r;
+            }
+            else{
+                f1[i] = 0.0;
+            }
+
+            ix1 = ix, iy1 = iy;
+
+            //  2   3
+            //  
+            //  0   1
+
+            switch(i){
+                case 0: ix1++; iy1++; break;
+                case 1: ix1--; iy1++; break;
+                case 2: ix1++; iy1--; break;
+                case 3: ix1--; iy1--; break;
+            }
+
+            if(0 <= ix1 && ix1 < sx && 0 <= iy1 && iy1 < sy){
+                f2[i] = texelFetch(inF2, ivec3(i, ix1, iy1), 0).r;
+            }
+            else{
+                f2[i] = 0.0;
+            }
+        }
+    }
+
+    outF0 = f0;
+    outF1 = vec4(f1[0], f1[1], f1[2], f1[3]);
+    outF2 = vec4(f2[0], f2[1], f2[2], f2[3]);
+}`;
+
+function D2Q9pos(sy, sx){
+    return `
+
+out vec3 pos;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int iy  = idx / ${sx};
+    int ix  = idx % ${sx};
+
+    float x = 2.0 * float(ix) / float(${sx}) - 1.0;
+    float y = 2.0 * float(iy) / float(${sy}) - 1.0;
+    float z = 0.0;
+
+    pos = vec3(x, y, z);
+}`;
+}
+
+function testD2Q9_1(gpgpu){
+    let gl = bansho.gl;
+    let sy = 500, sx = 500;
+
+    let dr1 = new gpgputs.UserDef(gl.POINTS, D2Q9Shader, gpgputs.GPGPU.minFragmentShader,
+    {
+        inVec: gpgpu.makeTextureInfo("vec3" , [sy, sx]),
+        inF0 : gpgpu.makeTextureInfo("float", [sy, sx]),
+        inF1 : gpgpu.makeTextureInfo("float", [sy, sx, 4]),
+        inF2 : gpgpu.makeTextureInfo("float", [sy, sx, 4]),
+        outF0: new Float32Array(sy * sx),
+        outF1: new Float32Array(sy * sx * 4),
+        outF2: new Float32Array(sy * sx * 4),
+        // pos  : new Float32Array(sy * sx * 3),
+        outVec  : new Float32Array(sy * sx * 3)
+    });
+    dr1.numInput = sy * sx;
+    gpgpu.makePackage(dr1);
+
+    let dr2 = new gpgputs.UserDef(gl.POINTS, D2Q9pos(sy, sx), gpgputs.GPGPU.minFragmentShader,
+        {
+            pos  : new Float32Array(sy * sx * 3),
+        });
+    dr2.numInput = sy * sx;
+    gpgpu.makePackage(dr2);
+
+    dr1.bind("outF0", "inF0");
+    dr1.bind("outF1", "inF1");
+    dr1.bind("outF2", "inF2");
+    dr1.bind("outVec", "inVec");
+
+    let dr3 = Arrow1D(gpgpu, dr2, "pos", dr1, "outVec", dr1.numInput);
+    return new gpgputs.ComponentDrawable([dr1, dr2, dr3]);
+}
+
+//--------------------------------------------------
+// D2Q9-2
+//--------------------------------------------------
+
+let D2Q9_F_1 = `
+precision highp sampler3D;
+
+uniform int   tick;
+
+uniform sampler3D inF;
+
+out float outF;
+
+void main(void) {
+    int sx = textureSize(inF, 0).y;
+    int sy = textureSize(inF, 0).z;
+
+    int idx = int(gl_VertexID);
+
+    int ip  = idx % 9;
+    idx    /= 9;
+
+    int iy  = idx / sx;
+    int ix  = idx % sx;
+
+    if(tick == 0){
+
+        outF = 0.0;
+
+        if(ix == sx / 2 && iy == sy / 2){
+            if(1 <= ip && ip <= 4){
+                outF = 1.0 / float(sx);
+            }
+        }
+
+        return;
+    }
+
+    if(sx / 2 <= tick){
+        outF = texelFetch(inF, ivec3(ip, ix, iy), 0).r;
+        return;
+    }
+        
+    int ix1 = ix, iy1 = iy;
+
+    // 7  4  8
+    // 1  0  2
+    // 5  3  6
+
+    switch(ip){
+        case 1: ix1++; break;
+        case 2: ix1--; break;
+        case 3: iy1++; break;
+        case 4: iy1--; break;
+
+        case 5: ix1++; iy1++; break;
+        case 6: ix1--; iy1++; break;
+        case 7: ix1++; iy1--; break;
+        case 8: ix1--; iy1--; break;
+    }
+
+    if(0 <= ix1 && ix1 < sx && 0 <= iy1 && iy1 < sy){
+        outF = texelFetch(inF, ivec3(ip, ix1, iy1), 0).r;
+    }
+    else{
+        outF = 0.0;
+    }
+}`;
+
+let D2Q9_RhoVelPos = `
+precision highp sampler3D;
+
+uniform sampler3D inF;
+
+out vec3  outPos;
+out float outRho;
+out vec3  outVel;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int sx = textureSize(inF, 0).y;
+    int sy = textureSize(inF, 0).z;
+
+    int iy  = idx / sx;
+    int ix  = idx % sx;
+
+    float x = 2.0 * float(ix) / float(sx) - 1.0;
+    float y = 2.0 * float(iy) / float(sy) - 1.0;
+    float z = 0.0;
+
+    float f[9];
+    float rho = 0.0;
+    for(int i = 0; i < 9; i++){
+        f[i] = texelFetch(inF, ivec3(i, ix, iy), 0).r;
+        rho += f[i];
+    }
+
+    // 7  4  8
+    // 1  0  2
+    // 5  3  6
+
+    float ux = (f[6] + f[2] + f[8]) - (f[5] + f[1] + f[7]);
+    float uy = (f[7] + f[4] + f[8]) - (f[5] + f[3] + f[6]);
+
+    if(rho != 0.0){
+        ux /= rho;
+        uy /= rho;
+    }
+
+    outVel = 0.1 * vec3(ux, uy, 0.0);
+    outPos = vec3(x, y, z);
+    outRho = rho;
+}`;
+
+
+let D2Q9_F_2 = `
+precision highp sampler3D;
+
+uniform int   tick;
+
+uniform sampler2D inRho;
+uniform sampler2D inVel;
+uniform sampler3D inF;
+
+out float outF;
+
+#define C   1.5
+#define C2  (1.0 / (C * C))
+#define C4  (C2 * C2)
+
+void main(void) {
+    float tau = 0.1;
+
+    int sx = textureSize(inF, 0).y;
+    int sy = textureSize(inF, 0).z;
+
+    int idx = int(gl_VertexID);
+
+    int ip  = idx % 9;
+    idx    /= 9;
+
+    int iy  = idx / sx;
+    int ix  = idx % sx;
+
+    if(sx / 2 <= tick){
+        outF = texelFetch(inF, ivec3(ip, ix, iy), 0).r;
+        return;
+    }
+
+    vec2  ei;
+    float wi;
+
+    switch(ip){
+    case 0: ei = vec2( 0.0,  0.0); wi = 4.0 /  9.0; break;
+
+    case 1: ei = vec2(-1.0,  0.0); wi = 1.0 /  9.0; break;
+    case 2: ei = vec2( 1.0,  0.0); wi = 1.0 /  9.0; break;
+    case 3: ei = vec2( 0.0, -1.0); wi = 1.0 /  9.0; break;
+    case 4: ei = vec2( 0.0,  1.0); wi = 1.0 /  9.0; break;
+
+    case 5: ei = vec2(-1.0, -1.0); wi = 1.0 / 36.0; break;
+    case 6: ei = vec2( 1.0, -1.0); wi = 1.0 / 36.0; break;
+    case 7: ei = vec2(-1.0,  1.0); wi = 1.0 / 36.0; break;
+    case 8: ei = vec2( 1.0,  1.0); wi = 1.0 / 36.0; break;
+    }
+
+    ei *= C;
+
+    float rho = texelFetch(inRho, ivec2(ix, iy), 0).r;
+    vec3  vec = texelFetch(inVel, ivec2(ix, iy), 0).xyz;
+    float f   = texelFetch(inF  , ivec3(ip, ix, iy), 0).r;
+
+    vec2 u    = vec2(vec.x, vec.y);
+
+    float ei_u = dot(ei, u);
+    float feq = wi * rho * (1.0 + ei_u * (3.0 * C2) + ei_u * ei_u * (9.0 * C4 / 2.0) - dot(u, u) * (3.0 * C2 / 2.0) );
+
+    outF = f + tau * (feq - f);
+}
+
+`;
+
+function testD2Q9_2(gpgpu){
+    let gl = bansho.gl;
+    let sy = 500, sx = 500;
+
+    let dr1 = new gpgputs.UserDef(gl.POINTS, D2Q9_F_1, gpgputs.GPGPU.minFragmentShader,
+    {
+        inF : gpgpu.makeTextureInfo("float", [sy, sx, 9]),
+        outF: new Float32Array(sy * sx * 9),
+    });
+    dr1.numInput = sy * sx * 9;
+
+    let dr2 = new gpgputs.UserDef(gl.POINTS, D2Q9_RhoVelPos, gpgputs.GPGPU.minFragmentShader,
+    {
+        inF     : gpgpu.makeTextureInfo("float", [sy, sx, 9]),
+        outPos  : new Float32Array(sy * sx * 3),
+        outRho  : new Float32Array(sy * sx),
+        outVel  : new Float32Array(sy * sx * 3)
+    });
+    dr2.numInput = sy * sx;
+
+    let dr3 = new gpgputs.UserDef(gl.POINTS, D2Q9_F_2, gpgputs.GPGPU.minFragmentShader,
+    {
+        inRho : gpgpu.makeTextureInfo("float", [sy, sx]),
+        inVel : gpgpu.makeTextureInfo("vec3" , [sy, sx]),
+        inF   : gpgpu.makeTextureInfo("float", [sy, sx, 9]),
+        outF  : new Float32Array(sy * sx * 9),
+    });
+    dr3.numInput = sy * sx * 9;
+    
+    gpgpu.makePackage(dr1);
+    gpgpu.makePackage(dr2);
+    gpgpu.makePackage(dr3);
+
+    dr1.bind("outF", "inF", dr2);
+    dr1.bind("outF", "inF", dr3);
+
+    dr2.bind("outRho", "inRho", dr3);
+    dr2.bind("outVel", "inVel", dr3);
+    
+    dr3.bind("outF", "inF", dr1);
+
+
+    let dr4 = Arrow1D(gpgpu, dr2, "outPos", dr2, "outVel", dr2.numInput);
+
+    return new gpgputs.ComponentDrawable([dr1, dr2, dr3, dr4]);
 }
