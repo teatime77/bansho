@@ -14,6 +14,7 @@ declare function testSurface(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testD2Q9_1(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testD2Q9_2(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testD3Q15(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
+declare function testCuboid(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 
 namespace bansho {
 export let gl : WebGL2RenderingContext;
@@ -399,6 +400,7 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
         "弾性衝突",
         "測地線多面体",
         "管",
+        "直方体",
     ];
 
     for(let name of names){
@@ -508,6 +510,8 @@ function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
         case 24: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
         // 管
         case 25: return (new gpgputs.Tube(new gpgputs.Color(0,1,0,1), 20)).scale(0.1, 0.1, 2).move(-1, 0, 0);
+        // 直方体
+        case 26: return testCuboid(gpgpu);
     }
     throw new Error();
 }
@@ -528,6 +532,5 @@ export function testGpgpu(){
 
     initSample3D(gpgpu);
 }
-
 
 }

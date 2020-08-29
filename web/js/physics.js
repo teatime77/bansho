@@ -2079,3 +2079,104 @@ function testD3Q15(gpgpu){
     return new gpgputs.ComponentDrawable([dr1, dr2, dr3, dr4]);
 }
 
+
+//--------------------------------------------------
+// 直方体
+//--------------------------------------------------
+
+function Cuboid(gpgpu, points, depth){
+    let gl = bansho.gl;
+
+    let shader = `
+${bansho.headShader}
+
+uniform sampler2D inPos;
+
+// 7 6
+// 4 5
+
+// 3 2
+// 0 1
+
+const int ids[5 * 2 * 3] = int[](
+    0, 2, 1,
+    2, 0, 3,
+
+    0, 5, 1,
+    5, 0, 4,
+
+    1, 6, 2,
+    6, 1, 5,
+
+    2, 7, 3,
+    7, 2, 6,
+
+    3, 4, 0,
+    4, 3, 7
+);
+
+void main(void) {
+    int sx = textureSize(inPos, 0).x;
+
+    int idx = int(gl_VertexID);
+
+    int base = idx - idx % 3;
+
+    vec3 pt[3];
+
+    pt[0] = texelFetch(inPos, ivec2(ids[base  ], 0), 0).xyz;
+    pt[1] = texelFetch(inPos, ivec2(ids[base+1], 0), 0).xyz;
+    pt[2] = texelFetch(inPos, ivec2(ids[base+2], 0), 0).xyz;
+
+    vec3 pp = pt[idx % 3];
+
+    vec3 nrm = normalize( cross(pt[0] - pt[2], pt[1] - pt[2]) );
+
+    vec3 p0 = texelFetch(inPos, ivec2(0, 0), 0).xyz;
+    vec3 p6 = texelFetch(inPos, ivec2(6, 0), 0).xyz;
+    vec3 center = 0.5 * (p0 + p6);
+
+    // if(dot(nrm, pp - center) < 0.0){
+    //     nrm = - nrm;
+    // }
+
+    // fragmentColor = vec4(abs(nrm.y), abs(nrm.z), abs(nrm.x), 1.0);
+    fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
+
+    gl_Position = uPMVMatrix * vec4(pp, 1.0);
+
+    vLightWeighting = uAmbientColor + max(dot(nrm, uLightingDirection), 0.0) * uDirectionalColor;
+}    `;
+
+    //  p3 p2
+    //  p0 p1
+
+    let p0 = new gpgputs.Vec3(points[0][0], points[0][1], points[0][2]);
+    let p1 = new gpgputs.Vec3(points[1][0], points[1][1], points[1][2]);
+    let p3 = new gpgputs.Vec3(points[2][0], points[2][1], points[2][2]);
+    let p2 = p3.add(p1.sub(p0));
+
+    let nrm = p1.sub(p0).cross(p3.sub(p0)).unit().mul(depth);
+
+    let pts = [ p0, p1, p2, p3, p0.add(nrm), p1.add(nrm), p2.add(nrm), p3.add(nrm) ];
+
+    let pos = [];
+    for(let pt of pts){
+        pos.push(pt.x, pt.y, pt.z);
+    }
+
+    let cnt = pos.length / 3;
+    let dr = new gpgputs.UserDef(gl.TRIANGLES, shader, gpgputs.GPGPU.planeFragmentShader,
+    {
+        inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt], new Float32Array(pos)),
+    });
+    dr.numInput = 5 * 2 * 3;
+    gpgpu.makePackage(dr);
+
+    return dr;
+}
+
+function testCuboid(gpgpu){
+    // return Cuboid(gpgpu, [ [0, 0, 0], [0.5, 0, 0], [0, 0.5, 0] ], 0.7);
+    return Cuboid(gpgpu, [ [-1.0, -1.0, 0], [1.0, -1.0, 0], [-1.0, 1.0, 0] ], 1.0);
+}
