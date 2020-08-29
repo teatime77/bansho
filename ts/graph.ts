@@ -397,7 +397,7 @@ function setEvent(index: any, map: any){
     }
 }
 
-function makeDot(index: any, map: any){
+function makeDot(index: IndexFile, map: any){
     let lines : string[] = [];
 
     docMap = {};
@@ -441,16 +441,16 @@ function makeDot(index: any, map: any){
 
 }
 
-function getFileList(docs: any){
+function getFileList(){
     // for(let doc of docs.doc){
     //     let box = new TextBox([], doc.title);
     //     box.id = parseInt(doc.id);
     //     blocks.push(box);
     // }
 
-    fetchDB(`${docs.map[0].id}`, (data:any)=>{
+    fetchDB(`${indexFile.map[0].id}`, (data:any)=>{
         let obj = JSON.parse(data.text);
-        makeDot(docs, obj);
+        makeDot(indexFile, obj);
         // initEdges(obj.edges);
     });
 
@@ -496,9 +496,7 @@ export function initGraph(){
         blocks.push(box);
     }
 
-    initFirebase(()=>{
-        fetchDB("index", getFileList);
-    });
+    initFirebase(getFileList);
 }
 
 function showHtml(file_name: string, id: string){

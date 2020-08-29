@@ -511,14 +511,14 @@ export function parseObject(obj: any) : any {
     }
 }
 
-function showFileList(obj: any){    
-    if(obj.doc.length != 0){
+function showFileList(){    
+    if(indexFile.doc.length != 0){
 
-        obj.doc.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
+        indexFile.doc.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
 
-        for(let file of obj.doc){
+        for(let file of indexFile.doc){
             let opt = document.createElement("option");
-            opt.value = file.id;
+            opt.value = `${file.id}`;
             opt.textContent = file.title;
             glb.selFile.add(opt);
         }
@@ -541,21 +541,24 @@ export function getAll() : Widget[] {
     return v;
 }
 
-export function putData(path: string){
+export function putData(){
     let v = getAll();
     for(let [i, x] of v.entries()){
         x.id = i;
     }
 
+    let title = glb.txtTitle.value.trim();
     glb.widgetMap = [];
     let obj = {
-        title: glb.txtTitle.value.trim(),
+        title: title,
         widgets : glb.widgets.map(x => x.toObj())
     }
 
     const text = JSON.stringify(obj, null, 4);
 
-    writeTextFile(path, text);
+    putNewDoc(title, text, ()=>{
+        console.log(`put new doc ${title}`);
+    })
 }
 
 function getIdFromUrl(){
@@ -588,9 +591,7 @@ export function initEdit(){
 
     initBinder();
 
-    initFirebase(()=>{
-        fetchDB("index", showFileList);
-    });
+    initFirebase(showFileList);
 }
 
 export function initPlay(){

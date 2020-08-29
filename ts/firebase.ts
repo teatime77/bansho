@@ -14,7 +14,7 @@ const defaultUid = "Rb6xnDguG5Z9Jij6XLIPHV4oNge2";
 let loginUid : string | null = null;
 let guestUid = defaultUid;
 
-let indexFile: IndexFile;
+export let indexFile: IndexFile;
 
 class Doc {
     ctime  : number = 0;
@@ -31,29 +31,43 @@ class TextFile {
 }
 
 class FileInfo {
-    id   : number;
-    title : string;
-
-    constructor(id: number, title: string){
-        this.id   = id;
-        this.title = title;
-    }
+    id!    : number;
+    title! : string;
 }
 
-class IndexFile {
-    doc: FileInfo[];
-    map: FileInfo[];
-    img: FileInfo[];
+function newFileInfo(id: number, title: string){
+    return {
+        id   : id,
+        title: title
+    } as FileInfo;
+}
 
-    constructor(doc: FileInfo[], map: FileInfo[], img: FileInfo[]){
-        this.doc = doc;
-        this.map = map;
-        this.img = img;
-    }
+export class IndexFile {
+    doc!: FileInfo[];
+    map!: FileInfo[];
+    img!: FileInfo[];
+}
 
-    maxId(){
-        return Math.max(... this.doc.concat(this.map).map(x => x.id));
-    }
+function newIndexFile(doc: FileInfo[], map: FileInfo[], img: FileInfo[]){
+    return {
+        doc: doc,
+        map: map,
+        img: img
+    } as IndexFile;
+}
+
+function cloneIndexFile(){
+    let obj = {
+        doc: indexFile.doc.map(x => Object.assign({}, x)),
+        map: indexFile.map.map(x => Object.assign({}, x)),
+        img: indexFile.img.map(x => Object.assign({}, x)),
+    };
+
+    return obj;
+}
+
+function maxFileId(){
+    return Math.max(... indexFile.doc.concat(indexFile.map).map(x => x.id));
 }
 
 
@@ -89,7 +103,16 @@ export function initFirebase(fnc:()=>void){
             msg("ログアウト");
         }
 
-        fnc();
+        fetchDB("index", (data:any)=>{
+            if(data != null){
+                indexFile = data;
+            }
+            else{
+                indexFile = { doc: [], map: [], img: [] };
+            }
+
+            fnc();
+        });
     });
 
     db = firebase.firestore();
@@ -112,6 +135,33 @@ function writeDB(id: string, data: any, msg: string, fnc:()=>void){
     })
     .catch(function(error : any) {
         console.error("Error adding document: ", error);
+    });
+}
+
+export function putNewDoc(title: string, text: string, fnc:()=>void){
+    let tmpIdx = cloneIndexFile();
+
+    let id = maxFileId();
+    id++;
+
+    let doc = { text: text };
+
+    let inf = newFileInfo(id, title);
+    tmpIdx.doc.push(inf);
+
+    let batch = db.batch();
+
+    // FirebaseError: Function WriteBatch.set() called with invalid data. Data must be an object, but it was: a custom object
+    //  https://stackoverflow.com/questions/48156234/function-documentreference-set-called-with-invalid-data-unsupported-field-val
+    let docRef = db.collection('users').doc(loginUid!).collection('docs').doc(`${id}`);
+    batch.set(docRef, doc);
+
+    let idxRef = db.collection('users').doc(loginUid!).collection('docs').doc("index");
+    batch.set(idxRef, tmpIdx);
+
+    batch.commit().then(function () {
+        indexFile = tmpIdx;
+        fnc();
     });
 }
 
@@ -144,6 +194,7 @@ export function fetchDB(id: string, fnc:(data: any)=>void){
         } else {
             // doc.data() will be undefined in this case
             console.log("No such document!");
+            fnc(null);
         }
     })
     .catch(function(error) {
@@ -173,8 +224,9 @@ function dbUpload(){
         writeDB(
             `${max_id}`, map_data, `[${max_id}]$ にマップを書き込みました。`,
             ()=>{
-                let doc = obj.files.map((x:any) => new FileInfo(x.id, x.title));
-                let root = new IndexFile(doc, [ new FileInfo(max_id, "依存関係") ], []);
+                let doc = obj.files.map((x:any) => newFileInfo(x.id, x.title));
+                console.assert(false);
+                let root = newIndexFile(doc, [ newFileInfo(max_id, "依存関係") ], []);
     
                 writeDB(
                     "index", root, `[${max_id}]$ にマップを書き込みました。`,
