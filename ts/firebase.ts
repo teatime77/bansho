@@ -2,17 +2,9 @@ namespace bansho {
 // declare let firebase: any;
 declare let navigator : any;
 
-let textName  : HTMLInputElement;
-let fileTreeView : HTMLUListElement;
-let dlgFolder : HTMLDivElement;
-let txtRaw : HTMLTextAreaElement;
 export let dropZone : HTMLDivElement;
 
 let inEditor : boolean = false;
-function newDocument(){}
-function openActionData(text: string){}
-function serializeActions(){ return ""};
-function reviseJson(text: string){ return ""; }
 
 // https://github.com/firebase/firebase-js-sdk をクローン
 // firebase-js-sdk/packages/firebase/index.d.ts を firebase.d.tsにリネームする。
@@ -22,8 +14,7 @@ const defaultUid = "Rb6xnDguG5Z9Jij6XLIPHV4oNge2";
 let loginUid : string | null = null;
 let guestUid = defaultUid;
 
-let rootFile : FileInfo | null = null;
-let selectedFile: FileInfo;
+let indexFile: IndexFile;
 
 class Doc {
     ctime  : number = 0;
@@ -31,202 +22,40 @@ class Doc {
     text   : string = "";
 }
 
+class TextFile {
+    text   : string;
+
+    constructor(text: string){
+        this.text = text;
+    }
+}
+
 class FileInfo {
-    name : string;
-    id : number;
-    children : FileInfo[] | undefined;
+    id   : number;
+    title : string;
 
-    constructor(name : string, isFile: boolean){
-        this.name = name;
-        this.id = getMaxFileId() + 1;
-
-        if(! isFile){
-
-            this.children = [];
-        }
+    constructor(id: number, title: string){
+        this.id   = id;
+        this.title = title;
     }
 }
 
-function getAllFileInfo() : FileInfo[] {
-    function fnc(info: FileInfo, files: FileInfo[]){
+class IndexFile {
+    doc: FileInfo[];
+    map: FileInfo[];
+    img: FileInfo[];
 
-        files.push(info);
-
-        if(info.children != undefined){
-
-            for(let x of info.children){
-                fnc(x, files);
-            }
-        }
+    constructor(doc: FileInfo[], map: FileInfo[], img: FileInfo[]){
+        this.doc = doc;
+        this.map = map;
+        this.img = img;
     }
 
-    const files : FileInfo[] = [];
-    fnc(rootFile!, files);
-
-    return files;
-}
-
-function getMaxFileId() : number {
-    return Math.max(... getAllFileInfo().map(x => x.id));
-}
-
-function getFileById(id: number) : FileInfo | undefined{
-    return getAllFileInfo().find(x => x.id == id);
-}
-
-function showFileTreeView(){
-    function fnc(file:FileInfo, ul: HTMLUListElement){
-        const li = document.createElement("li") as HTMLLIElement;
-        ul.appendChild(li);
-
-        const span = document.createElement("span");
-        span.className = "span-file";
-        span.innerHTML = file.name;
-        span.addEventListener("click", function(ev:MouseEvent){
-            ev.stopPropagation();
-
-            const spans = fileTreeView.getElementsByClassName("span-file");
-            for(let x of spans){
-
-                (x as HTMLSpanElement).style.backgroundColor = "white";
-            }
-
-            const fileId = parseInt( this.dataset.fileId! );
-            selectedFile = getFileById(fileId)!;
-            console.assert(selectedFile != undefined);
-
-            this.style.backgroundColor = "lightgray";
-
-            readFile(selectedFile, function(data:string){
-                txtRaw.value = data;
-            });
-        });
-        span.dataset.fileId = "" + file.id;
-
-        li.appendChild(span);
-
-        if(file.children != undefined){
-            const ul2 = document.createElement("ul");
-            li.appendChild(ul2);
-
-            for(let x of file.children){
-                fnc(x, ul2);
-            }
-        }
+    maxId(){
+        return Math.max(... this.doc.concat(this.map).map(x => x.id));
     }
-
-    fileTreeView.innerHTML = "";
-    fnc(rootFile!, fileTreeView);
 }
 
-function readFile(file: FileInfo, fnc:(data:string)=>void){
-    db.collection('users').doc(guestUid).collection('docs').doc("" + file.id).get().then(function(doc:any) {
-        if (doc.exists) {
-            const docData = doc.data() as Doc;
-
-            fnc(docData.text);
-        } 
-        else {
-            // doc.data() will be undefined in this case
-
-            msg(`[${file.id}]${file.name} はありません。`);
-        }
-    })
-    .catch(function(error: any) {
-        msg(`[${file.id}]${file.name} の読み込みエラーです。`);
-    });
-}
-
-function showContents(){
-    newDocument();
-
-    function fnc(file:FileInfo, ul: HTMLUListElement){
-        const li = document.createElement("li") as HTMLLIElement;
-        ul.appendChild(li);
-
-        if(file.children == undefined){
-            // ファイルの場合
-
-            const link = document.createElement("button");
-            link.innerHTML = file.name;
-            link.dataset.fileId = "" + file.id;
-            link.addEventListener("click", function(ev:MouseEvent){
-                ev.stopPropagation();
-
-                const fileId = parseInt( this.dataset.fileId! );
-
-                const file = getFileById(fileId);
-                console.assert(file != undefined);
-
-                readFile(file!, openActionData);
-
-                msg(`click:${fileId} ${this.textContent}`);
-            });
-
-            li.appendChild(link);
-        }
-        else{
-            // フォルダーの場合
-
-            const span = document.createElement("span");
-            span.innerHTML = file.name;
-            li.appendChild(span);
-
-            const ul2 = document.createElement("ul");
-            li.appendChild(ul2);
-
-            for(let x of file.children){
-                fnc(x, ul2);
-            }
-        }
-    }
-
-    const rootUl = document.getElementById("ulContents") as HTMLUListElement;
-    rootUl.innerHTML = "";
-    fnc(rootFile!, rootUl);
-}
-
-function readFileTree(userUid: string){
-    db.collection('users').doc(userUid).collection('docs').doc("root").get()
-    .then(function(doc: any) {
-        if (doc.exists) {
-            const docData = doc.data() as Doc;
-
-            if(docData.text != undefined){
-
-                rootFile = JSON.parse(docData.text);
-
-                if(inEditor){
-
-                    (document.getElementById("btn-open-folder") as HTMLButtonElement).disabled = false;
-                }
-            }
-            else{
-
-                rootFile = new FileInfo("root", false);
-            }
-        } 
-        else {
-            // doc.data() will be undefined in this case
-            msg("No such document!");
-
-            rootFile = new FileInfo("root", false);
-        }
-
-        if(inEditor){
-
-            showFileTreeView();
-        }
-        else{
-
-            showContents();
-        }
-    })
-    .catch(function(error : any) {
-        msg(`Error getting document:${error}`);
-        rootFile = new FileInfo("root", false);
-    });
-}
 
 export function initFirebase(fnc:()=>void){
     firebase.auth().onAuthStateChanged(function(user: any) {
@@ -269,10 +98,6 @@ export function initFirebase(fnc:()=>void){
         return;
     }
 
-    textName  = document.getElementById("text-name") as HTMLInputElement;
-    fileTreeView = document.getElementById("file-tree-view") as HTMLUListElement;
-    dlgFolder = document.getElementById("dlg-Folder") as HTMLDivElement;
-    txtRaw = document.getElementById("txt-raw") as HTMLTextAreaElement;
     dropZone = document.getElementById('drop-zone') as HTMLDivElement;
 
     dropZone.addEventListener('dragover', handleDragOver, false);
@@ -297,12 +122,8 @@ function fetchAllDoc(){
 
         console.log(`fetch ${file.id} ${file.title}`);
         fetchText(`json/${file.id}.json`, (text: string)=>{
-            console.log(text);
-            console.log("");
 
-            db.collection('users').doc(loginUid!).collection('docs').doc(file.id).set({
-                text   : text
-            })
+            db.collection('users').doc(loginUid!).collection('docs').doc(file.id).set(new TextFile(text))
             .then(function() {
                 msg(`[${file.id}]${file.title} に書き込みました。`);
                 fetchAllDoc();
@@ -328,15 +149,9 @@ export function fetchDB(id: string, fnc:(data: any)=>void){
     .catch(function(error) {
         console.log("Error getting document:", error);
     });
-
-
 }
 
 function dbUpload(){
-    rootFile = { name: "root", id: 123} as FileInfo;
-    writeUserData();
-    //-- readFileTree(guestUid);
-
     fetchFileList((obj: any)=>{
 
         let file_map : { [id: string]: string } = {};
@@ -353,29 +168,18 @@ function dbUpload(){
         max_id++;
         console.log(`max_id: ${max_id}`);
 
-        let map_data = {
-            text   : JSON.stringify({ edges: obj.edges })
-        };
+        let map_data = new TextFile( JSON.stringify({ edges: obj.edges }) );
 
         writeDB(
             `${max_id}`, map_data, `[${max_id}]$ にマップを書き込みました。`,
             ()=>{
-                let root = {
-                    doc: obj.files,
-                    map: [ 
-                        {
-                            id: max_id,
-                            title: "依存関係"
-                        }
-                    ],
-                    img: []
-                };
+                let doc = obj.files.map((x:any) => new FileInfo(x.id, x.title));
+                let root = new IndexFile(doc, [ new FileInfo(max_id, "依存関係") ], []);
     
                 writeDB(
                     "index", root, `[${max_id}]$ にマップを書き込みました。`,
                     ()=>{
                         pendingFiles = obj.files.slice(0, 10);
-                        pendingFiles.push();
                         fetchAllDoc();    
                     }
                 );
@@ -385,140 +189,23 @@ function dbUpload(){
 }
 
 export function initDB(){
+    function set_click(id: string, fnc:()=>void){
+        let btn = getElement(id) as HTMLButtonElement;
+        btn.disabled = false;
+
+        btn.addEventListener("click", (ev: MouseEvent)=>{
+            fnc();
+        });    
+    }
     initFirebase(()=>{
-        let upload_btn = getElement("db-upload") as HTMLButtonElement;
-        upload_btn.disabled = false;
-
-        upload_btn.addEventListener("click", (ev: MouseEvent)=>{
-            dbUpload();
-        });
+        set_click("db-upload", dbUpload);
+        set_click("db-backup", dbBackup);
     });
 }
 
-function writeUserData(){
-    const ctime = Math.round((new Date()).getTime());
-
-    db.collection('users').doc(loginUid!).collection('docs').doc("root").set({
-        ctime  : ctime,
-        mtime  : ctime,
-        text   : JSON.stringify(rootFile)
-    })
-    .then(function() {
-        msg("Document successfully written!");
-    })
-    .catch(function(error : any) {
-        console.error("Error writing document: ", error);
-    });
-}
-
-export function openFolder(){
-    showFileTreeView();
-    showPopup(dlgFolder);
-}
-
-export function closeFolder(){
-    hidePopup(dlgFolder);
-}
-
-export function saveFolder(){
-    writeUserData();
-
-    hidePopup(dlgFolder);
-}
 
 
-export function makeFolder(){
-    const name = textName.value.trim();
-    const newFolder = new FileInfo(name, false);
 
-    selectedFile.children!.push(newFolder);
-
-    showFileTreeView();
-}
-
-function writeFile(file: FileInfo, text: string){
-    const ctime = Math.round((new Date()).getTime());
-
-    db.collection('users').doc(loginUid!).collection('docs').doc("" + file.id).set({
-        ctime  : ctime,
-        mtime  : ctime,
-        text   : text
-    })
-    .then(function() {
-        msg(`[${file.id}]${file.name} に書き込みました。`);
-    })
-    .catch(function(error : any) {
-        console.error("Error adding document: ", error);
-    });
-}
-
-export function firebaseUpdate(){
-    const text = serializeActions();
-    msg(`${text}`);
-
-    msg("------------------------------------");
-    const s = reviseJson(text);
-    msg(s);
-    msg("------------------------------------");
-    const obj = JSON.parse(s);
-    msg(`${JSON.stringify(obj)}`);
-
-    writeFile(selectedFile, text);
-}
-
-function showPopup(div: HTMLDivElement){
-    div.style.display = "grid"; // "inline-block";
-    div.style.position = "fixed";
-    div.style.left = "20px";
-    div.style.top  = "20px";
-    // div.style.width = `${window.innerWidth - 50}px`;
-    // div.style.height = `${window.innerHeight - 50}px`;
-    div.style.width = `${document.documentElement.clientWidth - 50}px`;
-    div.style.height = `${document.documentElement.clientHeight - 50}px`;
-}
-
-function hidePopup(div: HTMLDivElement){
-    div.style.display = "none";
-}
-
-export function openFile(){
-    newDocument();
-
-    const file = selectedFile;
-    hidePopup(dlgFolder);
-
-    db.collection('users').doc(guestUid).collection('docs').doc("" + file.id).get().then(function(doc: any) {
-        if (doc.exists) {
-            const docData = doc.data() as Doc;
-
-            openActionData(docData.text);       
-
-            msg(`[${file.id}]${file.name} を読みこみました。`);
-        } 
-        else {
-            // doc.data() will be undefined in this case
-
-            msg(`[${file.id}]${file.name} はありません。`);
-        }
-    });
-    // .catch(function(error) {
-    //     console.log(error.message, error);
-    //     console.log(error.stack);
-
-    //     msg(`[${file.id}]${file.name} の読み込みエラーです。`);
-    // });
-}
-
-export function makeFile(){
-    const name = textName.value.trim();
-    const newFile = new FileInfo(name, true);
-
-    writeFile(newFile, "");
-
-    selectedFile.children!.push(newFile);
-
-    showFileTreeView();
-}
 
 function getImgRef(fileName: string, mode:string){
     // Create a root reference
@@ -555,7 +242,6 @@ export function setImgSrc(img: HTMLImageElement, fileName: string){
 }
 
 function uploadFile(file: File){
-
     // Create a reference to 'mountains.jpg'
     const imgRef = getImgRef(file.name, "w");
 
@@ -571,9 +257,6 @@ function uploadFile(file: File){
     });    
 }
 
-export function writeRawText(){
-    writeFile(selectedFile, txtRaw.value);
-}
 
 function handleFileSelect(ev: DragEvent) {
     ev.stopPropagation();
@@ -594,20 +277,33 @@ function handleDragOver(evt: DragEvent) {
     evt.dataTransfer!.dropEffect = 'copy'; // Explicitly show this is a copy.
 }
 
-export function backup(){
-
+export function dbBackup(){
     db.collection('users').doc(loginUid!).collection('docs').get()
     .then((querySnapshot: any) => {
-        let text: string = "";
+        let docs : any[] = [];
 
         querySnapshot.forEach((dt: any) => {
             const doc = dt.data() as Doc;
 
-            text += `id: ${dt.id}\n`;
-            text += `ctime: ${doc.ctime}\n`;
-            text += `mtime: ${doc.mtime}\n`;
-            text += `${doc.text}<<EndOfDocument>>\n\n`;
+            docs.push({
+                id  : dt.id,
+                doc : doc
+            });
         });
+
+        let text = JSON.stringify(docs, null, 4);
+
+        var link = getElement('download-link') as HTMLAnchorElement;
+
+        var blob = new Blob([ text ], { "type" : "text/plain" });
+
+        let dt = new Date();
+        link.download = `backup-${dt.getFullYear()}-${dt.getMonth() + 1}-${dt.getDate()}-${dt.getHours()}-${dt.getMinutes()}.json`;
+        link.href = window.URL.createObjectURL(blob);
+        link.click();
+
+        // link.setAttribute('download', `gan-${dt.getFullYear()}-${dt.getMonth() + 1}-${dt.getDate()}-${dt.getHours()}-${dt.getMinutes()}.png`);
+        // link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
 
         navigator.clipboard.writeText(text).then(
         function() {
