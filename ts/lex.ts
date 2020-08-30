@@ -136,7 +136,7 @@ export class Token{
 /*
     字句解析をして各文字の字句型の配列を得ます。
 */
-export function Lex(text : string) : Array<Token> {
+export function Lex(text : string, skip_space: boolean = false) : Array<Token> {
     let line_idx: number = 0;
     let token_list : Token[] = new Array<Token>();
 
@@ -175,6 +175,10 @@ export function Lex(text : string) : Array<Token> {
         if(ch1 == ' '){
             while(pos < text.length && text[pos] == ' ') pos++;
             token_type = TokenType.space;
+
+            if(skip_space){
+                continue;
+            }
         }
         else if(ch1 == '\n'){
             pos++;
@@ -335,13 +339,13 @@ function setChar(sel: Selection, div: HTMLDivElement, col: number){
 }
 
 
-export function initCodeEditor(dlg: HTMLDialogElement){
-    codeEditor.addEventListener("input",function(){
+export function initCodeEditor(){
+    pkgVertexShaderDiv.addEventListener("input",function(){
         let sel = window.getSelection()!;
         let rng = sel.getRangeAt(0);
         let div1;
         for(let nd = rng.startContainer as ChildNode;; nd = nd.parentElement!){
-            if(nd == codeEditor){
+            if(nd == pkgVertexShaderDiv){
                 break;
             }
             if(nd.nodeName == "DIV"){
@@ -349,7 +353,7 @@ export function initCodeEditor(dlg: HTMLDialogElement){
             }
         }
         console.log(`input ${sel.rangeCount} rng:[${rng}] ` );
-        for(let nd of codeEditor.childNodes){
+        for(let nd of pkgVertexShaderDiv.childNodes){
 
             if(nd.nodeType == Node.TEXT_NODE){
 
@@ -399,14 +403,198 @@ export function initCodeEditor(dlg: HTMLDialogElement){
             }
         }
     });
+}
 
-    getElement("shader-edit-cancel").addEventListener("click", (ev: MouseEvent)=>{
-        dlg.close();
-    })
 
-    getElement("shader-edit-ok").addEventListener("click", (ev: MouseEvent)=>{
-        dlg.close();        
-    })
+class Term {
+    calc(values: { [name: string]: number }) : number {
+        throw new Error();
+    }
+}
+
+class RefVar extends Term{
+    name: string;
+
+    constructor(name: string){
+        super();
+        this.name = name;
+    }
+
+    calc(values: { [name: string]: number }) : number {
+        let x = values[this.name];
+        if(x == undefined){
+            return NaN;
+        }
+        return x;
+    }
+}
+
+
+class ConstNum extends Term{
+    value: number;
+
+    constructor(value: number){
+        super();
+        this.value = value;
+    }
+
+    calc(values: { [name: string]: number }) : number {
+        return this.value;
+    }
+}
+
+class App extends Term{
+    opr : string;
+    args: Term[];
+
+    constructor(opr: string, args: Term[]){
+        super();
+        this.opr = opr;
+        this.args = args.slice();
+    }
+
+    calc(values: { [name: string]: number }) : number {
+        let val!: number;
+
+        for(let [i, arg] of this.args.entries()){
+            let n = arg.calc(values);
+
+            if(i == 0){
+                val = n;
+            }
+            else{
+                switch(this.opr){
+                case "+": val += n; break;
+                case "-": val -= n; break;
+                case "*": val *= n; break;
+                case "/": val /= n; break;
+                }
+            }
+        }
+
+        return val;
+    }
+}
+
+class Parser {
+    tokens: Token[];
+    token!: Token;
+    values: { [name: string]: number };
+
+    constructor(values: { [name: string]: number }, text: string){
+        this.values = values;
+        this.tokens = Lex(text, true);
+        if(this.tokens.length == 0){
+            
+        }
+
+        this.next();
+    }
+
+    next(){
+        if(this.tokens.length == 0){
+
+            this.token = new Token(TokenType.eot, TokenSubType.unknown, "", 0, 0);
+        }
+        else{
+
+            this.token = this.tokens.shift()!;
+        }
+    }
+
+
+    PrimaryExpression() {
+        let trm : Term;
+
+        if(this.token.typeTkn == TokenType.identifier){
+            if(this.values[this.token.text] != undefined){
+                trm = new RefVar(this.token.text);
+                this.next();
+            }
+            else{
+                throw new Error();
+            }
+        }
+        else if(this.token.typeTkn == TokenType.Number){
+            let n = parseFloat(this.token.text);
+            if(isNaN(n)){
+                throw new Error();
+            }
+
+            trm = new ConstNum(n);
+            this.next();
+        }
+        else{
+            throw new Error();
+        }
+
+        return trm;
+    }
+
+    MultiplicativeExpression(){
+        let trm1 = this.PrimaryExpression();
+        while(this.token.text == "*" || this.token.text == "/"){
+            let app = new App(this.token.text, [trm1]);
+            this.next();
+
+            while(true){
+                let trm2 = this.PrimaryExpression();
+                app.args.push(trm2);
+                
+                if(this.token.text == app.opr){
+                    this.next();
+                }
+                else{
+                    trm1 = app;
+                    break;
+                }
+            }
+        }
+    
+        return trm1;
+    }
+    
+    AdditiveExpression(){
+        let trm1 = this.MultiplicativeExpression();
+        while(this.token.text == "+" || this.token.text == "-"){
+            let app = new App(this.token.text, [trm1]);
+            this.next();
+
+            while(true){
+                let trm2 = this.MultiplicativeExpression();
+                app.args.push(trm2);
+                
+                if(this.token.text == app.opr){
+                    this.next();
+                }
+                else{
+                    trm1 = app;
+                    break;
+                }
+            }
+        }
+
+        return trm1;
+    }
+
+    Expression(){
+        return this.AdditiveExpression();
+    }
+    
+}
+
+export function parseMath(values: { [name: string]: number }, text: string) : number {
+    try{
+        let parser = new Parser(values, text);
+        let trm = parser.Expression();
+        if(parser.token.typeTkn != TokenType.eot){
+            throw new Error();
+        }
+        return trm.calc(values);
+    }
+    catch(e){
+        return NaN;
+    }
 }
 
 }

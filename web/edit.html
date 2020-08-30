@@ -154,6 +154,7 @@ input[type="radio"]:checked + label {
 
         <button id="add-text-block" style="font-family: Segoe UI Emoji;">➕✏️</button>
         <button id="add-speech" style="font-family: Segoe UI Emoji;">➕🔊</button>
+        <button id="open-package">パッケージ</button>
         <!-- <label for="line-feed" style="display: none;">
             <input type="checkbox" id="line-feed" />改行
         </label> -->
@@ -180,8 +181,9 @@ input[type="radio"]:checked + label {
 <!-- --------------------------------------------------
 GPGPUのパッケージの編集
 -------------------------------------------------- -->
-<button id="open-package">パッケージ</button>
 <dialog id="package-graph-dlg" style="width: 90%; height: 90%;">
+    サイズ <input id="glb-params" type="text" width="100em" spellcheck="false" />
+    <br/>
     <select id="sel-shape-pkg">
         <option value="point">点</option>
         <option value="sphere">球</option>
@@ -195,38 +197,43 @@ GPGPUのパッケージの編集
     <div style="display: flex;">
         <div>
             <button id="add-package" style="width: 100%;" >Package</button><br/>
-            <button id="add-slider" style="width: 100%;" >スライダー</button>
         </div>
         <div id="package-graph-div"></div>
-        <div id="package-parts" style="width: 200px;"></div>
         <canvas id="package-canvas" style="border: none;" width="500" height="500"></canvas>
     </div>
     <button id="package-graph-cancel">キャンセル</button>
     <button id="package-graph-ok">OK</button>
 </dialog>
 
-<div id="slider-tmpl" style="display: none; width: 100%;">
-    <select>
-        <option value="int">int</option>
+<dialog id="tex-edit-dlg">
+    <h4 id="tex-name"></h4>
+    <select id="tex-texel-type">
         <option value="float">float</option>
+        <option value="vec2">vec2</option>
+        <option value="vec3">vec3</option>
+        <option value="vec4">vec4</option>
     </select>
-    min: <input type="number" style="width: 30px;" />
-    max: <input type="number" style="width: 30px;" />
-    <input type="range" style="width: 100%;" />
-</div>
+    サイズ <input id="tex-shape" type="text" width="20em" spellcheck="false" /><br/>
+    <span id="tex-shape-value"></span>
+    <button id="tex-edit-cancel">Cancel</button>
+    <button id="tex-edit-ok">OK</button>
+</dialog>
 
-<dialog id="shader-edit-dlg">
-    シェイプ <input id="shader-shape" type="text" value="8000" /><br/>
+<dialog id="pkg-edit-dlg">
+    パラメータ<input id="pkg-params" type="text" style="width: 50em;" spellcheck="false" /><br/>
+    入力数<input id="pkg-numInput" type="text"   style="width: 50em;" spellcheck="false" />
+    <sapn id="pkg-numInput-value"></sapn><br/>
     フラグメントシェーダー
-    <select id="fragment-shader">
+    <select id="pkg-fragment-shader">
         <option value="none">なし</option>
         <option value="point">点</option>
+        <option value="plane">面</option>
     </select>
-    <div id="code-editor" contenteditable spellcheck="false" style="font-family: monospace; font-weight: bold; background-color: white; padding: 10px; width: 600px; height: 600px; overflow: scroll; white-space: nowrap;">
+    <div id="pkg-vertex-shader" contenteditable spellcheck="false" style="font-family: monospace; font-weight: bold; background-color: white; padding: 10px; width: 600px; height: 600px; overflow: scroll; white-space: nowrap;">
         <div></div>
     </div>
-    <button id="shader-edit-cancel">キャンセル</button>
-    <button id="shader-edit-ok">OK</button>
+    <button id="pkg-edit-cancel">Cancel</button>
+    <button id="pkg-edit-ok">OK</button>
 </dialog>
 
 </div>
