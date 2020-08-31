@@ -588,7 +588,6 @@ export function initEdit(){
     console.log("body load");
     
     glb = new Glb(true);
-    msg("$$ab$$ $$cd$$".replace(/\$\$/g, "\n\$\$\n"))
 
     initSpeech();
 
@@ -602,7 +601,7 @@ export function initEdit(){
 }
 
 export function initPlay(){
-    console.log(`play ${window.location.href}`);
+    console.log("body load");
     
     glb = new Glb(false);
 
@@ -610,11 +609,15 @@ export function initPlay(){
 
     setEventListener();
 
-    let id = getIdFromUrl();
-    if(id != ""){
+    initDraw();
 
-        glb.openDoc(id);
-    }
+    initFirebase(()=>{
+        let id = getIdFromUrl();
+        if(id != ""){
+    
+            glb.openDoc(id);
+        }    
+    });
 }
 
 export function onClickPointerMove(act:TextBlock, ev: PointerEvent | MouseEvent, is_click: boolean){

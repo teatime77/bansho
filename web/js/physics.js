@@ -928,8 +928,8 @@ function ElasticCollision(gpgpu){
     gpgpu.makePackage(dr1);
 
     // let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.01);
-    let dr2 = new bansho.SpherePkg();
-    dr2.setShape([cnt]);
+    let dr2 = bareSpherePkg(gpgpu, cnt);
+
     gpgpu.makePackage(dr2);
 
     let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
@@ -1060,8 +1060,8 @@ function InverseSquare(gpgpu){
     gpgpu.makePackage(dr1);
 
     // let dr2 = particlePackage(gpgpu, dr1.numInput, 8, 8, 0.04);
-    let dr2 = new bansho.SpherePkg();
-    dr2.setShape([cnt]);
+    let dr2 = bareSpherePkg(gpgpu, cnt);
+
     gpgpu.makePackage(dr2);
 
     let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);
@@ -1173,6 +1173,25 @@ void main(void) {
     outMass = mass;
 }`;
 
+function bareSpherePkg(gpgpu, cnt){
+    let dr2 = bansho.makePkg(bansho.SpherePkg);
+    dr2.args = {
+        inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
+    }
+
+    map = { n1 : 8, n2 : 8, radius : 0.04 };
+    let shader = dr2.vertexShader;
+    for(let [name, val] of Object.entries(map)){
+        let key = `@{${name}}`;
+        while(shader.includes(key)){
+            shader = shader.replace(key, `${val}`);
+        }
+    }
+    dr2.vertexShader = shader;
+    dr2.numInput = cnt * map.n1 * map.n2 * 6;
+
+    return dr2;
+}
 
 function BathtubVortex(gpgpu){
     let gl = bansho.gl;
@@ -1188,8 +1207,8 @@ function BathtubVortex(gpgpu){
     dr1.numInput = cnt;
     gpgpu.makePackage(dr1);
 
-    let dr2 = new bansho.SpherePkg();
-    dr2.setShape([cnt]);
+    let dr2 = bareSpherePkg(gpgpu, cnt);
+
     gpgpu.makePackage(dr2);
 
     // let dr3 = new gpgputs.UserMesh(gl.TRIANGLES, CubeShader(), gpgputs.GPGPU.planeFragmentShader, 6 * 6);

@@ -4,25 +4,61 @@
 <meta charset="utf-8" />
 <title>板書</title>
 <script>
-window.MathJax = {
-    tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        macros: {
-            v : ["{\\mathrm #1}", 1]
-        }
-    },
-    options: {
-        renderActions: {
-            addMenu: [0, '', '']
-        }
-    },
-    chtml: {
-        scale: 1.0
-    }    
-};
+    // \newcommand{\v}[1]{\mathrm{#1}}
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            macros: {
+                v : ["{\\mathrm #1}", 1]
+            }
+        },
+        options: {
+            renderActions: {
+                addMenu: [0, '', '']
+            }
+        },
+        chtml: {
+            scale: 1.0
+        }    
+    };
 </script>
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<!-- >>=========>>=========>>=========>>=========>>=========>> -->
+
+<script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/7.18.0/firebase-analytics.js"></script>
+
+<script>
+    // Your web app's Firebase configuration
+    var firebaseConfig = {
+    apiKey: "AIzaSyBv9TmZDK1S1GkDiYkAuGNW5g67nQ51kxo",
+    authDomain: "ban-sho.firebaseapp.com",
+    databaseURL: "https://ban-sho.firebaseio.com",
+    projectId: "ban-sho",
+    storageBucket: "ban-sho.appspot.com",
+    messagingSenderId: "794711869305",
+    appId: "1:794711869305:web:a1f7fa66ae75f74fc051a8",
+    measurementId: "G-233TZFKFTH"
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+</script>
+
+<!-- <<=========<<=========<<=========<<=========<<=========<< -->
+
+<script src="lib/glMatrix-0.9.5.min.js"></script>
+<script src="lib/viz.js"></script>
+<script src="lib/full.render.js"></script>
+
+<script src="lib/glMatrix-0.9.5.min.js"></script>
+<script src="lib/gpgpu.ts/gpgpu.js" ></script>
+<script src="lib/gpgpu.ts/shape.js" ></script>
+<script src="lib/gpgpu.ts/shape-shader.js" ></script>
 
 <script src="js/util.js?ver=1" ></script>
 <script src="js/widget.js?ver=1" ></script>
@@ -30,7 +66,14 @@ window.MathJax = {
 <script src="js/speech.js?ver=1" ></script>
 <script src="js/main.js?ver=1" ></script>
 <script src="js/shape.js?ver=1" ></script>
+<script src="js/matrix.js?ver=1" ></script>
+<script src="js/gpu.js?ver=1" ></script>
+<script src="js/firebase.js?ver=1" ></script>
 
+<script src="js/physics.js?ver=1" ></script>
+<script src="js/binder.js?ver=1" ></script>
+<script src="js/lex.js?ver=1" ></script>
+    
 <style type="text/css">
 html {
     width: 100%;
@@ -52,9 +95,10 @@ li {
 </head>
 
 <body onload="bansho.initPlay()">
-<button id="play-pause" style="font-family: 'Segoe UI Emoji'" >▶️</button>
-<button id="fast-reverse" style="font-family: Segoe UI Emoji;" >⏮</button>
-<button id="fast-forward" style="font-family: Segoe UI Emoji;" >⏭</button>
+<button id="play-pause" style="font-family: 'Segoe UI Emoji'; font-size: 28pt;" >▶️</button>
+<button id="fast-reverse" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏮</button>
+<button id="fast-forward" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏭</button>
+<br/><br/>
 <input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
 <br/>
 <h3 id="caption" style="text-align: center;" ></h3>

@@ -11,6 +11,8 @@ let blocks: TextBox[] = [];
 let srcBox: TextBox | null = null;
 let docMap: { [id: string]: any };
 let edgeMap: { [id: string]: any };
+let skipIds = [ 182, 1, 8, 154, 155, 153, -100, -101, -102 ];
+let skipIds2 = skipIds.map(x => `${x}`);
 
 function makeTexTextHtml(text: string){
     let lines : string[] = [];
@@ -377,6 +379,9 @@ function initEdges(edges: any[]){
 
 function setEvent(index: IndexFile, map: any){
     for(let doc of index.docs){
+        if(skipIds.includes(doc.id) || skipIds2.includes(doc.id as unknown as string )){
+            continue;
+        }
         let box = getElement(`${doc.id}`);
         box.addEventListener("click", function(ev:MouseEvent){
             let doc1 = docMap[this.id];
@@ -385,6 +390,9 @@ function setEvent(index: IndexFile, map: any){
     }
     
     for(let edge of map.edges){
+        if(skipIds.includes(edge.srcId) || skipIds.includes(edge.dstId)){
+            continue;
+        }
         let dom = getElement(`${edge.srcId}:${edge.dstId}`);
         if(dom == null){
             console.log(`err edge ${edge.srcId}:${edge.dstId}`);
@@ -402,12 +410,21 @@ function makeDot(index: IndexFile, map: any){
 
     docMap = {};
     for(let doc of index.docs){
+        if(skipIds.includes(doc.id) || skipIds2.includes(doc.id as unknown as string )){
+            continue;
+        }
+        if(doc.title == "図形サンプル"){
+            console.log("");
+        }
         docMap["" + doc.id] = doc;
         lines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}" ];` );
     }
 
     edgeMap = {};
     for(let edge of map.edges){
+        if(skipIds.includes(edge.srcId) || skipIds.includes(edge.dstId)){
+            continue;
+        }
         let id = `${edge.srcId}:${edge.dstId}`;
         edgeMap[id] = edge;
         lines.push(`b${edge.srcId} -> b${edge.dstId} [ id="${id}" ];`);
@@ -417,7 +434,6 @@ function makeDot(index: IndexFile, map: any){
     digraph graph_name {
         graph [
           charset = "UTF-8";
-          label = "数学・物理・AIの依存関係",
         ];
         ${lines.join('\n')}
     }

@@ -530,19 +530,22 @@ function makeGraph(){
 }
 
 export function initBinder(){
+    glbParamsInp = getElement("glb-params") as HTMLInputElement;
+    packageDlg = getElement("package-graph-dlg") as HTMLDialogElement;
+    
+    viz = new Viz();
+
     getElement("open-package").addEventListener("click", (ev: MouseEvent)=>{
         let act = new Simulation();
         glb.addWidget(act);
         packageDlg.showModal();
     });
     
-    glbParamsInp = getElement("glb-params") as HTMLInputElement;
     glbParamsInp.addEventListener("blur", function(ev: FocusEvent){
         let map = getParamsMap([ glbParamsInp.value ]);
         glbParamsInp.style.color = map == null ? "red" : "black";
     });
     
-    packageDlg = getElement("package-graph-dlg") as HTMLDialogElement;
 
     getElement("package-graph-ok").addEventListener("click", (ev: MouseEvent)=>{
         gpgpu.clearAll();
@@ -657,8 +660,6 @@ export function initBinder(){
 
         gpgpu.drawables.push(...packages);
     });
-    
-    viz = new Viz();
 
     initCodeEditor();
 }
@@ -691,7 +692,7 @@ class PackageTmpl {
     vertexShader!    : string;
 }
 
-function makePkg(tmpl: PackageTmpl) : gpgputs.Package {
+export function makePkg(tmpl: PackageTmpl) : gpgputs.Package {
     let pkg = new gpgputs.Package({
         params          : tmpl.defaultParams,
         numInputFormula : tmpl.numInputFormula,
@@ -704,7 +705,7 @@ function makePkg(tmpl: PackageTmpl) : gpgputs.Package {
     return pkg;
 }
 
-let SpherePkg = {
+export let SpherePkg = {
     defaultParams   : "n1 = 8, n2 = 8, radius = 0.04",
     numInputFormula : "INPUT * n1 * n2 * 6",
     mode            : "TRIANGLES",

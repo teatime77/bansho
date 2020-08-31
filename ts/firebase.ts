@@ -10,7 +10,7 @@ let inEditor : boolean = false;
 // firebase-js-sdk/packages/firebase/index.d.ts を firebase.d.tsにリネームする。
 let db: firebase.firestore.Firestore;
 
-const defaultUid = "Rb6xnDguG5Z9Jij6XLIPHV4oNge2";
+const defaultUid = "qQTgoL6riZMpmFhU6KDvLfEwg5x1";  // "Rb6xnDguG5Z9Jij6XLIPHV4oNge2";
 let loginUid : string | null = null;
 let guestUid = defaultUid;
 
@@ -208,7 +208,7 @@ function fetchAllDoc(){
 }
 
 export function fetchDB(id: string, fnc:(data_id: string | null, data: any)=>void){
-    db.collection('users').doc(loginUid!).collection('docs').doc(id).get()
+    db.collection('users').doc(guestUid).collection('docs').doc(id).get()
     .then(function(doc) {
         if (doc.exists) {
             let data = doc.data();
