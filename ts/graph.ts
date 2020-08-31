@@ -375,8 +375,8 @@ function initEdges(edges: any[]){
     showGraph();
 }
 
-function setEvent(index: any, map: any){
-    for(let doc of index.doc){
+function setEvent(index: IndexFile, map: any){
+    for(let doc of index.docs){
         let box = getElement(`${doc.id}`);
         box.addEventListener("click", function(ev:MouseEvent){
             let doc1 = docMap[this.id];
@@ -401,7 +401,7 @@ function makeDot(index: IndexFile, map: any){
     let lines : string[] = [];
 
     docMap = {};
-    for(let doc of index.doc){
+    for(let doc of index.docs){
         docMap["" + doc.id] = doc;
         lines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}" ];` );
     }
@@ -442,13 +442,7 @@ function makeDot(index: IndexFile, map: any){
 }
 
 function getFileList(){
-    // for(let doc of docs.doc){
-    //     let box = new TextBox([], doc.title);
-    //     box.id = parseInt(doc.id);
-    //     blocks.push(box);
-    // }
-
-    fetchDB(`${indexFile.map[0].id}`, (data:any)=>{
+    fetchDB(`${indexFile.maps[0].id}`, (id: string | null, data:any)=>{
         let obj = JSON.parse(data.text);
         makeDot(indexFile, obj);
         // initEdges(obj.edges);

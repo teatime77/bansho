@@ -7,6 +7,7 @@ export let glb: Glb;
 export class Glb {
     static edit: boolean;
     static svgGraph: SVGSVGElement;
+    docID   : number = NaN;
     widgets : Widget[] = [];
     widgetMap : Widget[] = [];
     refMap = new Map<number, Widget>();
@@ -310,7 +311,10 @@ export class Glb {
     }
     
     openDoc(path: string){
-        fetchDB(path, (data: any)=>{
+        fetchDB(path, (id: string | null, data: any)=>{
+            console.assert(path == id);
+            glb.docID = parseInt(id!);
+            console.assert( ! isNaN(glb.docID) );
             this.initDoc(JSON.parse(data.text));
         });
         // fetchText(`json/${path}.json`, (text: string)=>{
@@ -454,6 +458,9 @@ export function parseObject(obj: any) : any {
     case View.name:
         return new View().make(obj);
 
+    case Simulation.name:
+        return new Simulation().make(obj);
+    
     case Point.name:
         return new Point(obj);
 
@@ -512,11 +519,11 @@ export function parseObject(obj: any) : any {
 }
 
 function showFileList(){    
-    if(indexFile.doc.length != 0){
+    if(indexFile.docs.length != 0){
 
-        indexFile.doc.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
+        indexFile.docs.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
 
-        for(let file of indexFile.doc){
+        for(let file of indexFile.docs){
             let opt = document.createElement("option");
             opt.value = `${file.id}`;
             opt.textContent = file.title;
@@ -541,7 +548,7 @@ export function getAll() : Widget[] {
     return v;
 }
 
-export function putData(){
+export function putData(is_new: boolean){
     let v = getAll();
     for(let [i, x] of v.entries()){
         x.id = i;
@@ -556,7 +563,7 @@ export function putData(){
 
     const text = JSON.stringify(obj, null, 4);
 
-    putNewDoc(title, text, ()=>{
+    putNewDoc(is_new, title, text, ()=>{
         console.log(`put new doc ${title}`);
     })
 }

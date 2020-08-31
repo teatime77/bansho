@@ -43,31 +43,31 @@ function newFileInfo(id: number, title: string){
 }
 
 export class IndexFile {
-    doc!: FileInfo[];
-    map!: FileInfo[];
-    img!: FileInfo[];
+    docs!: FileInfo[];
+    maps!: FileInfo[];
+    imgs!: FileInfo[];
 }
 
 function newIndexFile(doc: FileInfo[], map: FileInfo[], img: FileInfo[]){
     return {
-        doc: doc,
-        map: map,
-        img: img
+        docs: doc,
+        maps: map,
+        imgs: img
     } as IndexFile;
 }
 
 function cloneIndexFile(){
     let obj = {
-        doc: indexFile.doc.map(x => Object.assign({}, x)),
-        map: indexFile.map.map(x => Object.assign({}, x)),
-        img: indexFile.img.map(x => Object.assign({}, x)),
+        docs: indexFile.docs.map(x => Object.assign({}, x)),
+        maps: indexFile.maps.map(x => Object.assign({}, x)),
+        imgs: indexFile.imgs.map(x => Object.assign({}, x)),
     };
 
     return obj;
 }
 
 function maxFileId(){
-    return Math.max(... indexFile.doc.concat(indexFile.map).map(x => x.id));
+    return Math.max(... indexFile.docs.concat(indexFile.maps).map(x => x.id));
 }
 
 
@@ -103,12 +103,12 @@ export function initFirebase(fnc:()=>void){
             msg("ログアウト");
         }
 
-        fetchDB("index", (data:any)=>{
+        fetchDB("index", (id: string | null, data:any)=>{
             if(data != null){
                 indexFile = data;
             }
             else{
-                indexFile = { doc: [], map: [], img: [] };
+                indexFile = { docs: [], maps: [], imgs: [] };
             }
 
             fnc();
@@ -138,16 +138,35 @@ function writeDB(id: string, data: any, msg: string, fnc:()=>void){
     });
 }
 
-export function putNewDoc(title: string, text: string, fnc:()=>void){
+export function putNewDoc(is_new: boolean, title: string, text: string, fnc:()=>void){
     let tmpIdx = cloneIndexFile();
 
-    let id = maxFileId();
-    id++;
+    let id : number;
+    let set_index = false;
+
+    if(is_new){
+
+        id = maxFileId() + 1;
+
+        let inf = newFileInfo(id, title);
+        tmpIdx.docs.push(inf);
+        set_index = true;
+    }
+    else{
+        id = glb.docID;
+
+        let inf = tmpIdx.docs.find(x => x.id == id);
+        if(inf == undefined){
+            throw new Error();
+        }
+
+        if(inf.title != title){
+            set_index = true;
+            inf.title = title;
+        }
+    }
 
     let doc = { text: text };
-
-    let inf = newFileInfo(id, title);
-    tmpIdx.doc.push(inf);
 
     let batch = db.batch();
 
@@ -156,8 +175,11 @@ export function putNewDoc(title: string, text: string, fnc:()=>void){
     let docRef = db.collection('users').doc(loginUid!).collection('docs').doc(`${id}`);
     batch.set(docRef, doc);
 
-    let idxRef = db.collection('users').doc(loginUid!).collection('docs').doc("index");
-    batch.set(idxRef, tmpIdx);
+    if(set_index){
+
+        let idxRef = db.collection('users').doc(loginUid!).collection('docs').doc("index");
+        batch.set(idxRef, tmpIdx);
+    }
 
     batch.commit().then(function () {
         indexFile = tmpIdx;
@@ -185,16 +207,16 @@ function fetchAllDoc(){
     }
 }
 
-export function fetchDB(id: string, fnc:(data: any)=>void){
+export function fetchDB(id: string, fnc:(data_id: string | null, data: any)=>void){
     db.collection('users').doc(loginUid!).collection('docs').doc(id).get()
     .then(function(doc) {
         if (doc.exists) {
             let data = doc.data();
-            fnc(data);
+            fnc(doc.id, data);
         } else {
             // doc.data() will be undefined in this case
             console.log("No such document!");
-            fnc(null);
+            fnc(null, null);
         }
     })
     .catch(function(error) {

@@ -5,11 +5,12 @@ declare let Viz : any;
 
 let gpgpu: gpgputs.GPGPU;
 let viz : any;
+
+let packages: gpgputs.Package[] = [];
 let varsAll : Variable[] = [];
 
 let packageDlg: HTMLDialogElement;
 
-let packages: gpgputs.Package[] = [];
 
 export let pkgVertexShaderDiv: HTMLDivElement;
 
@@ -97,7 +98,104 @@ export class Variable {
         this.type = type;
         this.name = name;
     }
+
+    makeObjVar() : any {
+        return {
+            id: this.id,
+            modifier: this.modifier,
+            type: this.type,
+            texelType: this.texelType,
+            name: this.name,
+            dstVars: this.dstVars.map(x => `${x.id}`),
+            shapeFormula: this.shapeFormula        
+        };
+    }
 }
+
+export class Simulation extends Widget {
+    constructor(){
+        super();
+    }
+
+    make(obj: any) : Widget {
+        console.assert(obj.Width != undefined && obj.Height != undefined && obj.ViewBox != undefined);
+        super.make(obj);
+
+        glbParamsInp.value = obj.glbParams;
+
+        packages = [];
+        varsAll = [];
+
+        for(let o of obj.packages){
+            let pkg = this.makePkg(o);
+            packages.push(pkg);
+        }
+
+        return this;
+    }
+
+    makePkg(obj: any) : gpgputs.Package {
+        let pkg = new gpgputs.Package({
+            id              : obj.id,
+            params          : obj.params,
+            numInputFormula : obj.numInputFormula,
+            mode            : gpgputs.getDrawMode(obj.mode),
+            vertexShader    : obj.vertexShader,
+            vertexShaderTmpl: obj.vertexShaderTmpl,
+            fragmentShader  : obj.fragmentShader,
+            args            : {}
+        });
+
+        let va_map : { [id:string] : Variable} = {};
+        for(let o of obj.vars){
+            let va = new Variable(pkg, o.modifier, o.type, o.name);
+            va.texelType = o.texelType;
+            va.shapeFormula = o.shapeFormula;
+            va.dstVars      = o.dstVars;
+
+            varsAll.push(va);
+            va_map[va.id] = va;
+        }
+
+        for(let va of varsAll){
+            va.dstVars = (va.dstVars as unknown as string[]).map(id => va_map[id]);
+        }
+
+        return pkg;
+    }
+
+    
+
+    makeObjPkg(pkg: gpgputs.Package) : any {
+        let vars = varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
+
+        return {
+            id              : pkg.id,
+            params          : pkg.params,
+            numInputFormula : pkg.numInputFormula,
+            mode            : gpgputs.getDrawModeText(pkg.mode),
+            vertexShader    : pkg.vertexShader,
+            vertexShaderTmpl: pkg.vertexShaderTmpl,
+            fragmentShader  : pkg.fragmentShader,
+            vars            : vars.map(x => x.makeObjVar()),
+        };
+    }
+
+    makeObj() : any {        
+        return Object.assign(super.makeObj(), {
+            glbParams: glbParamsInp.value,
+            packages : packages.map(pkg => this.makeObjPkg(pkg)),
+        });
+    }
+
+    summary() : string {
+        return "シミュレーション";
+    }
+
+
+}
+
+
 function getIOVariables(pkg: gpgputs.Package){
     let vars: Variable[] = [];
 
@@ -433,6 +531,8 @@ function makeGraph(){
 
 export function initBinder(){
     getElement("open-package").addEventListener("click", (ev: MouseEvent)=>{
+        let act = new Simulation();
+        glb.addWidget(act);
         packageDlg.showModal();
     });
     

@@ -68,7 +68,7 @@ export function setEventListener(){
 
     // 新規ボタン
     document.getElementById("new-doc")!.addEventListener("click", (ev: MouseEvent)=>{
-        putData();
+        putData(true);
     });
 
     // 開くボタン
@@ -79,9 +79,8 @@ export function setEventListener(){
 
     // 保存ボタン
     document.getElementById("put-doc")!.addEventListener("click", (ev: MouseEvent)=>{
-        let path  = glb.txtFile.value.trim();
-        console.assert(path != "");
-        // putData(path);
+        console.assert( ! isNaN(glb.docID) );
+        putData(false);
     });
 
     // タイトル
