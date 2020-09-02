@@ -2,43 +2,60 @@
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta charset="utf-8" />
-<title>数学・物理・AIの依存関係グラフ</title>
-<script>
-// \newcommand{\v}[1]{\mathrm{#1}}
-window.MathJax = {
-    tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        macros: {
-            v : ["{\\mathrm #1}", 1]
-        }
-    },
-    options: {
-        renderActions: {
-            addMenu: [0, '', '']
-        }
-    },
-    chtml: {
-        scale: 1.0
-    }    
-};
-</script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="lib/dagre.min.js"></script>
+<title>小学生の算数レベルから始める数学・物理・AI</title>
+<style type="text/css">
+h1, h2, h3, p {
+    text-align:center;
+}
 
-<script src="js/util.js?ver=1" ></script>
-<script src="js/widget.js?ver=1" ></script>
-<script src="js/event.js?ver=1" ></script>
-<script src="js/speech.js?ver=1" ></script>
-<script src="js/main.js?ver=1" ></script>
-<script src="js/shape.js?ver=1" ></script>
-<script src="js/graph.js?ver=1" ></script>
-<script src="js/matrix.js?ver=1" ></script>
+.p1 {
+    font-size: 16pt;
+}
 
-
+</style>
+    
 </head>
 
-<body onload="bansho.showGraphviz()">
-<svg id="svg-graph"></svg>
+<body">
+<h1>小学生の算数レベルから始める数学・物理・AI</h1>
+
+<h2 style="color: red;">!!! このサイトは現在作成中です。 !!!</h2>
+
+<h2 style="color: red;">!!! Chromeで動作確認をしてますので、Chromeをお使いください。 !!!</h2>
+
+<p class="p1">小学生の算数レベルから、大学の理工系の学部で学ぶ数学・物理・AIまで<br/>
+    順を追って直感的に学べるような教材を作っています。
+</p>
+
+<hr/>
+<h2>数学・物理・AIの依存関係のグラフ</h2>
+<p class="p1">
+
+    <a href="graph.html"><img src="img/graph.png" /></a><br>
+    以下のページでは数学・物理・AIの依存関係のグラフを表示しています。<br/>
+    <a href="graph.html">数学・物理・AIの依存関係のグラフ</a><br>
+</p>
+
+<hr/>
+<h2>板書風の教材</h2>
+<p class="p1">
+    <a href="play.html?id=3"><img src="img/bansho.png" /></a><br>
+    学校の先生が黒板に板書するのをイメージして作ったアプリです。<br/>
+    音声で説明しながら、図や数式を書き、注目すべき部分を色で強調します。<br/>
+    以下のページではピタゴラスの定理の証明の説明をします。<br/>
+    <a href="play.html?id=3">ピタゴラスの定理の証明</a><br>
+</p>
+
+<hr/>
+<h2>シミュレーション</h2>
+<p class="p1">
+    <a href="simulation.html"><img src="img/sim.png" /></a><br>
+    数学や物理の現象を直感的に理解できるように<br/>
+    3Dアニメーションでシミュレーションをします。<br/>
+    以下のページではGPU(グラフィックス プロセッシング ユニット)による数値計算で<br/>
+    物理現象のシミュレーションをしています。<br/>
+    <a href="simulation.html">物理シミュレーション</a><br>
+</p>
+
 </body>
 </html>

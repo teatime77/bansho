@@ -418,7 +418,7 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
 }
 
 
-function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
+export function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
     gpgpu.drawParam = new gpgputs.DrawParam(0, 0, 0, 0, -5.0);
 
     switch(idx){

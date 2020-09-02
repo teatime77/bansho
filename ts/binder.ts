@@ -3,20 +3,14 @@ namespace bansho {
 declare let BathtubVortexShader: string;
 declare let Viz : any;
 
-let gpgpu: gpgputs.GPGPU;
 let viz : any;
 
-let packages: gpgputs.Package[] = [];
-let varsAll : Variable[] = [];
-
-let packageDlg: HTMLDialogElement;
-
-
-export let pkgVertexShaderDiv: HTMLDivElement;
+let sim: Simulation;
 
 let srcVar : Variable | null = null;
 
-let glbParamsInp          : HTMLInputElement;
+let simEditDlg            : HTMLDialogElement;
+let simParamsInp          : HTMLInputElement;
 
 let texEditDlg            : HTMLDialogElement;
 let texShapeInp           : HTMLInputElement;
@@ -28,13 +22,12 @@ let pkgEditDlg            : HTMLDialogElement;
 let pkgParamsInp          : HTMLInputElement;
 let pkgNumInputFormulaInp : HTMLInputElement;
 let pkgFragmentShaderSel  : HTMLSelectElement;
-let currentPkg            : gpgputs.Package;
+export let pkgVertexShaderDiv: HTMLDivElement;
+
+let currentPkg            : PackageInfo;
 
 export function addTokenNode(div: HTMLDivElement, token: Token){
     if(token.typeTkn == TokenType.space){
-                        
-        // let txt = document.createTextNode(token.text);
-        // div.appendChild(txt);
 
         let span = document.createElement("span");
         span.innerHTML = "&nbsp;".repeat(token.text.length);
@@ -76,106 +69,153 @@ function setCode(text: string){
                 addTokenNode(div, token);
             }
         }
-
     }
 }
 
 export class Variable {
-    id: string;
-    package: gpgputs.Package;
-    modifier: string;
-    type: string;
-    texelType: string | null = null;
-    name: string;
-    dstVars: Variable[] = [];
-    shape: number[] = [];
-    shapeFormula: string = "";
+    id              : string;
+    package         : PackageInfo;
+    modifier        : string;
+    type            : string;
+    texelType       : string | null = null;
+    name            : string;
+    dstVars         : Variable[] = [];
+    shape           : number[] = [];
+    shapeFormula    : string = "";
 
-    constructor(pkg: gpgputs.Package, modifier: string, type: string, name: string){
-        this.id = `${pkg.id}_${name}`;
+    constructor(pkg: PackageInfo, modifier: string, type: string, name: string){
+        this.id       = `${pkg.id}_${name}`;
         this.package  = pkg;
         this.modifier = modifier;
-        this.type = type;
-        this.name = name;
+        this.type     = type;
+        this.name     = name;
     }
 
     makeObjVar() : any {
         return {
-            id: this.id,
-            modifier: this.modifier,
-            type: this.type,
-            texelType: this.texelType,
-            name: this.name,
-            dstVars: this.dstVars.map(x => `${x.id}`),
-            shapeFormula: this.shapeFormula        
+            id           : this.id,
+            modifier     : this.modifier,
+            type         : this.type,
+            texelType    : this.texelType,
+            name         : this.name,
+            dstVars      : this.dstVars.map(x => `${x.id}`),
+            shapeFormula : this.shapeFormula        
         };
+    }
+
+    click(ev: MouseEvent){
+        if(ev.ctrlKey){
+            if(srcVar == null){
+                srcVar = this;
+            }
+            else{
+                srcVar.dstVars.push(this);
+                if((this.type == "sampler2D" || this.type == "sampler3D") && this.texelType == null){
+                    this.texelType = srcVar.type;
+                    if(this.shapeFormula == ""){
+
+                        this.shapeFormula = this.package.numInputFormula;
+                    }
+                }
+
+                srcVar = null;
+                makeGraph();
+            }
+        }
+        else{
+            if(this.type == "sampler2D" || this.type == "sampler3D"){
+                showTextureEditDlg(this);
+            }
+        }
+    }
+}
+
+class PackageInfo {
+    id!              : string;
+    params           : string = "";
+    numInputFormula  : string = "";
+    numInput         : number | undefined;
+    mode             : string = "";
+    vertexShader!    : string;
+    fragmentShader   : string = gpgputs.GPGPU.minFragmentShader;
+
+    vars             : Variable[] = [];
+
+    static cnt = 0;
+    static make() : PackageInfo {
+        return {
+            id              : `pkg_${PackageInfo.cnt++}`,
+            params          : "",
+            numInputFormula : "",
+            numInput        : undefined,
+            mode            : "",
+            vertexShader    : "",
+            fragmentShader  : "",
+        
+            vars: []
+        } as unknown as PackageInfo;
     }
 }
 
 export class Simulation extends Widget {
+    view!        : View;
+    params       : string = "";
+    packageInfos : PackageInfo[] = [];
+    varsAll      : Variable[] = [];
+
     constructor(){
         super();
     }
 
     make(obj: any) : Widget {
-        console.assert(obj.Width != undefined && obj.Height != undefined && obj.ViewBox != undefined);
         super.make(obj);
 
-        glbParamsInp.value = obj.glbParams;
+        simParamsInp.value = this.params;
 
-        packages = [];
-        varsAll = [];
+        let prevView = glb.widgets.slice(0, getTimePos() + 1).reverse().find(x => x instanceof View) as View;
+        if(prevView == undefined){
+            throw new Error();
+        }
 
-        for(let o of obj.packages){
-            let pkg = this.makePkg(o);
-            packages.push(pkg);
+        this.view = prevView;
+        if(this.view.gpgpu == null){
+            this.view.gpgpu = make3D(this.view.canvas);
+        }
+        gl = gpgputs.gl;
+
+        if(obj.packageInfos != undefined){
+            let va_map : { [id:string] : Variable} = {};
+            this.packageInfos = obj.packageInfos.foreach((o: PackageInfo) => this.makePkg(va_map, o));
+
+            for(let va of this.varsAll){
+                va.dstVars = (va.dstVars as unknown as string[]).map(id => va_map[id]);
+            }
         }
 
         return this;
     }
 
-    makePkg(obj: any) : gpgputs.Package {
-        let pkg = new gpgputs.Package({
-            id              : obj.id,
-            params          : obj.params,
-            numInputFormula : obj.numInputFormula,
-            mode            : gpgputs.getDrawMode(obj.mode),
-            vertexShader    : obj.vertexShader,
-            vertexShaderTmpl: obj.vertexShaderTmpl,
-            fragmentShader  : obj.fragmentShader,
-            args            : {}
-        });
-
-        let va_map : { [id:string] : Variable} = {};
+    makePkg(va_map : { [id:string] : Variable}, obj: PackageInfo)  {
         for(let o of obj.vars){
-            let va = new Variable(pkg, o.modifier, o.type, o.name);
+            let va = new Variable(obj, o.modifier, o.type, o.name);
             va.texelType = o.texelType;
             va.shapeFormula = o.shapeFormula;
             va.dstVars      = o.dstVars;
 
-            varsAll.push(va);
+            this.varsAll.push(va);
             va_map[va.id] = va;
         }
-
-        for(let va of varsAll){
-            va.dstVars = (va.dstVars as unknown as string[]).map(id => va_map[id]);
-        }
-
-        return pkg;
     }
 
-    
-
-    makeObjPkg(pkg: gpgputs.Package) : any {
-        let vars = varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
+    makeObjPkg(pkg: PackageInfo) : any {
+        let vars = this.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
 
         return {
             id              : pkg.id,
             params          : pkg.params,
             numInputFormula : pkg.numInputFormula,
-            mode            : gpgputs.getDrawModeText(pkg.mode),
+            mode            : pkg.mode,
             vertexShader    : pkg.vertexShader,
-            vertexShaderTmpl: pkg.vertexShaderTmpl,
             fragmentShader  : pkg.fragmentShader,
             vars            : vars.map(x => x.makeObjVar()),
         };
@@ -183,20 +223,98 @@ export class Simulation extends Widget {
 
     makeObj() : any {        
         return Object.assign(super.makeObj(), {
-            glbParams: glbParamsInp.value,
-            packages : packages.map(pkg => this.makeObjPkg(pkg)),
+            params   : simParamsInp.value,
+            packages : this.packageInfos.map(pkg => this.makeObjPkg(pkg)),
         });
     }
 
     summary() : string {
         return "シミュレーション";
     }
+    
+    enable(){
+        this.applyGraph();
+    }
 
+    disable(){
+        sim.view.gpgpu!.clearAll();
+    }
 
+    applyGraph(){
+        sim.view.gpgpu!.clearAll();
+        // this.view.gpgpu = make3D(this.view.canvas);
+
+        let packages: gpgputs.Package[] = [];
+
+        for(let pkgInfo of sim.packageInfos){
+            let pkg = new gpgputs.Package(pkgInfo);
+            pkg.mode = gpgputs.getDrawMode(pkgInfo.mode);
+            pkg.args = {};
+            packages.push(pkg);
+
+            if(pkg.numInput == undefined){
+                throw new Error();
+            }
+
+            if(pkgInfo.vertexShader.includes("@{")){
+                let map = getParamsMap([ simParamsInp.value, pkgInfo.params ]);
+                if(map == null){
+                    throw new Error();
+                }
+
+                let shader = pkgInfo.vertexShader;
+                for(let [name, val] of Object.entries(map)){
+                    let key = `@{${name}}`;
+                    while(shader.includes(key)){
+                        shader = shader.replace(key, `${val}`);
+                    }
+                }
+
+                pkg.vertexShader = shader;
+            }
+
+            let vars = sim.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
+            for(let va1 of vars){
+                if(pkg.args[va1.name] == undefined){
+                    if(va1.type == "sampler2D" || va1.type == "sampler3D"){
+
+                        if(va1.texelType == null || va1.shape.length == 0){
+                            throw new Error();
+                        }
+
+                        pkg.args[va1.name] = new gpgputs.TextureInfo(va1.texelType, va1.shape)
+                    }
+                    else{
+                        pkg.args[va1.name] = new Float32Array( pkg.numInput * gpgputs.vecDim(va1.type) )
+                    }
+                }
+            }
+
+            sim.view.gpgpu!.makePackage(pkg);
+        }
+
+        for(let pkg of packages){
+            let vars = sim.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
+            for(let src of vars){
+
+                for(let dst of src.dstVars){
+                    let dstPkg = packages.find(x => x.id == dst.package.id);
+                    if(dstPkg == undefined){
+                        throw new Error();
+                    }
+                    pkg.bind(src.name, dst.name, dstPkg);
+                }
+            }
+
+            pkg.args["tick"] = undefined;
+        }
+
+        sim.view.gpgpu!.drawables.push(... packages);
+    }
 }
 
 
-function getIOVariables(pkg: gpgputs.Package){
+function getIOVariables(pkg: PackageInfo){
     let vars: Variable[] = [];
 
     let tokens = Lex(pkg.vertexShader);
@@ -243,56 +361,6 @@ function getParamsMap(formulas: string[]){
     return map;
 }
 
-//-------------------------------------------------- テクスチャ編集画面
-function initTextureEditDlg(){
-    texEditDlg      = getElement("tex-edit-dlg") as HTMLDialogElement;
-    texShapeInp     = getElement("tex-shape") as HTMLInputElement;
-    texShapeValue   = getElement("tex-shape-value");
-    texTexelTypeSel = getElement("tex-texel-type") as HTMLSelectElement;
-
-    texShapeInp.addEventListener("blur", function(ev: FocusEvent){
-        let items = this.value.split(',');
-
-        let map = getParamsMap([ glbParamsInp.value, currentTex.package.params ]);
-        if(map != null){
-
-            let vals  = items.map(x => parseMath(map!, x.trim()));
-            let text  = vals.map(x => `${x}`).join(", ");
-    
-            texShapeValue.innerText = text;
-        }
-        else{
-            texShapeValue.innerText = "";
-        }
-
-    });
-
-    getElement("tex-edit-cancel").addEventListener("click", (ev: MouseEvent)=>{
-        texEditDlg.close();
-    })
-
-    getElement("tex-edit-ok").addEventListener("click", (ev: MouseEvent)=>{
-        let map = getParamsMap([ glbParamsInp.value, currentTex.package.params ]);
-        if(map == null){
-            return;
-        }
-
-        let vals  = texShapeInp.value.split(',').map(x => parseMath(map!, x.trim()));
-        if(vals.length < 1 || 3 < vals.length || vals.some(x => isNaN(x))){
-            return;
-        }
-        if(vals.length == 1){
-            vals = [1, vals[0]];
-        }
-
-        currentTex.shapeFormula = texShapeInp.value.trim();
-        currentTex.shape = vals;
-        currentTex.texelType = texTexelTypeSel.value;
-
-        texEditDlg.close();        
-    })
-}
-
 function showTextureEditDlg(tex: Variable){
     currentTex = tex;
 
@@ -328,57 +396,7 @@ function showTextureEditDlg(tex: Variable){
 
 //-------------------------------------------------- パッケージ編集画面
 
-function initPackageEditDlg(){
-    pkgEditDlg            = getElement("pkg-edit-dlg") as HTMLDialogElement;
-    pkgParamsInp          = getElement("pkg-params") as HTMLInputElement;
-    pkgNumInputFormulaInp = getElement("pkg-numInput") as HTMLInputElement;
-    pkgFragmentShaderSel  = getElement("pkg-fragment-shader") as HTMLSelectElement;
-    pkgVertexShaderDiv    = getElement("pkg-vertex-shader") as HTMLDivElement;
-
-    pkgParamsInp.addEventListener("blur", function(ev: FocusEvent){
-        let map = getParamsMap([ glbParamsInp.value, pkgParamsInp.value]);
-        pkgParamsInp.style.color = map == null ? "red" : "black";
-    });
-
-    pkgNumInputFormulaInp.addEventListener("blur", function(ev: FocusEvent){
-        let val = NaN;
-
-        let map = getParamsMap([ glbParamsInp.value, pkgParamsInp.value ]);
-        if(map != null){
-
-            val  = parseMath(map, this.value.trim());
-        }
-
-        pkgNumInputFormulaInp.style.color = isNaN(val) ? "red" : "black";
-
-        getElement("pkg-numInput-value").innerText = `${val}`;
-    });
-
-    getElement("pkg-edit-cancel").addEventListener("click", (ev: MouseEvent)=>{
-        pkgEditDlg.close();
-    });
-
-    getElement("pkg-edit-ok").addEventListener("click", (ev: MouseEvent)=>{
-        let numInputFormula = pkgNumInputFormulaInp.value.trim();
-
-        let map = getParamsMap([ glbParamsInp.value, pkgParamsInp.value ]);
-        if(map == null){
-            return;
-        }
-
-        let val  = parseMath(map, numInputFormula);
-        if(! isNaN(val)){
-
-            currentPkg.params          = pkgParamsInp.value;
-            currentPkg.numInputFormula = numInputFormula;
-            currentPkg.numInput = val;
-
-            pkgEditDlg.close();
-        }
-    });
-}
-
-function showPackageEditDlg(pkg: gpgputs.Package){
+function showPackageEditDlg(pkg: PackageInfo){
     currentPkg = pkg;
 
     pkgParamsInp.value   = pkg.params;
@@ -412,11 +430,11 @@ function showPackageEditDlg(pkg: gpgputs.Package){
 function makeGraph(){
     let texts : string[] = [];
 
-    let varsAll_old = varsAll;
-    varsAll = [];    
-    for(let pkg of packages){
+    let varsAll_old = sim.varsAll;
+    sim.varsAll = [];    
+    for(let pkg of sim.packageInfos){
         let vars = getIOVariables(pkg);
-        varsAll.push(...vars);
+        sim.varsAll.push(...vars);
 
         let lines : string[] = [];
         let invars = vars.filter(v=> v.modifier == "uniform" || v.modifier == "in");
@@ -442,13 +460,13 @@ function makeGraph(){
     }
 
     for(let src_old of varsAll_old){
-        let src_new = varsAll.find(x => x.id == src_old.id);
+        let src_new = sim.varsAll.find(x => x.id == src_old.id);
         if(src_new != undefined){
             src_new.texelType    = src_old.texelType;
             src_new.shapeFormula = src_old.shapeFormula;
 
             for(let dst_old of src_old.dstVars){
-                let dst_new = varsAll.find(x => x.id == dst_old.id);
+                let dst_new = sim.varsAll.find(x => x.id == dst_old.id);
                 if(dst_new != undefined){
                     src_new.dstVars.push(dst_new);
                     texts.push(`${src_new.id} -> ${dst_new.id} `);
@@ -475,50 +493,7 @@ function makeGraph(){
 
         div.appendChild(element);
 
-        for(let pkg of packages){
-            let dom = getElement(`${pkg.id}_vertex`);
-            dom.addEventListener("click", function(ev: MouseEvent){
-
-                let pkg1 = packages.find(x => this.id == `${x.id}_vertex`);
-                if(pkg1 == undefined) throw new Error();
-
-                showPackageEditDlg(pkg1);
-            });
-        }
-
-        for(let va of varsAll){
-            let dom = getElement(`${va.package.id}_${va.name}`);
-            dom.addEventListener("click", function(ev: MouseEvent){
-                if(ev.ctrlKey){
-                }
-
-                let va1 = varsAll.find(x => this.id == `${x.package.id}_${x.name}`);
-                if(va1 == undefined) throw new Error();
-
-                if(ev.ctrlKey){
-                    if(srcVar == null){
-                        srcVar = va1;
-                    }
-                    else{
-                        srcVar.dstVars.push(va1);
-                        if((va1.type == "sampler2D" || va1.type == "sampler3D") && va1.texelType == null){
-                            va1.texelType = srcVar.type;
-                            if(va1.shapeFormula == ""){
-
-                                va1.shapeFormula = va1.package.numInputFormula;
-                            }
-                        }
-                        srcVar = null;
-                        makeGraph();
-                    }
-                }
-                else{
-                    if(va1.type == "sampler2D" || va1.type == "sampler3D"){
-                        showTextureEditDlg(va1);
-                    }
-                }
-            });
-        }
+        setGraphEvent();
     })
     .catch((error: any) => {
         // Create a new Viz instance (@see Caveats page for more info)
@@ -530,138 +505,204 @@ function makeGraph(){
 }
 
 export function initBinder(){
-    glbParamsInp = getElement("glb-params") as HTMLInputElement;
-    packageDlg = getElement("package-graph-dlg") as HTMLDialogElement;
+    simEditDlg            = getElement("sim-edit-dlg") as HTMLDialogElement;
+    simParamsInp          = getElement("sim-params") as HTMLInputElement;
+
+    pkgEditDlg            = getElement("pkg-edit-dlg") as HTMLDialogElement;
+    pkgParamsInp          = getElement("pkg-params") as HTMLInputElement;
+    pkgNumInputFormulaInp = getElement("pkg-numInput") as HTMLInputElement;
+    pkgFragmentShaderSel  = getElement("pkg-fragment-shader") as HTMLSelectElement;
+    pkgVertexShaderDiv    = getElement("pkg-vertex-shader") as HTMLDivElement;
     
+    //-------------------------------------------------- テクスチャ編集画面
+    texEditDlg      = getElement("tex-edit-dlg") as HTMLDialogElement;
+    texShapeInp     = getElement("tex-shape") as HTMLInputElement;
+    texShapeValue   = getElement("tex-shape-value");
+    texTexelTypeSel = getElement("tex-texel-type") as HTMLSelectElement;
+
     viz = new Viz();
-
-    getElement("open-package").addEventListener("click", (ev: MouseEvent)=>{
-        let act = new Simulation();
-        glb.addWidget(act);
-        packageDlg.showModal();
-    });
-    
-    glbParamsInp.addEventListener("blur", function(ev: FocusEvent){
-        let map = getParamsMap([ glbParamsInp.value ]);
-        glbParamsInp.style.color = map == null ? "red" : "black";
-    });
-    
-
-    getElement("package-graph-ok").addEventListener("click", (ev: MouseEvent)=>{
-        gpgpu.clearAll();
-        packageDlg.close();
-    })
-
-    getElement("package-graph-cancel").addEventListener("click", (ev: MouseEvent)=>{
-        gpgpu.clearAll();
-        packageDlg.close();
-    })
-
-    initTextureEditDlg();
-
-    initPackageEditDlg();
 
     //-------------------------------------------------- 3D編集画面
 
-    var canvas = document.getElementById("package-canvas") as HTMLCanvasElement;
-    gpgpu = gpgputs.CreateGPGPU(canvas);
-    gl = gpgputs.gl;
-    gpgpu.startDraw3D([ 
-    ]);
+    setBinderEvent();
+    initCodeEditor();
+}
+
+function setBinderEvent(){
+    getElement("open-package").addEventListener("click", (ev: MouseEvent)=>{
+
+        sim = new Simulation();
+        sim.make({});
+        glb.addWidget(sim);
+        simEditDlg.showModal();
+    });
+    
+    //-------------------------------------------------- シミュレーション編集画面
+
+    simParamsInp.addEventListener("blur", function(ev: FocusEvent){
+        let map = getParamsMap([ simParamsInp.value ]);
+        simParamsInp.style.color = map == null ? "red" : "black";
+    });
 
     getElement("add-shape-pkg").addEventListener("click", (ev: MouseEvent)=>{
         let sel = getElement("sel-shape-pkg") as HTMLSelectElement;
-        let pkg: gpgputs.Package;
+        let pkg: PackageInfo;
 
         if(sel.value == "sphere"){
-            pkg = makePkg(SpherePkg);
+            pkg = Object.assign(PackageInfo.make(), SpherePkg);
         }
         else{
             return;
         }
 
-        packages.push(pkg);
+        sim.packageInfos.push(pkg);
 
         makeGraph();
-
     });
 
     getElement("add-package").addEventListener("click", (ev: MouseEvent)=>{
-        let pkg = new gpgputs.Package({
-            mode: gl.POINTS,
-            vertexShader: BathtubVortexShader,
-            fragmentShader: gpgputs.GPGPU.minFragmentShader,
-            args: {}
-        })
+        let pkg = Object.assign(
+            PackageInfo.make(),
+            {
+                mode            : gpgputs.getDrawModeText(gl.POINTS),
+                vertexShader    : BathtubVortexShader,
+                fragmentShader  : gpgputs.GPGPU.minFragmentShader,
+            }
+        );
         
-        packages.push(pkg);
+        sim.packageInfos.push(pkg);
 
         makeGraph();
     });
+    
+    getElement("package-graph-ok").addEventListener("click", (ev: MouseEvent)=>{
+        simEditDlg.close();
+        let obj = sim.makeObj();
+        console.log(`${JSON.stringify(obj, null, 4)}`);
+        sim.enable();
+    })
 
-    // 適用ボタン クリック
-    getElement("apply-graph").addEventListener("click", (ev: MouseEvent)=>{
-        gpgpu.clearAll();
+    getElement("package-graph-cancel").addEventListener("click", (ev: MouseEvent)=>{
+        sim.view.gpgpu!.clearAll();
+        simEditDlg.close();
+    })
 
-        for(let pkg of packages){
-            if(pkg.numInput == undefined){
-                throw new Error();
-            }
+    //-------------------------------------------------- パッケージ編集画面
 
-            if(pkg.vertexShader.includes("@{")){
-                pkg.vertexShaderTmpl = pkg.vertexShader;
-            }
-            if(pkg.vertexShaderTmpl != null){
-                let map = getParamsMap([ glbParamsInp.value, pkg.params ]);
-                if(map == null){
-                    throw new Error();
-                }
-
-                let shader = pkg.vertexShaderTmpl;
-                for(let [name, val] of Object.entries(map)){
-                    let key = `@{${name}}`;
-                    while(shader.includes(key)){
-                        shader = shader.replace(key, `${val}`);
-                    }
-                }
-
-                pkg.vertexShader = shader;
-            }
-
-            let vars = varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
-            for(let va1 of vars){
-                if(pkg.args[va1.name] == undefined){
-                    if(va1.type == "sampler2D" || va1.type == "sampler3D"){
-
-                        if(va1.texelType == null || va1.shape.length == 0){
-                            throw new Error();
-                        }
-
-                        pkg.args[va1.name] = new gpgputs.TextureInfo(va1.texelType, va1.shape)
-                    }
-                    else{
-                        pkg.args[va1.name] = new Float32Array( pkg.numInput * gpgputs.vecDim(va1.type) )
-                    }
-                }
-            }
-
-            gpgpu.makePackage(pkg);
-        }
-
-        for(let pkg of packages){
-            let vars = varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
-            for(let src of vars){
-
-                for(let dst of src.dstVars){
-                    pkg.bind(src.name, dst.name, dst.package);
-                }
-            }
-        }
-
-        gpgpu.drawables.push(...packages);
+    pkgParamsInp.addEventListener("blur", function(ev: FocusEvent){
+        let map = getParamsMap([ simParamsInp.value, pkgParamsInp.value]);
+        pkgParamsInp.style.color = map == null ? "red" : "black";
     });
 
-    initCodeEditor();
+    pkgNumInputFormulaInp.addEventListener("blur", function(ev: FocusEvent){
+        let val = NaN;
+
+        let map = getParamsMap([ simParamsInp.value, pkgParamsInp.value ]);
+        if(map != null){
+
+            val  = parseMath(map, this.value.trim());
+        }
+
+        pkgNumInputFormulaInp.style.color = isNaN(val) ? "red" : "black";
+
+        getElement("pkg-numInput-value").innerText = `${val}`;
+    });
+
+    getElement("pkg-edit-cancel").addEventListener("click", (ev: MouseEvent)=>{
+        pkgEditDlg.close();
+    });
+
+    getElement("pkg-edit-ok").addEventListener("click", (ev: MouseEvent)=>{
+        let numInputFormula = pkgNumInputFormulaInp.value.trim();
+
+        let map = getParamsMap([ simParamsInp.value, pkgParamsInp.value ]);
+        if(map == null){
+            return;
+        }
+
+        let val  = parseMath(map, numInputFormula);
+        if(! isNaN(val)){
+
+            currentPkg.params          = pkgParamsInp.value;
+            currentPkg.numInputFormula = numInputFormula;
+            currentPkg.numInput = val;
+
+            pkgEditDlg.close();
+        }
+    });
+
+    //-------------------------------------------------- テクスチャ編集画面
+
+    texShapeInp.addEventListener("blur", function(ev: FocusEvent){
+        let items = this.value.split(',');
+
+        let map = getParamsMap([ simParamsInp.value, currentTex.package.params ]);
+        if(map != null){
+
+            let vals  = items.map(x => parseMath(map!, x.trim()));
+            let text  = vals.map(x => `${x}`).join(", ");
+    
+            texShapeValue.innerText = text;
+        }
+        else{
+            texShapeValue.innerText = "";
+        }
+    });
+
+    getElement("tex-edit-cancel").addEventListener("click", (ev: MouseEvent)=>{
+        texEditDlg.close();
+    })
+
+    getElement("tex-edit-ok").addEventListener("click", (ev: MouseEvent)=>{
+        let map = getParamsMap([ simParamsInp.value, currentTex.package.params ]);
+        if(map == null){
+            return;
+        }
+
+        let vals  = texShapeInp.value.split(',').map(x => parseMath(map!, x.trim()));
+        if(vals.length < 1 || 3 < vals.length || vals.some(x => isNaN(x))){
+            return;
+        }
+        if(vals.length == 1){
+            vals = [1, vals[0]];
+        }
+
+        currentTex.shapeFormula = texShapeInp.value.trim();
+        currentTex.shape = vals;
+        currentTex.texelType = texTexelTypeSel.value;
+
+        texEditDlg.close();        
+    })
+}
+
+function setGraphEvent(){
+    for(let pkg of sim.packageInfos){
+
+        let dom = getElement(`${pkg.id}_vertex`);
+        dom.addEventListener("click", function(ev: MouseEvent){
+
+            let pkg1 = sim.packageInfos.find(x => this.id == `${x.id}_vertex`);
+            if(pkg1 == undefined) throw new Error();
+
+            showPackageEditDlg(pkg1);
+        });
+    }
+
+    for(let va of sim.varsAll){
+        let dom = getElement(`${va.package.id}_${va.name}`);
+        dom.addEventListener("click", function(ev: MouseEvent){
+
+            let va1 = sim.varsAll.find(x => this.id == `${x.package.id}_${x.name}`);
+            if(va1 == undefined) throw new Error();
+            va1.click(ev);
+        });
+    }
+}
+
+export function openSimulationDlg(act: Simulation){
+    sim = act;
+    sim.disable();
+    simEditDlg.showModal();
 }
 
 export function Factorization(cnt: number){
@@ -684,29 +725,8 @@ export function Factorization(cnt: number){
 // 粒子
 //--------------------------------------------------
 
-class PackageTmpl {
-    defaultParams!   : string;
-    numInputFormula! : string;
-    mode!            : string;
-    fragmentShader!  : string;
-    vertexShader!    : string;
-}
-
-export function makePkg(tmpl: PackageTmpl) : gpgputs.Package {
-    let pkg = new gpgputs.Package({
-        params          : tmpl.defaultParams,
-        numInputFormula : tmpl.numInputFormula,
-        mode            : gpgputs.getDrawMode(tmpl.mode),
-        fragmentShader  : tmpl.fragmentShader,
-        vertexShader    : tmpl.vertexShader,
-        args:{}
-    });
-
-    return pkg;
-}
-
 export let SpherePkg = {
-    defaultParams   : "n1 = 8, n2 = 8, radius = 0.04",
+    params          : "n1 = 8, n2 = 8, radius = 0.04",
     numInputFormula : "INPUT * n1 * n2 * 6",
     mode            : "TRIANGLES",
     fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
@@ -770,5 +790,5 @@ void main(void) {
     vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
 }`
 
-} as unknown as PackageTmpl;
+} as unknown as PackageInfo;
 }

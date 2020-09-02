@@ -47,6 +47,15 @@ export function setEventListener(){
         glb.rngTimelineChange();
     });
 
+    glb.selSummary.addEventListener("keypress", (ev: KeyboardEvent)=>{
+        if(ev.code == "Enter"){
+            let act = glb.currentWidget();
+            if(act instanceof Simulation){
+                openSimulationDlg(act);
+            }
+        }
+    });
+
     // Viewの追加
     document.getElementById("add-shape")!.addEventListener("click", (ev: MouseEvent)=>{
         const view1 = new View().make({ Width: 500, Height: 500, ViewBox: "-2 -2 4 4" });
