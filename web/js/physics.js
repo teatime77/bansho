@@ -803,8 +803,9 @@ function multibodyTest(gpgpu){
 // 弾性衝突
 //--------------------------------------------------
 
-function particleShader(cnt, Cr){ 
-    return `
+let ElasticCollisionShader = `
+
+const float Cr = 0.9;
 
 uniform mat4 uPMVMatrix;
 uniform int   tick;
@@ -829,6 +830,7 @@ bool isNaN(float f){
 }
 
 void main(void) {
+    int cnt = textureSize(inPos, 0).x;
     vec3 pos;
     vec3 vel;
 
@@ -847,7 +849,7 @@ void main(void) {
 
         vec3 F = vec3(0.0, 0.0, 0.0);
         vec3 dvel = vec3(0.0, 0.0, 0.0);
-        for(int idx1 = 0; idx1 < ${cnt}; idx1++){
+        for(int idx1 = 0; idx1 < cnt; idx1++){
             vec3 pos1 = vec3(texelFetch(inPos, ivec2(idx1, 0), 0));
             vec3 vel1 = vec3(texelFetch(inVel, ivec2(idx1, 0), 0));
             float mass1 = texelFetch(inMass, ivec2(idx1, 0), 0).r;
@@ -856,7 +858,7 @@ void main(void) {
             if(r != 0.0 && r < 0.12){
                 if(length((pos1 + + 0.1 * vel1) - (pos + 0.1 * vel)) < r){
 
-                    // vec3 vel2 = 0.5 * (${Cr} * (vel1 - vel) + vel1 + vel);
+                    // vec3 vel2 = 0.5 * (Cr * (vel1 - vel) + vel1 + vel);
                     vel = vel1;
                     // dvel += vel2 - vel;
                     // vel = vel2;
@@ -875,21 +877,21 @@ void main(void) {
         if(1.0 < abs(pos.x)){
             pos.x = sign(pos.x);
             if(1.0 < abs(pos.x + vel.x)){
-                vel.x *= - ${Cr};
+                vel.x *= - Cr;
             }
         }
 
         if(1.0 < abs(pos.y)){
             pos.y = sign(pos.y);
             if(1.0 < abs(pos.y + vel.y)){
-                vel.y *= - ${Cr};
+                vel.y *= - Cr;
             }
         }
 
         if(1.0 < abs(pos.z)){
             pos.z = sign(pos.z);
             if(1.0 < abs(pos.z + vel.z)){
-                vel.z *= - ${Cr};
+                vel.z *= - Cr;
             }
         }
 
@@ -909,14 +911,14 @@ void main(void) {
     outVel  = vel;
     outMass = mass;
 }`;
-}
+
 
 function ElasticCollision(gpgpu){
     let gl = bansho.gl;
     let cnt = 8000;
     let Cr = 0.9;
 
-    let dr1 = new gpgputs.UserDef(gl.POINTS, particleShader(cnt, Cr) , gpgputs.GPGPU.pointFragmentShader,
+    let dr1 = new gpgputs.UserDef(gl.POINTS, ElasticCollisionShader, gpgputs.GPGPU.pointFragmentShader,
     {
         inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
         inVel : gpgpu.makeTextureInfo("vec3" , [1, cnt]),

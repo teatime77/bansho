@@ -1,6 +1,6 @@
 namespace bansho {
 
-declare let InverseSquareShader: string;
+declare let ElasticCollisionShader: string;
 declare let Viz : any;
 
 let viz : any;
@@ -551,7 +551,7 @@ function setBinderEvent(){
             PackageInfo.newObj(),
             {
                 mode            : gpgputs.getDrawModeText(gl.POINTS),
-                vertexShader    : InverseSquareShader,
+                vertexShader    : ElasticCollisionShader,
                 fragmentShader  : gpgputs.GPGPU.minFragmentShader,
             }
         );
