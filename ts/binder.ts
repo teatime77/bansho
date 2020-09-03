@@ -287,7 +287,7 @@ export class Simulation extends Widget {
 function getIOVariables(pkg: PackageInfo){
     let vars: Variable[] = [];
 
-    let tokens = Lex(pkg.vertexShader);
+    let tokens = Lex(pkg.vertexShader, true);
     tokens = tokens.filter(x => x.typeTkn != TokenType.space);
 
     for(let [i, token] of tokens.entries()){
@@ -537,6 +537,9 @@ function setBinderEvent(){
         else if(sel.value == "cube"){
             pkg = Object.assign(PackageInfo.newObj(), CubePkg());
         }
+        else if(sel.value == "Arrow1D"){
+            pkg = Object.assign(PackageInfo.newObj(), Arrow1DPkg);
+        }
         else{
             return;
         }
@@ -608,7 +611,16 @@ function setBinderEvent(){
             currentPkg.params          = pkgParamsInp.value;
             currentPkg.numInputFormula = numInputFormula;
 
+            let text = pkgVertexShaderDiv.innerText;
+            while(text.includes('\xA0')){
+                text = text.replace('\xA0', ' ');
+            }
+
+            currentPkg.vertexShader    = text;
+
             pkgEditDlg.close();
+
+            makeGraph();
         }
     });
 
@@ -813,5 +825,48 @@ void main(void) {
 
     } as unknown as PackageInfo;
 }
+
+export let Arrow1DPkg = {
+    params          : "",
+    numInputFormula : "cnt * 2",
+    mode            : "LINES",
+    fragmentShader  : gpgputs.GPGPU.pointFragmentShader,
+    vertexShader    : `
+
+uniform sampler2D inPos;
+uniform sampler2D inVec;
+
+uniform mat4 uPMVMatrix;
+
+out vec4 fragmentColor;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int ip  = idx % 2;
+    idx    /= 2;
+
+    vec3 pos = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
+
+    if(ip == 1){
+
+        vec3 vec = vec3(texelFetch(inVec, ivec2(idx, 0), 0));
+        pos += vec;
+    }
+
+    if(ip == 0){
+
+        fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+    else{
+
+        fragmentColor = vec4(0.0, 0.0, 1.0, 1.0);
+    }
+
+    gl_PointSize  = 5.0;
+    gl_Position = uPMVMatrix * vec4(pos, 1.0);
+}`
+};
+
 
 }

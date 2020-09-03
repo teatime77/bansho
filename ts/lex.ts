@@ -157,6 +157,7 @@ export function Lex(text : string, skip_space: boolean = false) : Array<Token> {
 
         // 現在位置の文字
         let ch1 : string = text[pos];
+        let cd1 = text.charCodeAt(pos);
 
         // 次の文字の位置。行末の場合は'\0'
         let ch2 : string;
@@ -172,8 +173,8 @@ export function Lex(text : string, skip_space: boolean = false) : Array<Token> {
             ch2 = '\0';
         }
 
-        if(ch1 == ' '){
-            while(pos < text.length && text[pos] == ' ') pos++;
+        if(ch1 == ' ' || ch1 == '\xA0'){
+            while(pos < text.length && (text[pos] == ' ' || text[pos] == '\xA0')) pos++;
             token_type = TokenType.space;
 
             if(skip_space){

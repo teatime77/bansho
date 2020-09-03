@@ -3,13 +3,8 @@
 declare function volumeWave(sx: number, sy: number, sz: number) : string;
 declare function ArrowWave(sx: number, sy: number, sz: number): string;
 declare function testArrow3D(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
-declare function testArrow1D(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testEMWave(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function multibodyTest(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
-declare function ElasticCollision(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
-declare function CubeShader() : string;
-declare function InverseSquare(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
-declare function BathtubVortex(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testSurface(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testD2Q9_1(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
 declare function testD2Q9_2(gpgpu: gpgputs.GPGPU) : gpgputs.Drawable;
@@ -413,12 +408,15 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
         gpgpu.clearAll();
 
         let drawable = getSample3D(gpgpu, sel.selectedIndex);
-        gpgpu.drawables.push(drawable)
+        if(drawable != null){
+
+            gpgpu.drawables.push(drawable)
+        }
     })
 }
 
 
-export function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable {
+export function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDrawable | null {
     gpgpu.drawParam = new gpgputs.DrawParam(0, 0, 0, 0, -5.0);
 
     switch(idx){
@@ -441,9 +439,9 @@ export function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDraw
         // D2Q9-2
         case 8: return testD2Q9_2(gpgpu);
         // バスタブ渦
-        case 9: return BathtubVortex(gpgpu);
+        case 9: return null;
         // 逆二乗
-        case 10: return InverseSquare(gpgpu);
+        case 10: return null;
         // 点
         case 11: { let dr = new gpgputs.UserDef(gl.POINTS, spherePoints(32, 32) , gpgputs.GPGPU.pointFragmentShader,
             {
@@ -462,11 +460,11 @@ export function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDraw
         // 球
         case 14: return new gpgputs.UserMesh(gl.TRIANGLES, sphereShader(64, 64), gpgputs.GPGPU.planeFragmentShader, 64 * 64 * 6);
         // 正四面体
-        case 15: return new gpgputs.UserMesh(gl.TRIANGLES, CubeShader()        , gpgputs.GPGPU.planeFragmentShader, 6 * 6);
+        case 15: return null;
         // 三角錐
         case 16: return new gpgputs.UserMesh(gl.TRIANGLES, Tetrahedron()       , gpgputs.GPGPU.planeFragmentShader, 4 * 3).move(0, 1, 0);
         // 矢印
-        case 17: return testArrow1D(gpgpu);
+        case 17: return null;
         // 多体問題
         case 18: return multibodyTest(gpgpu);
         // 線-Tex
@@ -505,7 +503,7 @@ export function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDraw
         // 電磁波
         case 22: return testEMWave(gpgpu);
         // 弾性衝突
-        case 23: return ElasticCollision(gpgpu);
+        case 23: return null;
         // 測地線多面体
         case 24: return (new gpgputs.GeodesicPolyhedron(new gpgputs.Color(0,0,1,1), 2)).scale(0.3, 0.3, 0.3).move(1.5,  1, 0);
         // 管
