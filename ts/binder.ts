@@ -80,7 +80,7 @@ export class Variable {
     texelType       : string | null = null;
     name            : string;
     dstVars         : Variable[] = [];
-    shape           : number[] = [];
+    // shape           : number[] = [];
     shapeFormula    : string = "";
 
     constructor(pkg: PackageInfo, modifier: string, type: string, name: string){
@@ -114,7 +114,7 @@ export class Variable {
                     this.texelType = srcVar.type;
                     if(this.shapeFormula == ""){
 
-                        this.shapeFormula = this.package.numInputFormula;
+                        this.shapeFormula = srcVar.package.numInputFormula;
                     }
                 }
 
@@ -134,7 +134,6 @@ class PackageInfo {
     id!              : string;
     params           : string = "";
     numInputFormula  : string = "";
-    numInput         : number | undefined;
     mode             : string = "";
     vertexShader!    : string;
     fragmentShader   : string = gpgputs.GPGPU.minFragmentShader;
@@ -250,11 +249,13 @@ export class Simulation extends Widget {
             let pkg = new gpgputs.Package(pkgInfo);
             pkg.mode = gpgputs.getDrawMode(pkgInfo.mode);
             pkg.args = {};
-            packages.push(pkg);
-
-            if(pkg.numInput == undefined){
+            pkg.numInput = calcPkgNumInput(pkgInfo.params, pkgInfo.numInputFormula);
+            if(isNaN(pkg.numInput)){
                 throw new Error();
             }
+
+            packages.push(pkg);
+
 
             if(pkgInfo.vertexShader.includes("@{")){
                 let map = getParamsMap([ simParamsInp.value, pkgInfo.params ]);
@@ -278,14 +279,15 @@ export class Simulation extends Widget {
                 if(pkg.args[va1.name] == undefined){
                     if(va1.type == "sampler2D" || va1.type == "sampler3D"){
 
-                        if(va1.texelType == null || va1.shape.length == 0){
+                        let shape = calcTexShape(pkgInfo, va1.shapeFormula);
+                        if(va1.texelType == null || shape == null){
                             throw new Error();
                         }
 
-                        pkg.args[va1.name] = new gpgputs.TextureInfo(va1.texelType, va1.shape)
+                        pkg.args[va1.name] = new gpgputs.TextureInfo(va1.texelType, shape);
                     }
                     else{
-                        pkg.args[va1.name] = new Float32Array( pkg.numInput * gpgputs.vecDim(va1.type) )
+                        pkg.args[va1.name] = new Float32Array( pkg.numInput * gpgputs.vecDim(va1.type) );
                     }
                 }
             }
@@ -361,6 +363,33 @@ function getParamsMap(formulas: string[]){
     return map;
 }
 
+function calcTexShape(pkg: PackageInfo, shapeFormula: string){
+    let map = getParamsMap([ simParamsInp.value, pkg.params ]);
+    if(map == null){
+        return null;
+    }
+
+    let shape  = shapeFormula.split(',').map(x => parseMath(map!, x.trim()));
+    if(shape.length < 1 || 3 < shape.length || shape.some(x => isNaN(x))){
+        return null;
+    }
+
+    if(shape.length == 1){
+        shape = [1, shape[0]];
+    }
+
+    return shape
+}
+
+function calcPkgNumInput(pkgParams: string, numInputFormula: string){
+    let map = getParamsMap([ simParamsInp.value, pkgParams ]);
+    if(map == null){
+        return NaN;
+    }
+
+    return parseMath(map, numInputFormula);
+}
+
 function showTextureEditDlg(tex: Variable){
     currentTex = tex;
 
@@ -372,24 +401,8 @@ function showTextureEditDlg(tex: Variable){
         texTexelTypeSel.value = tex.texelType;
     }
 
-    if(tex.shapeFormula != ""){
-
-        texShapeInp.value = tex.shapeFormula;
-    }
-    else if(tex.shape.length != 0){
-        texShapeInp.value = tex.shape.map(x => `${x}`).join(", ");
-    }
-    else{
-        texShapeInp.value = "";
-    }
+    texShapeInp.value = tex.shapeFormula;
     texShapeValue.innerText = "";
-
-    if(tex.texelType == null){
-        texTexelTypeSel.selectedIndex = -1;
-    }
-    else{
-        texTexelTypeSel.value = tex.texelType;
-    }
 
     texEditDlg.showModal();
 }
@@ -401,16 +414,7 @@ function showPackageEditDlg(pkg: PackageInfo){
 
     pkgParamsInp.value   = pkg.params;
 
-    if(pkg.numInputFormula != ""){
-
-        pkgNumInputFormulaInp.value = pkg.numInputFormula;
-    }
-    else if(pkg.numInput != undefined){
-        pkgNumInputFormulaInp.value = `${pkg.numInput}`;
-    }
-    else{
-        pkgNumInputFormulaInp.value = "";
-    }
+    pkgNumInputFormulaInp.value = pkg.numInputFormula;
 
     if(pkg.fragmentShader == gpgputs.GPGPU.minFragmentShader){
         pkgFragmentShaderSel.value = "none";
@@ -615,17 +619,12 @@ function setBinderEvent(){
     getElement("pkg-edit-ok").addEventListener("click", (ev: MouseEvent)=>{
         let numInputFormula = pkgNumInputFormulaInp.value.trim();
 
-        let map = getParamsMap([ simParamsInp.value, pkgParamsInp.value ]);
-        if(map == null){
-            return;
-        }
 
-        let val  = parseMath(map, numInputFormula);
+        let val  = calcPkgNumInput(pkgParamsInp.value, numInputFormula);
         if(! isNaN(val)){
 
             currentPkg.params          = pkgParamsInp.value;
             currentPkg.numInputFormula = numInputFormula;
-            currentPkg.numInput = val;
 
             pkgEditDlg.close();
         }
@@ -654,21 +653,12 @@ function setBinderEvent(){
     })
 
     getElement("tex-edit-ok").addEventListener("click", (ev: MouseEvent)=>{
-        let map = getParamsMap([ simParamsInp.value, currentTex.package.params ]);
-        if(map == null){
+        let shape = calcTexShape(currentTex.package, texShapeInp.value);
+        if(shape == null){
             return;
-        }
-
-        let vals  = texShapeInp.value.split(',').map(x => parseMath(map!, x.trim()));
-        if(vals.length < 1 || 3 < vals.length || vals.some(x => isNaN(x))){
-            return;
-        }
-        if(vals.length == 1){
-            vals = [1, vals[0]];
         }
 
         currentTex.shapeFormula = texShapeInp.value.trim();
-        currentTex.shape = vals;
         currentTex.texelType = texTexelTypeSel.value;
 
         texEditDlg.close();        
@@ -727,7 +717,7 @@ export function Factorization(cnt: number){
 
 export let SpherePkg = {
     params          : "n1 = 8, n2 = 8, radius = 0.04",
-    numInputFormula : "INPUT * n1 * n2 * 6",
+    numInputFormula : "cnt * n1 * n2 * 6",
     mode            : "TRIANGLES",
     fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
     vertexShader    : `
