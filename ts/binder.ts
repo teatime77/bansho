@@ -1,6 +1,6 @@
 namespace bansho {
 
-declare let BathtubVortexShader: string;
+declare let InverseSquareShader: string;
 declare let Viz : any;
 
 let viz : any;
@@ -534,6 +534,9 @@ function setBinderEvent(){
         if(sel.value == "sphere"){
             pkg = Object.assign(PackageInfo.newObj(), SpherePkg);
         }
+        else if(sel.value == "cube"){
+            pkg = Object.assign(PackageInfo.newObj(), CubePkg());
+        }
         else{
             return;
         }
@@ -548,7 +551,7 @@ function setBinderEvent(){
             PackageInfo.newObj(),
             {
                 mode            : gpgputs.getDrawModeText(gl.POINTS),
-                vertexShader    : BathtubVortexShader,
+                vertexShader    : InverseSquareShader,
                 fragmentShader  : gpgputs.GPGPU.minFragmentShader,
             }
         );
@@ -761,4 +764,54 @@ void main(void) {
 }`
 
 } as unknown as PackageInfo;
+
+
+function CubePkg(){
+    return {
+    params          : "",
+    numInputFormula : "6 * 6",
+    mode            : "TRIANGLES",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+${headShader}
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int ip   = idx % 6;
+    int face = idx / 6;
+
+    // 1,4  5
+    // 0    2,3
+
+    float f[3];
+    f[0] = (ip == 1 || ip == 4 || ip == 5 ? 1.0 : -1.0);
+    f[1] = (ip == 2 || ip == 3 || ip == 5 ? 1.0 : -1.0);
+    f[2] = (face % 2 == 0 ? -1.0 : 1.0);
+
+    int i = face / 2;
+    float x = f[i];
+    float y = f[(i+1) % 3];
+    float z = f[(i+2) % 3];
+
+    float nx = 0.0, ny = 0.0, nz = 0.0;
+    if(i == 0){
+        nz = z;
+    }
+    else if(i == 1){
+        ny = y;
+    }
+    else{
+        nx = x;
+    }
+
+    fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 0.3);
+
+    ${tailShader}
+}`
+
+    } as unknown as PackageInfo;
+}
+
 }

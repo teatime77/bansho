@@ -36,8 +36,7 @@ vec3 PseudoColor(float min_val, float max_val, float val){
 //--------------------------------------------------
 // 立方体
 //--------------------------------------------------
-function CubeShader(){ 
-    return `
+let CubeShader = `
 ${bansho.headShader}
 
 void main(void) {
@@ -74,7 +73,7 @@ void main(void) {
 
     ${bansho.tailShader}
 }`;
-}
+
 
 //--------------------------------------------------
 // 線の矢印
@@ -947,8 +946,9 @@ function ElasticCollision(gpgpu){
 // 逆二乗
 //--------------------------------------------------
 
-function InverseSquareShader(cnt, Cr){ 
-    return `
+let InverseSquareShader = `
+
+const float Cr = 0.5;
 
 uniform mat4 uPMVMatrix;
 uniform int   tick;
@@ -973,6 +973,7 @@ bool isNaN(float f){
 }
 
 void main(void) {
+    int cnt = textureSize(inPos, 0).x;
     vec3 pos;
     vec3 vel;
 
@@ -990,7 +991,7 @@ void main(void) {
         mass =      texelFetch(inMass, ivec2(gl_VertexID, 0), 0).r;
 
         vec3 F = vec3(0.0, 0.0, 0.0);
-        for(int idx1 = 0; idx1 < ${cnt}; idx1++){
+        for(int idx1 = 0; idx1 < cnt; idx1++){
             vec3 pos1   = vec3(texelFetch(inPos,  ivec2(idx1, 0), 0));
             vec3 vel1   = vec3(texelFetch(inVel,  ivec2(idx1, 0), 0));
             float mass1 =      texelFetch(inMass, ivec2(idx1, 0), 0).r;
@@ -1009,15 +1010,15 @@ void main(void) {
 
 
         if(bdr < abs(pos.x) && abs(pos.x) <= abs(pos.x + vel.x) ){
-            vel.x = ${Cr} * (- vel.x - sign(pos.x)*(abs(pos.x) - bdr));
+            vel.x = Cr * (- vel.x - sign(pos.x)*(abs(pos.x) - bdr));
         }
 
         if(-bdr > pos.y && abs(pos.y) <= abs(pos.y + vel.y) ){
-            vel.y = - ${Cr} * (vel.y + bdr - abs(pos.y));
+            vel.y = - Cr * (vel.y + bdr - abs(pos.y));
         }
 
         if(bdr < abs(pos.z) && abs(pos.z) <= abs(pos.z + vel.z) ){
-            vel.z = ${Cr} * (- vel.z - sign(pos.z)*(abs(pos.z) - bdr));
+            vel.z = Cr * (- vel.z - sign(pos.z)*(abs(pos.z) - bdr));
         }
 
         vel += F;
@@ -1042,14 +1043,13 @@ void main(void) {
     outVel  = vel;
     outMass = mass;
 }`;
-}
+
 
 function InverseSquare(gpgpu){
     let gl = bansho.gl;
     let cnt = 4000;
-    let Cr = 0.5;
 
-    let dr1 = new gpgputs.UserDef(gl.POINTS, InverseSquareShader(cnt, Cr) , gpgputs.GPGPU.pointFragmentShader,
+    let dr1 = new gpgputs.UserDef(gl.POINTS, InverseSquareShader, gpgputs.GPGPU.pointFragmentShader,
     {
         inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
         inVel : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
@@ -1174,7 +1174,7 @@ void main(void) {
 }`;
 
 function bareSpherePkg(gpgpu, cnt){
-    let dr2 = bansho.makePkg(bansho.SpherePkg);
+    let dr2 = Object.assign(bansho.PackageInfo.newObj(), bansho.SpherePkg);
     dr2.args = {
         inPos : gpgpu.makeTextureInfo("vec3" , [1, cnt]),
     }
