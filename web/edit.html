@@ -142,7 +142,7 @@ input[type="radio"]:checked + label {
         <button id="delete-action" >削除</button>
         <input  id="txt-file" type="text" style="width: 6em;" disabled />
         <select id="sel-file" size="1" style="width: 8em;"></select>
-        <input id="txt-title" type="text" style="width: 8em;" />
+        <input id="txt-title" type="text" style="width: 8em;" spellcheck="false" />
 
         <button id="new-doc" >新規</button>
         <button id="get-doc" >開く</button>
@@ -197,10 +197,10 @@ GPGPUのパッケージの編集
         <div>
             <button id="add-package" style="width: 100%;" >Package</button><br/>
         </div>
-        <div id="package-graph-div"></div>
+        <div id="sim-edit-div"></div>
     </div>
-    <button id="package-graph-cancel">キャンセル</button>
-    <button id="package-graph-ok">OK</button>
+    <button id="sim-edit-cancel">キャンセル</button>
+    <button id="sim-edit-ok">OK</button>
 </dialog>
 
 <dialog id="pkg-edit-dlg">

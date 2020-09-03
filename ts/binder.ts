@@ -73,34 +73,26 @@ function setCode(text: string){
 }
 
 export class Variable {
-    id              : string;
-    package         : PackageInfo;
-    modifier        : string;
-    type            : string;
+    id!              : string;
+    package!         : PackageInfo;
+    modifier!        : string;
+    type!            : string;
     texelType       : string | null = null;
-    name            : string;
+    name!            : string;
     dstVars         : Variable[] = [];
-    // shape           : number[] = [];
     shapeFormula    : string = "";
 
-    constructor(pkg: PackageInfo, modifier: string, type: string, name: string){
-        this.id       = `${pkg.id}_${name}`;
-        this.package  = pkg;
-        this.modifier = modifier;
-        this.type     = type;
-        this.name     = name;
+    constructor(obj: any){
+        Object.assign(this, obj);
     }
 
-    makeObjVar() : any {
-        return {
-            id           : this.id,
-            modifier     : this.modifier,
-            type         : this.type,
-            texelType    : this.texelType,
-            name         : this.name,
-            dstVars      : this.dstVars.map(x => `${x.id}`),
-            shapeFormula : this.shapeFormula        
-        };
+    makeObj() : any {
+        let obj = Object.assign({}, this) as any;
+        obj.typeName = Variable.name;
+        obj.dstVars = this.dstVars.map(x => `${x.id}`);
+        delete obj.package;
+
+        return obj;
     }
 
     click(ev: MouseEvent){
@@ -130,7 +122,7 @@ export class Variable {
     }
 }
 
-class PackageInfo {
+export class PackageInfo {
     id!              : string;
     params           : string = "";
     numInputFormula  : string = "";
@@ -138,11 +130,10 @@ class PackageInfo {
     vertexShader!    : string;
     fragmentShader   : string = gpgputs.GPGPU.minFragmentShader;
 
-    vars             : Variable[] = [];
-
     static cnt = 0;
-    static make() : PackageInfo {
+    static newObj() : PackageInfo {
         return {
+            typeName        : PackageInfo.name,
             id              : `pkg_${PackageInfo.cnt++}`,
             params          : "",
             numInputFormula : "",
@@ -150,8 +141,6 @@ class PackageInfo {
             mode            : "",
             vertexShader    : "",
             fragmentShader  : "",
-        
-            vars: []
         } as unknown as PackageInfo;
     }
 }
@@ -169,9 +158,7 @@ export class Simulation extends Widget {
     make(obj: any) : Widget {
         super.make(obj);
 
-        simParamsInp.value = this.params;
-
-        let prevView = glb.widgets.slice(0, getTimePos() + 1).reverse().find(x => x instanceof View) as View;
+        let prevView = glb.widgets.slice().reverse().find(x => x instanceof View) as View;
         if(prevView == undefined){
             throw new Error();
         }
@@ -182,48 +169,28 @@ export class Simulation extends Widget {
         }
         gl = gpgputs.gl;
 
-        if(obj.packageInfos != undefined){
-            let va_map : { [id:string] : Variable} = {};
-            this.packageInfos = obj.packageInfos.foreach((o: PackageInfo) => this.makePkg(va_map, o));
+        let va_map : { [id:string] : Variable} = {};
 
-            for(let va of this.varsAll){
-                va.dstVars = (va.dstVars as unknown as string[]).map(id => va_map[id]);
+        this.varsAll.forEach(x => va_map[x.id] = x);
+
+        for(let va of this.varsAll){
+            let pkg = this.packageInfos.find(x => va.id.startsWith(x.id + "_"));
+            if(pkg == undefined){
+                throw new Error();
             }
+            va.package = pkg;
+
+            va.dstVars = (va.dstVars as unknown as string[]).map(id => va_map[id]);
         }
 
         return this;
     }
 
-    makePkg(va_map : { [id:string] : Variable}, obj: PackageInfo)  {
-        for(let o of obj.vars){
-            let va = new Variable(obj, o.modifier, o.type, o.name);
-            va.texelType = o.texelType;
-            va.shapeFormula = o.shapeFormula;
-            va.dstVars      = o.dstVars;
-
-            this.varsAll.push(va);
-            va_map[va.id] = va;
-        }
-    }
-
-    makeObjPkg(pkg: PackageInfo) : any {
-        let vars = this.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
-
-        return {
-            id              : pkg.id,
-            params          : pkg.params,
-            numInputFormula : pkg.numInputFormula,
-            mode            : pkg.mode,
-            vertexShader    : pkg.vertexShader,
-            fragmentShader  : pkg.fragmentShader,
-            vars            : vars.map(x => x.makeObjVar()),
-        };
-    }
-
     makeObj() : any {        
         return Object.assign(super.makeObj(), {
-            params   : simParamsInp.value,
-            packages : this.packageInfos.map(pkg => this.makeObjPkg(pkg)),
+            params       : this.params,
+            packageInfos : this.packageInfos,
+            varsAll      : this.varsAll.map(x => x.makeObj())
         });
     }
 
@@ -232,20 +199,21 @@ export class Simulation extends Widget {
     }
     
     enable(){
+        sim = this;
         this.applyGraph();
     }
 
     disable(){
-        sim.view.gpgpu!.clearAll();
+        this.view.gpgpu!.clearAll();
     }
 
     applyGraph(){
-        sim.view.gpgpu!.clearAll();
+        this.view.gpgpu!.clearAll();
         // this.view.gpgpu = make3D(this.view.canvas);
 
         let packages: gpgputs.Package[] = [];
 
-        for(let pkgInfo of sim.packageInfos){
+        for(let pkgInfo of this.packageInfos){
             let pkg = new gpgputs.Package(pkgInfo);
             pkg.mode = gpgputs.getDrawMode(pkgInfo.mode);
             pkg.args = {};
@@ -258,7 +226,7 @@ export class Simulation extends Widget {
 
 
             if(pkgInfo.vertexShader.includes("@{")){
-                let map = getParamsMap([ simParamsInp.value, pkgInfo.params ]);
+                let map = getParamsMap([ sim.params, pkgInfo.params ]);
                 if(map == null){
                     throw new Error();
                 }
@@ -274,7 +242,7 @@ export class Simulation extends Widget {
                 pkg.vertexShader = shader;
             }
 
-            let vars = sim.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
+            let vars = this.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
             for(let va1 of vars){
                 if(pkg.args[va1.name] == undefined){
                     if(va1.type == "sampler2D" || va1.type == "sampler3D"){
@@ -292,11 +260,11 @@ export class Simulation extends Widget {
                 }
             }
 
-            sim.view.gpgpu!.makePackage(pkg);
+            this.view.gpgpu!.makePackage(pkg);
         }
 
         for(let pkg of packages){
-            let vars = sim.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
+            let vars = this.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
             for(let src of vars){
 
                 for(let dst of src.dstVars){
@@ -311,7 +279,7 @@ export class Simulation extends Widget {
             pkg.args["tick"] = undefined;
         }
 
-        sim.view.gpgpu!.drawables.push(... packages);
+        this.view.gpgpu!.drawables.push(... packages);
     }
 }
 
@@ -327,7 +295,15 @@ function getIOVariables(pkg: PackageInfo){
             if(["uPMVMatrix", "uNMatrix", "tick", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
                 continue;
             }
-            let iovar = new Variable(pkg, token.text, tokens[i + 1].text, tokens[i + 2].text);
+
+            let name = tokens[i + 2].text;
+            let iovar = new Variable({
+                id       : `${pkg.id}_${name}`,
+                package  : pkg,
+                modifier : token.text,
+                type     : tokens[i + 1].text,
+                name     : name
+            });
             vars.push(iovar);
         }
     }
@@ -364,7 +340,7 @@ function getParamsMap(formulas: string[]){
 }
 
 function calcTexShape(pkg: PackageInfo, shapeFormula: string){
-    let map = getParamsMap([ simParamsInp.value, pkg.params ]);
+    let map = getParamsMap([ sim.params, pkg.params ]);
     if(map == null){
         return null;
     }
@@ -382,7 +358,7 @@ function calcTexShape(pkg: PackageInfo, shapeFormula: string){
 }
 
 function calcPkgNumInput(pkgParams: string, numInputFormula: string){
-    let map = getParamsMap([ simParamsInp.value, pkgParams ]);
+    let map = getParamsMap([ sim.params, pkgParams ]);
     if(map == null){
         return NaN;
     }
@@ -490,7 +466,7 @@ function makeGraph(){
     // dot = 'digraph { a -> b }';
     viz.renderSVGElement(dot)
     .then(function(element: any) {
-        let div = getElement("package-graph-div");
+        let div = getElement("sim-edit-div");
         if(div.firstChild != null){
             div.firstChild.remove();
         }
@@ -546,6 +522,9 @@ function setBinderEvent(){
     simParamsInp.addEventListener("blur", function(ev: FocusEvent){
         let map = getParamsMap([ simParamsInp.value ]);
         simParamsInp.style.color = map == null ? "red" : "black";
+        if(map != null){
+            sim.params = simParamsInp.value.trim();
+        }
     });
 
     getElement("add-shape-pkg").addEventListener("click", (ev: MouseEvent)=>{
@@ -553,7 +532,7 @@ function setBinderEvent(){
         let pkg: PackageInfo;
 
         if(sel.value == "sphere"){
-            pkg = Object.assign(PackageInfo.make(), SpherePkg);
+            pkg = Object.assign(PackageInfo.newObj(), SpherePkg);
         }
         else{
             return;
@@ -566,7 +545,7 @@ function setBinderEvent(){
 
     getElement("add-package").addEventListener("click", (ev: MouseEvent)=>{
         let pkg = Object.assign(
-            PackageInfo.make(),
+            PackageInfo.newObj(),
             {
                 mode            : gpgputs.getDrawModeText(gl.POINTS),
                 vertexShader    : BathtubVortexShader,
@@ -579,14 +558,14 @@ function setBinderEvent(){
         makeGraph();
     });
     
-    getElement("package-graph-ok").addEventListener("click", (ev: MouseEvent)=>{
+    getElement("sim-edit-ok").addEventListener("click", (ev: MouseEvent)=>{
         simEditDlg.close();
         let obj = sim.makeObj();
         console.log(`${JSON.stringify(obj, null, 4)}`);
         sim.enable();
     })
 
-    getElement("package-graph-cancel").addEventListener("click", (ev: MouseEvent)=>{
+    getElement("sim-edit-cancel").addEventListener("click", (ev: MouseEvent)=>{
         sim.view.gpgpu!.clearAll();
         simEditDlg.close();
     })
@@ -691,6 +670,7 @@ function setGraphEvent(){
 
 export function openSimulationDlg(act: Simulation){
     sim = act;
+    simParamsInp.value = sim.params;
     sim.disable();
     simEditDlg.showModal();
 }

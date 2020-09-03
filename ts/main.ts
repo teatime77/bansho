@@ -460,6 +460,12 @@ export function parseObject(obj: any) : any {
 
     case Simulation.name:
         return new Simulation().make(obj);
+
+    case PackageInfo.name:
+        return obj;
+
+    case Variable.name:
+        return new Variable(obj);
     
     case Point.name:
         return new Point(obj);
