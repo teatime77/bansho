@@ -22,6 +22,8 @@ export class Glb {
     txtFile : HTMLInputElement;
     selFile  : HTMLSelectElement;
     txtTitle: HTMLInputElement;
+    msgBoxDlg: HTMLDialogElement;
+    msgBoxCB!: ()=>void;
 
     toolType = "";
     view: View | null = null;
@@ -50,6 +52,8 @@ export class Glb {
         this.selFile  = document.getElementById("sel-file") as HTMLSelectElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
+
+        this.msgBoxDlg = getElement("msg-box-dlg") as HTMLDialogElement;
     }
         
     showPlayButton = ()=>{

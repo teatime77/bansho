@@ -187,6 +187,30 @@ export function putNewDoc(is_new: boolean, title: string, text: string, fnc:()=>
     });
 }
 
+export function delDoc(id: number){
+    let tmpIdx = cloneIndexFile();
+
+    for(let [idx, doc] of tmpIdx.docs.entries()){
+        if(doc.id == id){
+            tmpIdx.docs.splice(idx, 1);
+            break;
+        }
+    }
+
+    let batch = db.batch();
+
+    let docRef = db.collection('users').doc(loginUid!).collection('docs').doc(`${id}`);
+    batch.delete(docRef);
+
+    let idxRef = db.collection('users').doc(loginUid!).collection('docs').doc("index");
+    batch.set(idxRef, tmpIdx);
+
+    batch.commit().then(function () {
+        indexFile = tmpIdx;
+        alert("削除しました。");
+    });
+}
+
 let pendingFiles : any[];
 function fetchAllDoc(){
     if(pendingFiles.length != 0){

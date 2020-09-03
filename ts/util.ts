@@ -192,4 +192,10 @@ export function writeTextFile(path: string, text: string){
     });
 }
 
+export function msgBox(text: string, fnc:()=>void){
+    getElement("msg-box-text").innerText = text;
+    glb.msgBoxCB = fnc;
+
+    glb.msgBoxDlg.showModal();
+}
 }

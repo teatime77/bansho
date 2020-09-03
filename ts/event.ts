@@ -92,6 +92,15 @@ export function setEventListener(){
         putData(false);
     });
 
+    // 削除ボタン
+    document.getElementById("del-doc")!.addEventListener("click", (ev: MouseEvent)=>{
+        let title = glb.selFile.options[glb.selFile.selectedIndex].innerText;
+        msgBox(`${title}を削除しますか?`, ()=>{
+            let id = parseInt(glb.selFile.value.trim());
+            delDoc(id);
+        });
+    });
+
     // タイトル
     glb.txtTitle.addEventListener("focus", (ev: FocusEvent)=>{
         // フォーカス時にテキスト全体を選択する。
@@ -138,6 +147,14 @@ export function setEventListener(){
         }, 500);
     });
 
+    getElement("msg-box-cancel").addEventListener("click", (ev: MouseEvent)=>{
+        glb.msgBoxDlg.close();
+    });
+
+    getElement("msg-box-ok").addEventListener("click", (ev: MouseEvent)=>{
+        glb.msgBoxDlg.close();
+        glb.msgBoxCB();
+    });
 }
 
 export function setTextBlockEventListener(act: TextBlock){
