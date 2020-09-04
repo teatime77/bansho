@@ -105,8 +105,8 @@ function Arrow3D(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
         inPos : gpgpu.makeTextureInfo("vec3", [sy, sx]),
         inVec : gpgpu.makeTextureInfo("vec3", [sy, sx])
     });
-    dr2.numInput = cnt * 3 * 9;
-    dr2.numGroup = 9;
+    dr2.numInput = cnt * 3 * npt;
+    dr2.numGroup = npt;
 
     let dr3 = new gpgputs.UserDef(bansho.gl.TRIANGLE_STRIP, ArrowTubeShader(npt, sx, r, g, b), gpgputs.GPGPU.planeFragmentShader, {
         inPos : gpgpu.makeTextureInfo("vec3", [sy, sx]),

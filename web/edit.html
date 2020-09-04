@@ -183,7 +183,7 @@ input[type="radio"]:checked + label {
 GPGPUのパッケージの編集
 -------------------------------------------------- -->
 <dialog id="sim-edit-dlg" style="width: 90%; height: 90%;">
-    サイズ <input id="sim-params" type="text" width="100em" spellcheck="false" />
+    サイズ <input id="sim-params" type="text" style="width: 50em;" spellcheck="false" />
     <br/>
     <select id="sel-shape-pkg">
         <option value="point">点</option>
@@ -193,6 +193,7 @@ GPGPUのパッケージの編集
         <option value="surface">曲面</option>
         <option value="cube">立方体</option>
         <option value="Arrow1D">矢印</option>
+        <option value="Arrow3D">矢印3D</option>
     </select>
     <button id="add-shape-pkg">追加</button>
 

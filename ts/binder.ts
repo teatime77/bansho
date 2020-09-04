@@ -126,6 +126,7 @@ export class PackageInfo {
     id!              : string;
     params           : string = "";
     numInputFormula  : string = "";
+    numGroup         : string | undefined = undefined;
     mode             : string = "";
     vertexShader!    : string;
     fragmentShader   : string = gpgputs.GPGPU.minFragmentShader;
@@ -137,7 +138,7 @@ export class PackageInfo {
             id              : `pkg_${PackageInfo.cnt++}`,
             params          : "",
             numInputFormula : "",
-            numInput        : undefined,
+            numGroup        : undefined,
             mode            : "",
             vertexShader    : "",
             fragmentShader  : "",
@@ -220,6 +221,12 @@ export class Simulation extends Widget {
             pkg.numInput = calcPkgNumInput(pkgInfo.params, pkgInfo.numInputFormula);
             if(isNaN(pkg.numInput)){
                 throw new Error();
+            }
+            if(pkgInfo.numGroup != undefined){
+                pkg.numGroup = calcPkgNumInput(pkgInfo.params, pkgInfo.numGroup);
+                if(isNaN(pkg.numGroup)){
+                    throw new Error();
+                }
             }
 
             packages.push(pkg);
@@ -529,22 +536,23 @@ function setBinderEvent(){
 
     getElement("add-shape-pkg").addEventListener("click", (ev: MouseEvent)=>{
         let sel = getElement("sel-shape-pkg") as HTMLSelectElement;
-        let pkg: PackageInfo;
 
         if(sel.value == "sphere"){
-            pkg = Object.assign(PackageInfo.newObj(), SpherePkg);
+            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), SpherePkg) );
         }
         else if(sel.value == "cube"){
-            pkg = Object.assign(PackageInfo.newObj(), CubePkg());
+            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), CubePkg()) );
         }
         else if(sel.value == "Arrow1D"){
-            pkg = Object.assign(PackageInfo.newObj(), Arrow1DPkg);
+            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), Arrow1DPkg) );
+        }
+        else if(sel.value == "Arrow3D"){
+            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), ArrowFanPkg()) );
+            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), ArrowTubePkg()) );
         }
         else{
             return;
         }
-
-        sim.packageInfos.push(pkg);
 
         makeGraph();
     });
@@ -868,5 +876,203 @@ void main(void) {
 }`
 };
 
+
+function ArrowFanPkg(){
+    return {
+    params          : "npt = 9, r = 0.5, g = 0.5, b = 0.5",
+    numInputFormula : "cnt * 3 * npt",
+    numGroup        : "npt",
+    mode            : "TRIANGLE_FAN",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+${bansho.headShader}
+
+uniform int   tick;
+
+uniform sampler2D inPos;
+uniform sampler2D inVec;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int ip  = idx % @{npt};
+    idx /= @{npt};
+
+    int mod = idx % 3;
+    idx /= 3;
+
+    vec3 pos = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
+    vec3 vec = vec3(texelFetch(inVec, ivec2(idx, 0), 0));
+
+    // 円錐の底面の円の中心
+    vec3 p1 = pos + 0.8 * vec;;
+
+    // 円錐の頂点
+    vec3 p2 = pos + vec;
+
+    float x, y, z;
+    vec3 nv;
+
+    if(ip == 0){
+        // 円錐の頂点や円の中心の場合
+        
+        if(mod == 0){
+            // 円錐の頂点の場合
+
+            x = p2.x;
+            y = p2.y;
+            z = p2.z;
+
+            nv = normalize(p2 - p1);
+        }
+        else if(mod == 1){
+            // 円錐の底面の円の中心の場合
+
+            x = p1.x;
+            y = p1.y;
+            z = p1.z;
+
+            nv = normalize(p1 - p2);
+        }
+        else{
+            // 矢印の始点の円の中心の場合
+
+            x = pos.x;
+            y = pos.y;
+            z = pos.z;
+
+            nv = normalize(pos - p1);
+        }
+    }
+    else{
+        // 円錐の底面や矢印の始点の円周の場合
+
+        vec3 e1 = normalize(vec3(p1.y - p1.z, p1.z - p1.x, p1.x - p1.y));
+
+        vec3 e2 = normalize(cross(p1, e1));
+
+        float theta = 2.0 * PI * float(ip - 1) / float(@{npt} - 2);
+
+        // 円の中心
+        vec3 cc;
+
+        // 円の半径
+        float r;
+        
+        if(mod != 2){
+
+            cc = p1;
+            r = 0.05;
+        }
+        else{
+            // 矢印の始点の円周の場合
+
+            cc = pos;
+            r = 0.02;
+        }
+
+        // 円周上の点
+        vec3 p3 = cc + r * cos(theta) * e1 + r * sin(theta) * e2;
+
+        if(mod == 0){
+            // 円錐の場合
+
+            // 円の接線方向
+            vec3 e3 = sin(theta) * e1 - cos(theta) * e2;
+
+            nv = normalize(cross(p2 - p3, e3));
+        }
+        else{
+            // 円の場合
+
+            nv = normalize(- vec);
+        }
+
+        x = p3.x;
+        y = p3.y;
+        z = p3.z;
+    }
+
+    float nx = nv.x, ny = nv.y, nz = nv.z;
+
+    // fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 1.0);
+    fragmentColor = vec4(@{r}, @{g}, @{b}, 1.0);
+
+    ${bansho.tailShader}
+}`
+
+    } as unknown as PackageInfo;
+}
+
+
+function ArrowTubePkg(){
+    return {
+    params          : "npt = 9, r = 0.5, g = 0.5, b = 0.5",
+    numInputFormula : "cnt * 2 * npt",
+    numGroup        : "2 * npt",
+    mode            : "TRIANGLE_STRIP",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+    ${bansho.headShader}
+    
+    uniform int   tick;
+    
+    uniform sampler2D inPos;
+    uniform sampler2D inVec;
+    
+    void main(void) {
+        int idx = int(gl_VertexID);
+    
+        int lh  = idx % 2;
+        idx /= 2;
+    
+        int ip  = idx % @{npt};
+        idx /= @{npt};
+    
+        vec3 pos = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
+        vec3 vec = vec3(texelFetch(inVec, ivec2(idx, 0), 0));
+    
+        vec3 e1 = normalize(vec3(vec.y - vec.z, vec.z - vec.x, vec.x - vec.y));
+    
+        vec3 e2 = normalize(cross(vec, e1));
+    
+        // 円の中心
+        vec3 cc;
+    
+        if(lh == 0){
+            cc = pos;
+        }
+        else{
+    
+            cc = pos + 0.8 * vec;
+        }
+    
+        // 円の半径
+        float r = 0.02;
+    
+        float theta = 2.0 * PI * float(ip - 1) / float(@{npt} - 2);
+    
+        // 円周上の点
+        vec3 p3 = cc + r * cos(theta) * e1 + r * sin(theta) * e2;
+        
+        // 法線ベクトル
+        vec3 nv = normalize(p3 - cc);
+    
+        float x = p3.x;
+        float y = p3.y;
+        float z = p3.z;
+    
+        float nx = nv.x, ny = nv.y, nz = nv.z;
+    
+        // fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 1.0);
+        fragmentColor = vec4(@{r}, @{g}, @{b}, 1.0);
+    
+        ${bansho.tailShader}
+    }`
+
+    } as unknown as PackageInfo;
+}
 
 }
