@@ -386,6 +386,8 @@ function setEvent(index: IndexFile, map: any){
         box.addEventListener("click", function(ev:MouseEvent){
             let doc1 = docMap[this.id];
             console.log(`click ${doc1.id} ${doc1.title}`);
+
+            window.open(`play.html?id=${doc1.id}`, '_blank');
         });
     }
     

@@ -1197,87 +1197,83 @@ vec3 PseudoColor(float min_val, float max_val, float val){
 
 
 let userShader = `
+
+uniform mat4 uPMVMatrix;
 uniform int   tick;
-    
+
 uniform sampler2D inPos;
 uniform sampler2D inVel;
-out vec3 outPos;
-out vec3 outVel;
+uniform sampler2D inMass;
 
-#define PI 3.14159265359
+out vec3  outPos;
+out vec3  outVel;
+out float outMass;
 
-${PseudoColor}
+out vec4 fragmentColor;
+    
+int rnd_cnt = 0;
+float rnd(){
+    return 2.0 * fract( sin(float(gl_VertexID) * 12.9898 + float(rnd_cnt++) * 78.233) * 43758.5453) - 1.0;
+}
 
 void main(void) {
-    int sz = textureSize(inPos, 0).x;
-    float L = 3.2 / float(sz);
-    float K = 0.2;
-
     int idx = int(gl_VertexID);
 
-    int col  = idx % sz;
-    int row  = idx / sz;
+    vec3  pos;
+    vec3  vel;
+    float mass;
 
-    vec3 vel = vec3(0.0, 0.0, 0.0);
-
-    float x = -1.6 + float(col) * L;
-    float y = -1.6 + float(row) * L;
-    float z = 0.0;
-
-    if(row == sz / 2 && col == sz / 2){
-
-        z = 0.2 * cos(float(tick) / 100.0);
-    }
-    else if(col == 0 || row == 0 || col == sz - 1 || row == sz - 1){
-        z = 0.0;
-    }
-    else{
-        if(tick == 0){
-
+    if(tick == 0){
+        if(gl_VertexID == 0){
+            pos = vec3(0.0, 0.0, 0.0);
+            vel = vec3(0.0, 0.0, 0.0);
+            mass = 10.0;
         }
         else{
-
-            vec3 p  = texelFetch(inPos, ivec2(col, row), 0).xyz;
-            vel     = texelFetch(inVel, ivec2(col, row), 0).xyz;
-
-            float sum_a = 0.0;
-            for(int i = 0; i < 4; i++){
-                int col1 = col, row1 = row;
-
-                switch(i){
-                case 0: col1--; break;
-                case 1: col1++; break;
-                case 2: row1--; break;
-                case 3: row1++; break;
-                }
-
-                if(col1 < 0 || row1 < 0 || col1 == sz || row1 == sz){
-                    continue;
-                }
-
-                vec3 p1 = texelFetch(inPos, ivec2(col1, row1), 0).xyz;
-
-                float l1 = length(p1 - p);
-                l1 = sqrt(2.0 * L * L + (p1.z - p.z) * (p1.z - p.z));
-                float f1 = K * (l1 - L);
-                float a1 = f1 * ((p1.z - p.z) / l1);
-
-                if(isnan(a1)){
-                    continue;
-                }
-                
-                sum_a += a1;
-            }
-
-            vel.z += sum_a;
-
-            z = p.z + vel.z;
-            // z = p.z;
+            pos = vec3(rnd(), rnd(), rnd());
+            vel = vec3(0.1 * rnd(), 0.1 * rnd(), 0.1 * rnd());
+            mass = 0.5 + abs(rnd());    
         }
     }
+    else{
 
-    outPos        = vec3(x, y, z);
-    outVel        = vel;
-}
-`
+        pos  = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
+        vel  = vec3(texelFetch(inVel, ivec2(idx, 0), 0));
+        mass = texelFetch(inMass, ivec2(idx, 0), 0).r;
+
+        vec3 F = vec3(0.0, 0.0, 0.0);
+        for(int idx1 = 0; idx1 < @{cnt}; idx1++){
+            vec3  pos1  = vec3(texelFetch(inPos, ivec2(idx1, 0), 0));
+            float mass1 = texelFetch(inMass, ivec2(idx1, 0), 0).r;
+
+            float r = length(pos1 - pos);
+    
+            if(r != 0.0){
+
+                r *= 100.0;
+                F += (mass * mass1 * 0.01 / (r * r)) * normalize(pos1 - pos);
+            }
+        }
+
+        vel += F / mass;
+        pos += vel;
+    }
+
+    if(gl_VertexID == 0){
+
+        gl_PointSize  = 4.0;
+        fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+    else{
+
+        gl_PointSize  = 2.0;
+        fragmentColor = vec4(0.0, 0.0, 1.0, 1.0);
+    }
+
+    gl_Position   = uPMVMatrix * vec4(pos, 1.0);
+    
+    outPos  = pos;
+    outVel  = vel;
+    outMass = mass;
+}`;
 }
