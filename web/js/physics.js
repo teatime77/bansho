@@ -522,8 +522,6 @@ out vec3 outH;
 #define epsilon0 8.854187812799999e-12
 #define c0       299792458
 
-${PseudoColor}
-
 vec3 calcRot(int flag, vec3 E, vec3 H, int i, int j, int k){
     if(flag == 1){
         vec3 Ei = E;
@@ -581,7 +579,7 @@ vec3 calcRot(int flag, vec3 E, vec3 H, int i, int j, int k){
 }
 
 void main(void) {
-    float L = 3.2 / float(${Math.max(sx, sy, sz)});
+    float L = 3.2 / float(max(${sx}, max(${sy},${sz})));
     float K = float(${K});
 
     int idx = int(gl_VertexID);
@@ -592,9 +590,9 @@ void main(void) {
     int row  = idx % ${sy};
     int dep  = idx / ${sy};
 
-    float x = float(col - ${Math.round(sx/2)}) * L;
-    float y = float(row - ${Math.round(sy/2)}) * L;
-    float z = float(dep - ${Math.round(sz/2)}) * L;
+    float x = float(col - ${sx}/2) * L;
+    float y = float(row - ${sy}/2) * L;
+    float z = float(dep - ${sz}/2) * L;
 
     vec3 E, H;
 
@@ -606,7 +604,7 @@ void main(void) {
         E = vec3(texelFetch(inE, ivec3(col, row, dep), 0));
         H = vec3(texelFetch(inH, ivec3(col, row, dep), 0));
     
-        // if(tick < ${Math.max(sx, sy, sz)}){
+        // if(tick < max(${sx}, max(${sy},${sz}))){
 
             if(tick % 2 == 0){
 

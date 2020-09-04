@@ -1,6 +1,5 @@
 namespace bansho {
 
-declare let ElasticCollisionShader: string;
 declare let Viz : any;
 
 let viz : any;
@@ -55,7 +54,8 @@ function setCode(text: string){
 
         let tokens = Lex(line);
         if(tokens.length == 0){
-            div.appendChild(document.createElement("br"));
+            // div.appendChild(document.createElement("br"));
+            div.innerHTML = "<span><br></span>";
             continue;
         }
 
@@ -257,6 +257,10 @@ export class Simulation extends Widget {
                         let shape = calcTexShape(pkgInfo, va1.shapeFormula);
                         if(va1.texelType == null || shape == null){
                             throw new Error();
+                        }
+                        if(pkg.vertexShader.includes("@factorize@")){
+                            console.assert(shape.length == 2 && shape[0] == 1);
+                            shape = Factorize(shape[1]);
                         }
 
                         pkg.args[va1.name] = new gpgputs.TextureInfo(va1.texelType, shape);
@@ -562,7 +566,7 @@ function setBinderEvent(){
             PackageInfo.newObj(),
             {
                 mode            : gpgputs.getDrawModeText(gl.POINTS),
-                vertexShader    : ElasticCollisionShader,
+                vertexShader    : EMWave,
                 fragmentShader  : gpgputs.GPGPU.minFragmentShader,
             }
         );
@@ -620,6 +624,7 @@ function setBinderEvent(){
             currentPkg.numInputFormula = numInputFormula;
 
             let text = pkgVertexShaderDiv.innerText;
+            text = text.replace(/\n\n/g, '\n');
             while(text.includes('\xA0')){
                 text = text.replace('\xA0', ' ');
             }
@@ -698,7 +703,7 @@ export function openSimulationDlg(act: Simulation){
     simEditDlg.showModal();
 }
 
-export function Factorization(cnt: number){
+export function Factorize(cnt: number){
     let i1 = 1, i2 = cnt;
 
     for(let d of [ 5, 3, 2 ]){
@@ -835,7 +840,7 @@ void main(void) {
 }
 
 export let Arrow1DPkg = {
-    params          : "",
+    params          : "r = 1.0, g = 0.0, b = 0.0",
     numInputFormula : "cnt * 2",
     mode            : "LINES",
     fragmentShader  : gpgputs.GPGPU.pointFragmentShader,
@@ -849,27 +854,26 @@ uniform mat4 uPMVMatrix;
 out vec4 fragmentColor;
 
 void main(void) {
+    int sx  = textureSize(inPos, 0).x;
+
     int idx = int(gl_VertexID);
 
     int ip  = idx % 2;
     idx    /= 2;
 
-    vec3 pos = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
+    // @factorize@
+    int col  = idx % sx;
+    int row  = idx / sx;
+
+    vec3 pos = vec3(texelFetch(inPos, ivec2(col, row), 0));
 
     if(ip == 1){
 
-        vec3 vec = vec3(texelFetch(inVec, ivec2(idx, 0), 0));
+        vec3 vec = vec3(texelFetch(inVec, ivec2(col, row), 0));
         pos += vec;
     }
 
-    if(ip == 0){
-
-        fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
-    }
-    else{
-
-        fragmentColor = vec4(0.0, 0.0, 1.0, 1.0);
-    }
+    fragmentColor = vec4(float(@{r}), float(@{g}), float(@{b}), 1.0);
 
     gl_PointSize  = 5.0;
     gl_Position = uPMVMatrix * vec4(pos, 1.0);
@@ -1075,4 +1079,124 @@ function ArrowTubePkg(){
     } as unknown as PackageInfo;
 }
 
+let EMWave = `
+
+precision highp sampler3D;
+
+uniform int   tick;
+    
+uniform sampler3D inE;
+uniform sampler3D inH;
+out vec3 outPos;
+out vec3 outE;
+out vec3 outH;
+
+#define PI 3.14159265359
+
+#define mu0      1.25663706212e-06
+#define epsilon0 8.854187812799999e-12
+#define c0       299792458
+
+vec3 calcRot(int flag, vec3 E, vec3 H, int i, int j, int k){
+    if(flag == 1){
+        vec3 Ei = E;
+        vec3 Ej = E;
+        vec3 Ek = E;
+
+        if(i + 1 < @{sx}){
+
+            Ei = vec3(texelFetch(inE, ivec3(i + 1, j    , k    ), 0));
+        }
+
+        if(j + 1 < @{sy}){
+
+            Ej = vec3(texelFetch(inE, ivec3(i    , j + 1, k    ), 0));
+        }
+
+        if(k + 1 < @{sz}){
+
+            Ek = vec3(texelFetch(inE, ivec3(i    , j    , k + 1), 0));
+        }
+
+        float rx = (Ej.z - E.z) - (Ek.y - E.y);
+        float ry = (Ek.x - E.x) - (Ei.z - E.z);
+        float rz = (Ei.y - E.y) - (Ej.x - E.x);
+
+        return vec3(rx, ry, rz);
+    }
+    else{
+
+        vec3 Hi = H; 
+        vec3 Hj = H; 
+        vec3 Hk = H; 
+
+        if(0 <= i - 1){
+
+            Hi = vec3(texelFetch(inH, ivec3(i - 1, j    , k    ), 0));
+        }
+
+        if(0 <= j - 1){
+
+            Hj = vec3(texelFetch(inH, ivec3(i    , j - 1, k    ), 0));
+        }
+
+        if(0 <= k - 1){
+
+            Hk = vec3(texelFetch(inH, ivec3(i    , j    , k - 1), 0));
+        }
+
+        float rx = (H.z - Hj.z) - (H.y - Hk.y);
+        float ry = (H.x - Hk.x) - (H.z - Hi.z);
+        float rz = (H.y - Hi.y) - (H.x - Hj.x);
+
+        return vec3(rx, ry, rz);
+    }
+}
+
+void main(void) {
+    float L = 3.2 / float(max(@{sx}, max(@{sy},@{sz})));
+    float K = float(@{K});
+
+    int idx = int(gl_VertexID);
+
+    int col  = idx % @{sx};
+    idx     /= @{sx};
+
+    int row  = idx % @{sy};
+    int dep  = idx / @{sy};
+
+    float x = float(col - @{sx}/2) * L;
+    float y = float(row - @{sy}/2) * L;
+    float z = float(dep - @{sz}/2) * L;
+
+    vec3 E, H;
+
+    if(tick == 0){
+        E = vec3(0.0, 0.0, 0.0);
+        H = vec3(0.0, 0.0, 0.0);
+    }
+    else{    
+        E = vec3(texelFetch(inE, ivec3(col, row, dep), 0));
+        H = vec3(texelFetch(inH, ivec3(col, row, dep), 0));
+    
+        if(tick % 2 == 0){
+
+            vec3 rotH = calcRot(0, E, H, col, row, dep);
+            E = E + K * rotH;
+        }
+        else{
+            vec3 rotE = calcRot(1, E, H, col, row, dep);
+            H = H - rotE;
+        }
+    }
+
+    if(col == @{sx} / 2 && row == @{sy} / 2 && dep == @{sz} / 2){
+        E.z += 0.01 * sin(2.0 * PI * float(tick) / 200.0);
+    }
+
+    outPos = vec3(x, y, z);
+    outE   = E;
+    outH   = H;
+}
+`
 }
