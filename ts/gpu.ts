@@ -482,8 +482,7 @@ export function getSample3D(gpgpu: gpgputs.GPGPU, idx: number) : gpgputs.AbsDraw
         // 弦
         case 20: { 
             const sz = 4096;
-            let inPos = (new Float32Array(sz * 4)).map(x => 0.4 * Math.random() - 0.2);
-            inPos = new Float32Array(sz * 4);
+            let inPos = new Float32Array(sz * 4);
             let dr = new gpgputs.UserDef(gl.POINTS, stringPoints(sz, 0.9) , gpgputs.GPGPU.pointFragmentShader,
             {
                 pointSize: 5,

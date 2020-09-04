@@ -429,9 +429,12 @@ function makeGraph(){
 
         let lines : string[] = [];
         let invars = vars.filter(v=> v.modifier == "uniform" || v.modifier == "in");
-        for(let x of invars){
-            lines.push(`${x.id} [ id="${x.id}", label = "${x.name}", shape = box];`);
-            lines.push(`${x.id} -> ${pkg.id}_vertex`);
+        for(let va of invars){
+            let old_va = varsAll_old.find(x => x.id == va.id);
+            let shape = old_va != undefined ? old_va.shapeFormula : "";
+
+            lines.push(`${va.id} [ id="${va.id}", label = "${va.name} : ${shape}", shape = box];`);
+            lines.push(`${va.id} -> ${pkg.id}_vertex`);
         }
 
         let outvars = vars.filter(v=> v.modifier == "out");
@@ -554,6 +557,9 @@ function setBinderEvent(){
             sim.packageInfos.push( Object.assign(PackageInfo.newObj(), ArrowFanPkg()) );
             sim.packageInfos.push( Object.assign(PackageInfo.newObj(), ArrowTubePkg()) );
         }
+        else if(sel.value == "surface"){
+            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), SurfacePkg()) );
+        }
         else{
             return;
         }
@@ -566,7 +572,7 @@ function setBinderEvent(){
             PackageInfo.newObj(),
             {
                 mode            : gpgputs.getDrawModeText(gl.POINTS),
-                vertexShader    : EMWave,
+                vertexShader    : userShader,
                 fragmentShader  : gpgputs.GPGPU.minFragmentShader,
             }
         );
@@ -630,6 +636,19 @@ function setBinderEvent(){
             }
 
             currentPkg.vertexShader    = text;
+
+            if(pkgFragmentShaderSel.value == "none"){
+                currentPkg.fragmentShader = gpgputs.GPGPU.minFragmentShader;
+            }
+            else if(pkgFragmentShaderSel.value == "point"){
+                currentPkg.fragmentShader = gpgputs.GPGPU.pointFragmentShader
+            }
+            else if(pkgFragmentShaderSel.value == "plane"){
+                currentPkg.fragmentShader = gpgputs.GPGPU.planeFragmentShader
+            }
+            else{
+                throw new Error();
+            }
 
             pkgEditDlg.close();
 
@@ -701,6 +720,7 @@ export function openSimulationDlg(act: Simulation){
     simParamsInp.value = sim.params;
     sim.disable();
     simEditDlg.showModal();
+    makeGraph();
 }
 
 export function Factorize(cnt: number){
@@ -1079,124 +1099,185 @@ function ArrowTubePkg(){
     } as unknown as PackageInfo;
 }
 
-let EMWave = `
+function SurfacePkg(){
+    return {
+        params          : "",
+        numInputFormula : "cnt * 2",
+        mode            : "TRIANGLE_STRIP",
+        fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+        vertexShader    : `
 
-precision highp sampler3D;
+        ${headShader}
+        
+        uniform int   tick;
+        
+        uniform sampler2D inPos;
+        
+        ${PseudoColor}
+        
+        void main(void) {
+            int sx  = textureSize(inPos, 0).x;
+            int sy  = textureSize(inPos, 0).y;
 
-uniform int   tick;
-    
-uniform sampler3D inE;
-uniform sampler3D inH;
-out vec3 outPos;
-out vec3 outE;
-out vec3 outH;
-
-#define PI 3.14159265359
-
-#define mu0      1.25663706212e-06
-#define epsilon0 8.854187812799999e-12
-#define c0       299792458
-
-vec3 calcRot(int flag, vec3 E, vec3 H, int i, int j, int k){
-    if(flag == 1){
-        vec3 Ei = E;
-        vec3 Ej = E;
-        vec3 Ek = E;
-
-        if(i + 1 < @{sx}){
-
-            Ei = vec3(texelFetch(inE, ivec3(i + 1, j    , k    ), 0));
-        }
-
-        if(j + 1 < @{sy}){
-
-            Ej = vec3(texelFetch(inE, ivec3(i    , j + 1, k    ), 0));
-        }
-
-        if(k + 1 < @{sz}){
-
-            Ek = vec3(texelFetch(inE, ivec3(i    , j    , k + 1), 0));
-        }
-
-        float rx = (Ej.z - E.z) - (Ek.y - E.y);
-        float ry = (Ek.x - E.x) - (Ei.z - E.z);
-        float rz = (Ei.y - E.y) - (Ej.x - E.x);
-
-        return vec3(rx, ry, rz);
-    }
-    else{
-
-        vec3 Hi = H; 
-        vec3 Hj = H; 
-        vec3 Hk = H; 
-
-        if(0 <= i - 1){
-
-            Hi = vec3(texelFetch(inH, ivec3(i - 1, j    , k    ), 0));
-        }
-
-        if(0 <= j - 1){
-
-            Hj = vec3(texelFetch(inH, ivec3(i    , j - 1, k    ), 0));
-        }
-
-        if(0 <= k - 1){
-
-            Hk = vec3(texelFetch(inH, ivec3(i    , j    , k - 1), 0));
-        }
-
-        float rx = (H.z - Hj.z) - (H.y - Hk.y);
-        float ry = (H.x - Hk.x) - (H.z - Hi.z);
-        float rz = (H.y - Hi.y) - (H.x - Hj.x);
-
-        return vec3(rx, ry, rz);
+            int idx = int(gl_VertexID);
+        
+            int ip  = idx % 2;
+            idx    /= 2;
+        
+            int col  = idx % sx;
+            int row  = idx / sx;
+            if(ip == 1 && row + 1 < sy){
+                row++;
+            }
+        
+            vec3 pos = vec3(texelFetch(inPos, ivec2(col, row), 0));
+        
+            vec3 x1 = pos, x2 = pos;
+            vec3 y1 = pos, y2 = pos;
+        
+            if(0 <= col - 1){
+                x1 = texelFetch(inPos, ivec2(col - 1, row), 0).xyz;
+            }
+            if(col + 1 < sx){
+                x2 = texelFetch(inPos, ivec2(col + 1, row), 0).xyz;
+            }
+            if(0 <= row - 1){
+                y1 = texelFetch(inPos, ivec2(col, row - 1), 0).xyz;
+            }
+            if(row + 1 < sy){
+                y2 = texelFetch(inPos, ivec2(col, row + 1), 0).xyz;
+            }
+        
+            vec3 nrm = normalize(cross(x2 - x1, y2 - y1));
+        
+            fragmentColor = vec4(PseudoColor(-0.01, 0.01, pos.z), 1.0);
+        
+            gl_Position = uPMVMatrix * vec4(pos, 1.0);
+        
+            float directionalLightWeighting = max(dot(nrm, uLightingDirection), 0.0);
+            vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+        }`
     }
 }
 
+
+//--------------------------------------------------
+// 疑似カラー
+//--------------------------------------------------
+
+const PseudoColor = `
+vec3 PseudoColor(float min_val, float max_val, float val){
+    float f = (max(min_val, min(max_val, val)) - min_val) / (max_val - min_val);
+
+    vec3 col;
+    if(f < 0.25){
+        col.r = 0.0;
+        col.g = f / 0.25;
+        col.b = 1.0;
+    }
+    else if(f < 0.5){
+        col.r = 0.0;
+        col.g = 1.0;
+        col.b = (0.5 - f) / 0.25;
+    }
+    else if(f < 0.75){
+        col.r = (f - 0.5) / 0.25;
+        col.g = 1.0;
+        col.b = 0.0;
+    }
+    else {
+        col.r = 1.0;
+        col.g = (1.0 - f) / 0.25;
+        col.b = 0.0;
+    }
+
+    return col;
+}
+`;
+
+
+let userShader = `
+uniform int   tick;
+    
+uniform sampler2D inPos;
+uniform sampler2D inVel;
+out vec3 outPos;
+out vec3 outVel;
+
+#define PI 3.14159265359
+
+${PseudoColor}
+
 void main(void) {
-    float L = 3.2 / float(max(@{sx}, max(@{sy},@{sz})));
-    float K = float(@{K});
+    int sz = textureSize(inPos, 0).x;
+    float L = 3.2 / float(sz);
+    float K = 0.2;
 
     int idx = int(gl_VertexID);
 
-    int col  = idx % @{sx};
-    idx     /= @{sx};
+    int col  = idx % sz;
+    int row  = idx / sz;
 
-    int row  = idx % @{sy};
-    int dep  = idx / @{sy};
+    vec3 vel = vec3(0.0, 0.0, 0.0);
 
-    float x = float(col - @{sx}/2) * L;
-    float y = float(row - @{sy}/2) * L;
-    float z = float(dep - @{sz}/2) * L;
+    float x = -1.6 + float(col) * L;
+    float y = -1.6 + float(row) * L;
+    float z = 0.0;
 
-    vec3 E, H;
+    if(row == sz / 2 && col == sz / 2){
 
-    if(tick == 0){
-        E = vec3(0.0, 0.0, 0.0);
-        H = vec3(0.0, 0.0, 0.0);
+        z = 0.2 * cos(float(tick) / 100.0);
     }
-    else{    
-        E = vec3(texelFetch(inE, ivec3(col, row, dep), 0));
-        H = vec3(texelFetch(inH, ivec3(col, row, dep), 0));
-    
-        if(tick % 2 == 0){
+    else if(col == 0 || row == 0 || col == sz - 1 || row == sz - 1){
+        z = 0.0;
+    }
+    else{
+        if(tick == 0){
 
-            vec3 rotH = calcRot(0, E, H, col, row, dep);
-            E = E + K * rotH;
         }
         else{
-            vec3 rotE = calcRot(1, E, H, col, row, dep);
-            H = H - rotE;
+
+            vec3 p  = texelFetch(inPos, ivec2(col, row), 0).xyz;
+            vel     = texelFetch(inVel, ivec2(col, row), 0).xyz;
+
+            float sum_a = 0.0;
+            for(int i = 0; i < 4; i++){
+                int col1 = col, row1 = row;
+
+                switch(i){
+                case 0: col1--; break;
+                case 1: col1++; break;
+                case 2: row1--; break;
+                case 3: row1++; break;
+                }
+
+                if(col1 < 0 || row1 < 0 || col1 == sz || row1 == sz){
+                    continue;
+                }
+
+                vec3 p1 = texelFetch(inPos, ivec2(col1, row1), 0).xyz;
+
+                float l1 = length(p1 - p);
+                l1 = sqrt(2.0 * L * L + (p1.z - p.z) * (p1.z - p.z));
+                float f1 = K * (l1 - L);
+                float a1 = f1 * ((p1.z - p.z) / l1);
+
+                if(isnan(a1)){
+                    continue;
+                }
+                
+                sum_a += a1;
+            }
+
+            vel.z += sum_a;
+
+            z = p.z + vel.z;
+            // z = p.z;
         }
     }
 
-    if(col == @{sx} / 2 && row == @{sy} / 2 && dep == @{sz} / 2){
-        E.z += 0.01 * sin(2.0 * PI * float(tick) / 200.0);
-    }
-
-    outPos = vec3(x, y, z);
-    outE   = E;
-    outH   = H;
+    outPos        = vec3(x, y, z);
+    outVel        = vel;
 }
 `
 }

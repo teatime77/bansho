@@ -1,38 +1,4 @@
 
-//--------------------------------------------------
-// 疑似カラー
-//--------------------------------------------------
-
-const PseudoColor = `
-vec3 PseudoColor(float min_val, float max_val, float val){
-    float f = (max(min_val, min(max_val, val)) - min_val) / (max_val - min_val);
-
-    vec3 col;
-    if(f < 0.25){
-        col.r = 0.0;
-        col.g = f / 0.25;
-        col.b = 1.0;
-    }
-    else if(f < 0.5){
-        col.r = 0.0;
-        col.g = 1.0;
-        col.b = (0.5 - f) / 0.25;
-    }
-    else if(f < 0.75){
-        col.r = (f - 0.5) / 0.25;
-        col.g = 1.0;
-        col.b = 0.0;
-    }
-    else {
-        col.r = 1.0;
-        col.g = (1.0 - f) / 0.25;
-        col.b = 0.0;
-    }
-
-    return col;
-}
-`;
-
 
 //--------------------------------------------------
 // 線の矢印
@@ -74,7 +40,7 @@ void main(void) {
 }
 
 function ArrowLine(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
-    let [ sy, sx ] = bansho.Factorization(cnt);
+    let [ sy, sx ] = bansho.Factorize(cnt);
     console.log(`因数分解 ${cnt} = ${sy} x ${sx}`);
 
     let dr2 = new gpgputs.UserDef(bansho.gl.LINES, ArrowLineShader(sx, r, g, b), gpgputs.GPGPU.pointFragmentShader, 
@@ -97,7 +63,7 @@ function ArrowLine(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
 //--------------------------------------------------
 
 function Arrow3D(gpgpu, dr1, pos_name, vec_name, cnt, r, g, b){
-    let [ sy, sx ] = bansho.Factorization(cnt);
+    let [ sy, sx ] = bansho.Factorize(cnt);
     console.log(`3D矢印 因数分解 ${cnt} = ${sy} x ${sx}`);
 
     const npt = 9;
@@ -426,7 +392,7 @@ void main(void) {
 
 
 function Arrow1D(gpgpu, dr1, pos_name, dr2, vec_name, cnt){
-    let [ sy, sx ] = bansho.Factorization(cnt);
+    let [ sy, sx ] = bansho.Factorize(cnt);
     console.log(`3D矢印 因数分解 ${cnt} = ${sy} x ${sx}`);
 
     let dr3 = new gpgputs.UserDef(bansho.gl.LINES, Arrow1DShader, gpgputs.GPGPU.pointFragmentShader, {
@@ -878,7 +844,7 @@ uniform int   tick;
 
 uniform sampler2D inPos;
 
-${PseudoColor}
+${bansho.PseudoColor}
 
 void main(void) {
     int idx = int(gl_VertexID);
@@ -932,7 +898,7 @@ out vec3 outVel;
 
 #define PI 3.14159265359
 
-${PseudoColor}
+${bansho.PseudoColor}
 
 void main(void) {
     int sz = textureSize(inPos, 0).x;
