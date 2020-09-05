@@ -460,11 +460,21 @@ function makeDot(index: IndexFile, map: any){
 }
 
 function getFileList(){
-    fetchDB(`${indexFile.maps[0].id}`, (id: string | null, data:any)=>{
-        let obj = JSON.parse(data.text);
-        makeDot(indexFile, obj);
-        // initEdges(obj.edges);
-    });
+    if(Glb.isLocal){
+
+        fetchText(`json/${indexFile.maps[0].id}.json`, (text: string)=>{
+            let obj = JSON.parse(text);
+            makeDot(indexFile, JSON.parse(obj.text));
+        });
+    }
+    else{
+
+        fetchDB(`${indexFile.maps[0].id}`, (id: string | null, data:any)=>{
+            let obj = JSON.parse(data.text);
+            makeDot(indexFile, obj);
+            // initEdges(obj.edges);
+        });
+    }
 
 }
 
@@ -508,7 +518,18 @@ export function initGraph(){
         blocks.push(box);
     }
 
-    initFirebase(getFileList);
+    if(Glb.isLocal){
+        fetchText("json/index.json", (text: string)=>{
+            indexFile = JSON.parse(text);
+            getFileList();
+        });
+    }
+    else{
+
+        initFirebase(getFileList);
+    }
+
+
 }
 
 function showHtml(file_name: string, id: string){

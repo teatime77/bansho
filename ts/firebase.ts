@@ -235,6 +235,7 @@ export function fetchDB(id: string, fnc:(data_id: string | null, data: any)=>voi
     db.collection('users').doc(guestUid).collection('docs').doc(id).get()
     .then(function(doc) {
         if (doc.exists) {
+            console.assert(doc.id == id);
             let data = doc.data();
             fnc(doc.id, data);
         } else {

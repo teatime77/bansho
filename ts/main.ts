@@ -7,6 +7,7 @@ export let glb: Glb;
 export class Glb {
     static edit: boolean;
     static svgGraph: SVGSVGElement;
+    static isLocal : boolean = window.location.href.includes("://127.0.0.1:8080") || window.location.href.includes("://localhost:");
     docID   : number = NaN;
     widgets : Widget[] = [];
     widgetMap : Widget[] = [];
@@ -40,6 +41,7 @@ export class Glb {
 
     constructor(edit: boolean){
         Glb.edit     = edit;
+
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
         this.tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
@@ -315,12 +317,23 @@ export class Glb {
     }
     
     openDoc(path: string){
-        fetchDB(path, (id: string | null, data: any)=>{
-            console.assert(path == id);
-            glb.docID = parseInt(id!);
-            console.assert( ! isNaN(glb.docID) );
-            this.initDoc(JSON.parse(data.text));
-        });
+        if(Glb.isLocal){
+
+            fetchText(`json/${path}.json`, (text: string)=>{
+                glb.docID = parseInt(path);
+                console.assert( ! isNaN(glb.docID) );
+                let data = JSON.parse(text);
+                this.initDoc(JSON.parse(data.text));
+            });
+        }
+        else{
+
+            fetchDB(path, (id: string | null, data: any)=>{
+                glb.docID = parseInt(id!);
+                console.assert( ! isNaN(glb.docID) );
+                this.initDoc(JSON.parse(data.text));
+            });    
+        }
         // fetchText(`json/${path}.json`, (text: string)=>{
         // });
     }
@@ -607,7 +620,17 @@ export function initEdit(){
 
     initBinder();
 
-    initFirebase(showFileList);
+    console.log(`window.location.href : ${window.location.href}`);
+    if(Glb.isLocal){
+        fetchText("json/index.json", (text: string)=>{
+            indexFile = JSON.parse(text);
+            showFileList();
+        });
+    }
+    else{
+
+        initFirebase(showFileList);
+    }
 }
 
 export function initPlay(){
@@ -621,13 +644,22 @@ export function initPlay(){
 
     initDraw();
 
-    initFirebase(()=>{
-        let id = getIdFromUrl();
-        if(id != ""){
+    let doc_id = getIdFromUrl();
+    if(doc_id != ""){
+
+        if(Glb.isLocal){
+            fetchText("json/index.json", (text: string)=>{
+                indexFile = JSON.parse(text);
+                glb.openDoc(doc_id);
+            });
+        }
+        else{
     
-            glb.openDoc(id);
-        }    
-    });
+            initFirebase(()=>{
+                glb.openDoc(doc_id);
+            });
+        }
+    }
 }
 
 export function onClickPointerMove(act:TextBlock, ev: PointerEvent | MouseEvent, is_click: boolean){
