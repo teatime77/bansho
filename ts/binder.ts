@@ -131,11 +131,16 @@ export class PackageInfo {
     vertexShader!    : string;
     fragmentShader   : string = gpgputs.GPGPU.minFragmentShader;
 
-    static cnt = 0;
     static newObj() : PackageInfo {
+        // 空き番を探す。
+        let id_num = 0;
+        while(sim.packageInfos.some(x => x.id == `pkg_${id_num}`)){
+            id_num++;
+        }
+
         return {
             typeName        : PackageInfo.name,
-            id              : `pkg_${PackageInfo.cnt++}`,
+            id              : `pkg_${id_num}`,
             params          : "",
             numInputFormula : "",
             numGroup        : undefined,
@@ -654,6 +659,23 @@ function setBinderEvent(){
 
             makeGraph();
         }
+    });
+
+    getElement("pkg-edit-del").addEventListener("click", (ev: MouseEvent)=>{
+        pkgEditDlg.close();
+
+        // パッケージを削除する。
+        removeArrayElement(sim.packageInfos, currentPkg);
+        
+        // パッケージ内の変数を削除する。
+        sim.varsAll = sim.varsAll.filter(x => x.package != currentPkg);
+
+        // パッケージ内の変数へのバインドを削除する。
+        sim.varsAll.forEach(x => {
+            x.dstVars = x.dstVars.filter(y => y.package != currentPkg);
+        });
+
+        makeGraph();
     });
 
     //-------------------------------------------------- テクスチャ編集画面

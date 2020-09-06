@@ -407,4 +407,40 @@ export function fetchFileList(fnc:(obj: any)=>void){
 
 }
 
+//--------------------------------------------------
+//  グラフ
+//--------------------------------------------------
+
+export function setGraphEventListener(){
+    getElement("new-map").addEventListener("click", (ev: MouseEvent)=>{
+        newMap();
+    });
+
+    getElement("get-map").addEventListener("click", (ev: MouseEvent)=>{
+        let map_id = parseInt(mapSel.value);
+        if(!isNaN(map_id)){
+            getMap(map_id);
+        }
+    });
+
+    getElement("put-map").addEventListener("click", (ev: MouseEvent)=>{
+        putMap();
+    });
+
+    getElement("del-map").addEventListener("click", (ev: MouseEvent)=>{
+        delMap();
+    });
+
+    getElement("show-map-dlg").addEventListener("click", (ev: MouseEvent)=>{
+        showMapDlg();
+    });
+
+    getElement("map-dlg-cancel").addEventListener("click", (ev: MouseEvent)=>{
+        mapDlg.close();
+    });
+
+    getElement("map-dlg-ok").addEventListener("click", (ev: MouseEvent)=>{
+        mapDlgOk();
+    });
+}
 }

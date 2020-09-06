@@ -43,7 +43,7 @@ let SymbolTable : Array<string> = new  Array<string> (
 let ReservedWords = [ 
     "if", "else", "return", "for", "while", "break", "continue",
     "in", "out", "uniform", "precision", "highp", 
-    "gl_Position", "gl_PointSize", "texelFetch", "sin", "cos", "sign", "abs",
+    "tick", "gl_Position", "gl_PointSize", "texelFetch", "sin", "cos", "sign", "abs",
 ];
 
 let TypeNames = [ "bool", "int", "float", "vec2", "vec3", "vec4", "void", "sampler2D", "sampler3D", "mat3", "mat4" ];
@@ -339,73 +339,109 @@ function setChar(sel: Selection, div: HTMLDivElement, col: number){
     }
 }
 
+let pasted : boolean = false;
 
 export function initCodeEditor(){
+    pkgVertexShaderDiv.addEventListener("paste", (ev: ClipboardEvent)=>{
+        console.log("paste");
+        pasted = true;
+    });
+
     pkgVertexShaderDiv.addEventListener("input",function(){
-        let sel = window.getSelection()!;
-        let rng = sel.getRangeAt(0);
-        let div1;
-        for(let nd = rng.startContainer as ChildNode;; nd = nd.parentElement!){
-            if(nd == pkgVertexShaderDiv){
-                break;
-            }
-            if(nd.nodeName == "DIV"){
-                div1 = nd;
-            }
+        console.log("input");
+
+        if(pasted){
+            pasted = false;
+            setTimeout(onCodeInput, 1);
         }
-        console.log(`input ${sel.rangeCount} rng:[${rng}] ` );
-        for(let nd of pkgVertexShaderDiv.childNodes){
-
-            if(nd.nodeType == Node.TEXT_NODE){
-
-                console.log(`  ${nd.nodeName} ${nd.nodeValue!.trim()}` );            
-            }
-            else{
-                if(nd.nodeName == "DIV"){
-                    let div = nd as HTMLDivElement;
-                    if(div.innerHTML == "" || div.innerHTML == "<br>"){//  || div.innerHTML == "<span><br></span>"
-                        continue;
-                    }
-                    if(div.childNodes.length == 1 && div.childNodes[0].nodeName == "SPAN"){
-                        let span = div.childNodes[0] as HTMLSpanElement;
-                        if(span.childNodes.length == 1 && span.childNodes[0].nodeName == "BR"){
-                            continue;
-                        }
-                    }
-
-                    let col = undefined;
-                    if(nd == div1){
-                        col = charIdx(div, rng, 0);
-                    }
-
-                    let tokens = Lex(div.textContent!);
-                    div.innerHTML = "";
-
-                    for(let token of tokens){
-                        if(token.typeTkn == TokenType.newLine){
-                        
-                            // let br = document.createElement("br");
-                            // div.appendChild(br);
-                        }
-                        else {
-                            addTokenNode(div, token);
-                        }
-                    }
-                    console.log(`  ${tokens.map(x => `[${x.typeTkn} ${x.typeTkn == TokenType.newLine ? "NL" : x.text}]`).join(" ")}` );
-
-                    if(col != undefined){
-
-                        sel.removeAllRanges();
-                        setChar(sel, div, col);
-                    }
-
-                    // console.log(`  ${div.tagName} col:${col}   [${div.textContent}] [${div.innerHTML} ] ` );
-                }
-            }
+        else{
+            onCodeInput();
         }
     });
 }
 
+function onCodeInput(){
+    console.log("code format");
+
+    let sel = window.getSelection()!;
+    let rng = sel.getRangeAt(0);
+    let div1;
+    for(let nd = rng.startContainer as ChildNode;; nd = nd.parentElement!){
+        if(nd == pkgVertexShaderDiv){
+            break;
+        }
+        if(nd.nodeName == "DIV"){
+            div1 = nd;
+        }
+    }
+    console.log(`input ${sel.rangeCount} rng:[${rng}] ` );
+    for(let div of pkgVertexShaderDiv.children){
+        if(div.nodeName == "DIV" && div.firstChild != null && div.firstChild.nodeName == "SPAN"){
+            let span = div.firstChild;
+            if(span.firstChild != null && span.firstChild.nodeName == "DIV"){
+                console.log("お引っ越し");
+                let next_nd = div.nextSibling;
+                while(span.firstChild != null){
+                    let nd = span.firstChild;
+                    span.removeChild(nd);
+                    pkgVertexShaderDiv.insertBefore(nd, next_nd);
+                }
+
+                break;
+            }
+        }
+    }
+
+    for(let nd of pkgVertexShaderDiv.childNodes){
+
+        if(nd.nodeType == Node.TEXT_NODE){
+
+            console.log(`  ${nd.nodeName} ${nd.nodeValue!.trim()}` );            
+        }
+        else{
+            if(nd.nodeName == "DIV"){
+                let div = nd as HTMLDivElement;
+                if(div.innerHTML == "" || div.innerHTML == "<br>"){//  || div.innerHTML == "<span><br></span>"
+                    continue;
+                }
+                if(div.childNodes.length == 1 && div.childNodes[0].nodeName == "SPAN"){
+                    let span = div.childNodes[0] as HTMLSpanElement;
+                    if(span.childNodes.length == 1 && span.childNodes[0].nodeName == "BR"){
+                        continue;
+                    }
+                }
+
+                let col = undefined;
+                if(nd == div1){
+                    col = charIdx(div, rng, 0);
+                }
+
+                let tokens = Lex(div.textContent!);
+                div.innerHTML = "";
+
+                for(let token of tokens){
+                    if(token.typeTkn == TokenType.newLine){
+                    
+                        // let br = document.createElement("br");
+                        // div.appendChild(br);
+                    }
+                    else {
+                        addTokenNode(div, token);
+                    }
+                }
+                // console.log(`  ${tokens.map(x => `[${x.typeTkn} ${x.typeTkn == TokenType.newLine ? "NL" : x.text}]`).join(" ")}` );
+
+                if(col != undefined){
+
+                    sel.removeAllRanges();
+                    setChar(sel, div, col);
+                }
+
+                // console.log(`  ${div.tagName} col:${col}   [${div.textContent}] [${div.innerHTML} ] ` );
+            }
+        }
+    }
+}
 
 class Term {
     calc(values: { [name: string]: number }) : number {

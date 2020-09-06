@@ -7,7 +7,7 @@ export let glb: Glb;
 export class Glb {
     static edit: boolean;
     static svgGraph: SVGSVGElement;
-    static isLocal : boolean = window.location.href.includes("://127.0.0.1:8080") || window.location.href.includes("://localhost:");
+    static getJsonFile : boolean;
     docID   : number = NaN;
     widgets : Widget[] = [];
     widgetMap : Widget[] = [];
@@ -39,9 +39,7 @@ export class Glb {
     eventPos!: Vec2;
     orgPos!: Vec2;
 
-    constructor(edit: boolean){
-        Glb.edit     = edit;
-
+    constructor(){
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
         this.tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
@@ -317,7 +315,7 @@ export class Glb {
     }
     
     openDoc(path: string){
-        if(Glb.isLocal){
+        if(Glb.getJsonFile){
 
             fetchText(`json/${path}.json`, (text: string)=>{
                 glb.docID = parseInt(path);
@@ -587,7 +585,7 @@ export function putData(is_new: boolean){
     const text = JSON.stringify(obj, null, 4);
 
     putNewDoc(is_new, title, text, ()=>{
-        console.log(`put new doc ${title}`);
+        alert(`保存しました。 ${title}`);
     })
 }
 
@@ -607,10 +605,25 @@ function getIdFromUrl(){
     }
 }
 
+export function initBansho(edit: boolean){
+    Glb.edit     = edit;
+
+    let href = window.location.href;
+
+    Glb.getJsonFile = href.includes("://127.0.0.1:8080") || href.includes("://ban-sho.web.app/");
+}
+
 export function initEdit(){
     console.log("body load");
+
+    initBansho(true);
+    Glb.edit     = true;
+    if(Glb.getJsonFile){
+        getElement("get-json-file").style.display = "inline";
+    }
+
     
-    glb = new Glb(true);
+    glb = new Glb();
 
     initSpeech();
 
@@ -621,7 +634,7 @@ export function initEdit(){
     initBinder();
 
     console.log(`window.location.href : ${window.location.href}`);
-    if(Glb.isLocal){
+    if(Glb.getJsonFile){
         fetchText("json/index.json", (text: string)=>{
             indexFile = JSON.parse(text);
             showFileList();
@@ -635,8 +648,10 @@ export function initEdit(){
 
 export function initPlay(){
     console.log("body load");
+
+    initBansho(false);
     
-    glb = new Glb(false);
+    glb = new Glb();
 
     initSpeech();
 
@@ -647,7 +662,7 @@ export function initPlay(){
     let doc_id = getIdFromUrl();
     if(doc_id != ""){
 
-        if(Glb.isLocal){
+        if(Glb.getJsonFile){
             fetchText("json/index.json", (text: string)=>{
                 indexFile = JSON.parse(text);
                 glb.openDoc(doc_id);

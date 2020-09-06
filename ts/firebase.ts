@@ -16,10 +16,9 @@ let guestUid = defaultUid;
 
 export let indexFile: IndexFile;
 
-class Doc {
-    ctime  : number = 0;
-    mtime  : number = 0;
-    text   : string = "";
+export class Doc {
+    // title   : string = "";
+    // widgets : Widget[] = [];
 }
 
 class TextFile {
@@ -30,7 +29,7 @@ class TextFile {
     }
 }
 
-class FileInfo {
+export class FileInfo {
     id!    : number;
     title! : string;
 }

@@ -70,7 +70,24 @@ window.MathJax = {
 <body onload="bansho.initGraph()">
 <h1 style="text-align:center">数学・物理・AIの依存関係のグラフ</h1>
 
-<button id="save-graph" style="display: none;">保存</button>
+<div id="map-edit" style="display: none;">
+    <select id="map-sel" size="1" style="width: 8em;"></select>
+    <input id="map-title" type="text" style="width: 8em;" spellcheck="false" />
+
+    <button id="new-map" >新規</button>
+    <button id="get-map" >開く</button>
+    <button id="put-map" >保存</button>
+    <button id="del-map" >削除</button>
+    <button id="show-map-dlg" >一覧</button>
+    <button id="save-graph">保存</button>
+</div>
 <br/>
+<div id="map-div"></div>
+
+<dialog id="map-dlg">
+<table id="map-tbl" ></table>
+<button id="map-dlg-cancel">Cancel</button>
+<button id="map-dlg-ok">OK</button>
+</dialog>
 </body>
 </html>

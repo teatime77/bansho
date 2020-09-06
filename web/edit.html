@@ -116,6 +116,7 @@ input[type="radio"]:checked + label {
 <body onload="bansho.initEdit()">
 <div style="display: grid; grid-template-rows:110px 100px 50px 1fr; grid-template-columns:150px 1fr 300px 200px; width: 100%; height: 100%;">
     <div style="grid-row: 1; grid-column: 1/span 4; background-color: cornsilk; ">
+        <b id="get-json-file" style="color: red; display: none;">JSON</b>
         <button id="add-shape" >図形を挿入</button>
         <select id="sample-3d" style="width: 8em;">
         </select>
@@ -220,6 +221,7 @@ GPGPUのパッケージの編集
     </div>
     <button id="pkg-edit-cancel">Cancel</button>
     <button id="pkg-edit-ok">OK</button>
+    <button id="pkg-edit-del" style="float: right;" >削除</button>
 </dialog>
 
 <dialog id="tex-edit-dlg">

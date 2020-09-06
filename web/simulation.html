@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8" />
+<title>物理シミュレーション</title>
+
+<style type="text/css">
+h1, h2, h3, p {
+    text-align:center;
+}
+
+.play {
+    font-family: 'Segoe UI Emoji'; 
+    font-size: 16pt;
+}
+.d1 {
+    font-weight: 900;
+}
+.p1 {
+    text-align:center;
+    font-size: 16pt;
+}
+
+.im1 {
+    width: 128px;
+    height: 128px;
+}
+
+</style>
+    
+</head>
+
+<body>
+<h1 style="text-align:center">物理シミュレーション</h1>
+
+<p class="p1">
+    図をクリックするとアプリが表示されます。<br/>
+</p>
+
+
+
+<div style="display: flex;">
+    <canvas id="webgl-canvas" style="border: none;" width="512" height="512"></canvas>
+    <table>
+        <tr>
+            <td><a href="play.html?id=196" target="_blank" > <img class="im1" src="img/196.png" /> </a></td>
+            <td class="d1"><a href="play.html?id=196" target="_blank" >多体問題</a></td>
+            <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+            <td><a href="play.html?id=189" target="_blank" > <img class="im1" src="img/189.png" /> </a></td>
+            <td class="d1"><a href="play.html?id=189" target="_blank" >弾性衝突</a></td>
+        </tr>
+        <tr>
+            <td><a href="play.html?id=188" target="_blank" > <img class="im1" src="img/188.png" /> </a></td>
+            <td class="d1"><a href="play.html?id=188" target="_blank" >重力と弾性衝突</a></td>
+            <td></td>
+            <td><a href="play.html?id=187" target="_blank" > <img class="im1" src="img/187.png" /> </a></td>
+            <td class="d1"><a href="play.html?id=187" target="_blank" >バスタブ渦</a></td>
+        </tr>
+        <tr>
+            <td><a href="play.html?id=194" target="_blank" > <img class="im1" src="img/194.png" /> </a></td>
+            <td><a href="play.html?id=194" target="_blank" > 弦の振動 </a></td>
+            <td></td>
+            <td><a href="play.html?id=195" target="_blank" > <img class="im1" src="img/195.png" /> </a></td>
+            <td class="d1"><a href="play.html?id=195" target="_blank" >面の振動</a></td>
+        </tr>
+        <tr>
+            <td><a href="play.html?id=199" target="_blank" > <img class="im1" src="img/199.png" /> </a></td>
+            <td class="d1"><a href="play.html?id=199" target="_blank" >2次元の流体力学 <br/> ( 格子ボルツマン法 )</a></td>
+            <td></td>
+            <td><a href="play.html?id=200" target="_blank" > <img class="im1" src="img/200.png" /> </a></td>
+            <td class="d1"><a href="play.html?id=200" target="_blank" >3次元の流体力学 <br/> ( 格子ボルツマン法 )</a></td>
+        </tr>
+        <tr>
+            <td><a href="play.html?id=193" target="_blank" > <img class="im1" src="img/193.png" /> </a></td>
+            <td class="d1"><a href="play.html?id=193" target="_blank" >マクスウェルの方程式の電磁波 <br/> ( FDTD法 )</a></td>
+        </tr>
+    </table>
+</div>
+
+<p class="p1">
+    JavaScriptのWebGLを使いGPU(グラフィックス プロセッシング ユニット)で数値計算をしています。<br/>
+    詳細は私が書いた以下のQiitaの記事をご覧ください。<br/>
+
+    <a href="https://qiita.com/teatime77/items/e867d7d462cb553b373d">JavaScriptのWebGL 2.0でGPGPU</a>
+
+</p>
+
+</body>
+</html>

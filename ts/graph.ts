@@ -6,13 +6,25 @@ declare var Viz: any;
 
 const padding = 10;
 
+export let mapSel   : HTMLSelectElement;
+let mapTitle : HTMLInputElement;
+export let mapDlg : HTMLDialogElement;
+let mapTbl : HTMLTableElement;
+let mapDiv : HTMLDivElement;
+
 var dom_list : (HTMLElement | SVGSVGElement)[] = [];
 let blocks: TextBox[] = [];
 let srcBox: TextBox | null = null;
-let docMap: { [id: string]: any };
+let docMap: { [id: string]: FileInfo };
 let edgeMap: { [id: string]: any };
 let skipIds = [ 182, 1, 8, 154, 155, 153, -100, -101, -102 ];
 let skipIds2 = skipIds.map(x => `${x}`);
+
+let mapDocs : FileInfo[] = [];
+let mapDocsTmp : FileInfo[];
+let mapEdges: Edge[] = [];
+let srcDoc : FileInfo | null = null;
+let srcG : SVGElement;
 
 function makeTexTextHtml(text: string){
     let lines : string[] = [];
@@ -46,7 +58,7 @@ function makeDiv(text: string, box: TextBox|null){
     return ele;
 }
 
-function add_node_rect(svg1: SVGSVGElement, nd: any, block: TextBox|null, edge: Edge|null){
+function add_node_rect(svg1: SVGSVGElement, nd: any, block: TextBox|null, edge: EdgeOLD|null){
     var rc = document.createElementNS("http://www.w3.org/2000/svg","rect");
     rc.setAttribute("x", "" + (nd.x - nd.width/2));
     rc.setAttribute("y", "" + (nd.y - nd.height/2));
@@ -105,7 +117,7 @@ function add_edge(svg1: SVGSVGElement, ed: any){
     path.setAttribute("d", d);
     path.style.cursor = "pointer";
 
-    var edge = ed.edge as Edge;
+    var edge = ed.edge as EdgeOLD;
     edge.paths.push(path);
 
     path.addEventListener("click", edge.onClickEdge);
@@ -138,7 +150,7 @@ export function get_size(div: HTMLDivElement){
     // return [max_x - min_x, max_y - min_y]
 }
 
-function make_node(g: any, ele: HTMLDivElement, id:string, block: TextBox|null, edge: Edge|null){
+function make_node(g: any, ele: HTMLDivElement, id:string, block: TextBox|null, edge: EdgeOLD|null){
     var width, height;
     [width, height] = get_size(ele);
     ele!.style.width  = (width + 2 * padding) + "px";
@@ -209,7 +221,7 @@ function ontypeset(blocks: TextBox[], svg1: SVGSVGElement){
             nd.block.rect = rc;
         }
         else{
-            (nd.edge as Edge).rect = rc;
+            (nd.edge as EdgeOLD).rect = rc;
         }
     });
 
@@ -258,6 +270,12 @@ function showGraph(){
 }
 
 class Edge {
+    srcId!: number;
+    dstId!: number;
+    label!: string;
+}
+
+class EdgeOLD {
     srcId: number;
     dstId: number;
     label: string;
@@ -289,13 +307,13 @@ class Edge {
 
 class TextBox {
     id!: number;
-    inputs: Edge[];
+    inputs: EdgeOLD[];
     text: string;
 
     ele: HTMLDivElement | null = null;
     rect: SVGRectElement|null = null;
     
-    constructor(inputs: Edge[], text: string){
+    constructor(inputs: EdgeOLD[], text: string){
         this.inputs = inputs;
         this.text = text;
     }
@@ -328,7 +346,7 @@ class TextBox {
 
                 srcBox.rect!.setAttribute("stroke", "green");
 
-                this.inputs.push(new Edge(srcBox.id, this.id, ""));
+                this.inputs.push(new EdgeOLD(srcBox.id, this.id, ""));
 
                 srcBox = null;
 
@@ -367,7 +385,7 @@ function initEdges(edges: any[]){
         let box = blocks.find(x => x.id == dst_id);
         if(box instanceof TextBox){
 
-            box.inputs.push(new Edge(edge.srcId, dst_id, edge.label));
+            box.inputs.push(new EdgeOLD(edge.srcId, dst_id, edge.label));
         }
         else{
             console.assert(false);
@@ -377,21 +395,60 @@ function initEdges(edges: any[]){
     showGraph();
 }
 
-function setEvent(index: IndexFile, map: any){
-    for(let doc of index.docs){
+function setEvent(docs: FileInfo[], edges: Edge[]){
+    for(let doc of docs){
         if(skipIds.includes(doc.id) || skipIds2.includes(doc.id as unknown as string )){
             continue;
         }
         let box = getElement(`${doc.id}`);
         box.addEventListener("click", function(ev:MouseEvent){
+            if(! Glb.edit){
+                return;
+            }
+
             let doc1 = docMap[this.id];
             console.log(`click ${doc1.id} ${doc1.title}`);
 
-            window.open(`play.html?id=${doc1.id}`, '_blank');
+            let g = this as unknown as SVGGElement;
+            let ellipse : SVGEllipseElement;
+            for(let nd of g.childNodes){
+                console.log(`${nd.nodeName}`);
+                if(nd.nodeName == "ellipse"){
+
+                    ellipse = nd as SVGEllipseElement;
+                    break;
+                }
+            }
+            if(ev.ctrlKey){
+
+                if(srcDoc == null){
+
+                    srcDoc = doc1;
+                    srcG   = ellipse!;
+                    ellipse!.setAttribute("fill", "aqua");
+                }
+                else{
+                    let edge = {
+                        srcId: srcDoc.id,
+                        dstId: doc1.id,
+                        label: ""
+                    } as Edge;
+                    mapEdges.push(edge);
+                    makeDot(mapDocs, mapEdges, true);
+
+                    srcG.setAttribute("fill", "white");
+                    srcDoc = null;
+                }
+            }
+            else{
+
+                window.open(`play.html?id=${doc1.id}`, '_blank');
+            }
+
         });
     }
     
-    for(let edge of map.edges){
+    for(let edge of edges){
         if(skipIds.includes(edge.srcId) || skipIds.includes(edge.dstId)){
             continue;
         }
@@ -407,29 +464,40 @@ function setEvent(index: IndexFile, map: any){
     }
 }
 
-function makeDot(index: IndexFile, map: any){
-    let lines : string[] = [];
+function makeDot(docs: FileInfo[], edges: Edge[], all_docs: boolean){
+    let docLines : string[] = [];
+    let edgeLines : string[] = [];
 
     docMap = {};
-    for(let doc of index.docs){
-        if(skipIds.includes(doc.id) || skipIds2.includes(doc.id as unknown as string )){
-            continue;
+
+    if(all_docs){
+        for(let doc of docs){
+            docMap[`${doc.id}`] = doc;
+            docLines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}" ];` );
         }
-        if(doc.title == "図形サンプル"){
-            console.log("");
-        }
-        docMap["" + doc.id] = doc;
-        lines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}" ];` );
     }
 
     edgeMap = {};
-    for(let edge of map.edges){
+    for(let edge of edges){
         if(skipIds.includes(edge.srcId) || skipIds.includes(edge.dstId)){
             continue;
         }
+
+        for(let id of [edge.srcId, edge.dstId]){
+            if(docMap[`${id}`] == undefined){
+                let doc = docs.find(x => x.id == id);
+                if(doc == undefined){
+                    continue;
+                }
+
+                docMap[`${id}`] = doc;
+                docLines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}" ];` );
+            }
+        }
+
         let id = `${edge.srcId}:${edge.dstId}`;
         edgeMap[id] = edge;
-        lines.push(`b${edge.srcId} -> b${edge.dstId} [ id="${id}" ];`);
+        edgeLines.push(`b${edge.srcId} -> b${edge.dstId} [ id="${id}" ];`);
     }
 
     let dot = `
@@ -437,7 +505,8 @@ function makeDot(index: IndexFile, map: any){
         graph [
           charset = "UTF-8";
         ];
-        ${lines.join('\n')}
+        ${docLines.join('\n')}
+        ${edgeLines.join('\n')}
     }
     `;
 
@@ -446,8 +515,9 @@ function makeDot(index: IndexFile, map: any){
     // dot = 'digraph { a -> b }';
     viz.renderSVGElement(dot)
     .then(function(element: any) {
-        document.body.appendChild(element);
-        setEvent(index, map);
+        mapDiv.innerHTML = "";
+        mapDiv.appendChild(element);
+        setEvent(Object.values(docMap), edges);
     })
     .catch((error:any) => {
         // Create a new Viz instance (@see Caveats page for more info)
@@ -459,19 +529,19 @@ function makeDot(index: IndexFile, map: any){
 
 }
 
-function getFileList(){
-    if(Glb.isLocal){
+export function getMap(map_id: number){
+    if(Glb.getJsonFile){
 
-        fetchText(`json/${indexFile.maps[0].id}.json`, (text: string)=>{
+        fetchText(`json/${map_id}.json`, (text: string)=>{
             let obj = JSON.parse(text);
-            makeDot(indexFile, JSON.parse(obj.text));
+            makeDot(indexFile.docs, JSON.parse(obj.text).edges, false);
         });
     }
     else{
 
-        fetchDB(`${indexFile.maps[0].id}`, (id: string | null, data:any)=>{
+        fetchDB(`${map_id}`, (id: string | null, data:any)=>{
             let obj = JSON.parse(data.text);
-            makeDot(indexFile, obj);
+            makeDot(indexFile.docs, obj.edges, false);
             // initEdges(obj.edges);
         });
     }
@@ -494,8 +564,101 @@ function saveGraph(){
     writeTextFile("edges", text);
 }
 
+export function newMap(){
+}
+
+
+export function putMap(){
+}
+
+export function delMap(){
+}
+
+function setMapSel(){
+    if(indexFile.maps.length == 1 || ! Glb.edit){
+        getMap(indexFile.maps[0].id);
+    }
+    if(! Glb.edit){
+        return;
+    }
+
+    getElement("map-edit").style.display = "block";
+
+    indexFile.docs.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
+    let tr : HTMLTableRowElement;
+    mapTbl.innerHTML = "";
+
+    let ncol = 8;
+    let nrow = Math.ceil(indexFile.docs.length / ncol);
+    for(let row of range(nrow)){
+        tr = document.createElement("tr");
+        mapTbl.appendChild(tr);
+        for(let col of range(ncol)){
+            let idx = col * nrow + row;
+            if(indexFile.docs.length <= idx){
+                break;
+            }
+
+            let doc = indexFile.docs[idx];
+
+            let td = document.createElement("td");
+            td.id = `td-${doc.id}`;
+            td.addEventListener("click", function(ev: MouseEvent){
+                let id = parseInt(this.id.substring(3));
+                let doc2 = indexFile.docs.find(x => x.id == id)!;
+
+                if(mapDocsTmp.includes(doc2)){
+
+                    removeArrayElement(mapDocsTmp, doc2);
+                    this.style.backgroundColor = "white";
+                }
+                else{
+
+                    mapDocsTmp.push(doc2);
+                    this.style.backgroundColor = "lightgrey";
+                }
+
+            });
+            td.innerHTML = doc.title;
+
+
+            tr!.appendChild(td);
+    
+        }
+    }
+    
+    for(let map of indexFile.maps){
+        let opt = document.createElement("option");
+        opt.value = `${map.id}`;
+        opt.innerHTML = map.title;
+
+        mapSel.appendChild(opt);
+    }
+}
+
+export function showMapDlg(){
+    mapDocsTmp = mapDocs.slice();
+    mapDlg.showModal();
+}
+
+export function mapDlgOk(){
+    mapDlg.close();
+    mapDocs = mapDocsTmp;
+    makeDot(mapDocs, mapEdges, true);
+}
+
 export function initGraph(){
-    Glb.edit = (window.location.href.includes("?edit=true"));
+    console.log("body load");
+
+    initBansho(window.location.href.includes("?edit=true"));
+
+    mapSel = getElement("map-sel") as HTMLSelectElement;
+    mapTitle = getElement("map-title") as HTMLInputElement;
+    mapDiv = getElement("map-div") as HTMLDivElement;
+
+    mapDlg = getElement("map-dlg") as HTMLDialogElement;
+    mapTbl = getElement("map-tbl") as HTMLTableElement;
+
     msg(`init graph edit:${Glb.edit}`);
 
     let save_btn = document.getElementById("save-graph") as HTMLButtonElement;
@@ -518,18 +681,20 @@ export function initGraph(){
         blocks.push(box);
     }
 
-    if(Glb.isLocal){
+    if(Glb.getJsonFile){
         fetchText("json/index.json", (text: string)=>{
             indexFile = JSON.parse(text);
-            getFileList();
+            setMapSel();
         });
     }
     else{
 
-        initFirebase(getFileList);
+        initFirebase(()=>{
+            setMapSel();
+        });
     }
 
-
+    setGraphEventListener();
 }
 
 function showHtml(file_name: string, id: string){
