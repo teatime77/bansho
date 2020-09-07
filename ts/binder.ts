@@ -151,11 +151,13 @@ export class PackageInfo {
     }
 }
 
-export class Simulation extends Widget {
+export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     view!        : View;
     params       : string = "";
     packageInfos : PackageInfo[] = [];
     varsAll      : Variable[] = [];
+    startTime    : number = 0;
+    prevTime     : number = 0;
 
     constructor(){
         super();
@@ -276,6 +278,16 @@ export class Simulation extends Widget {
                 }
             }
 
+            let tokens = Lex(pkg.vertexShader, true);
+            if(tokens.some(x => x.text == "time")){
+                pkg.args["time"] = 0;
+            }
+            if(tokens.some(x => x.text == "timeDiff")){
+                pkg.args["timeDiff"] = 0;
+            }
+
+            pkg.args["tick"] = undefined;
+
             this.view.gpgpu!.makePackage(pkg);
         }
 
@@ -291,12 +303,41 @@ export class Simulation extends Widget {
                     pkg.bind(src.name, dst.name, dstPkg);
                 }
             }
-
-            pkg.args["tick"] = undefined;
         }
 
         this.view.gpgpu!.drawables.push(... packages);
+
+        this.view.gpgpu!.drawScenelistener = this;
+
+        this.startTime = NaN;
     }
+
+    beforeDraw() : void {
+        let currentTime = (new Date()).getTime();
+        
+        if( isNaN(this.startTime) ){
+            
+            this.startTime = currentTime;
+            this.prevTime  = currentTime;
+        }
+
+        for(let pkg of this.view.gpgpu!.drawables as gpgputs.Package[]){
+            if(pkg.args["time"] != undefined){
+                pkg.args["time"] = currentTime - this.startTime;
+            }
+
+            if(pkg.args["timeDiff"] != undefined){
+                pkg.args["timeDiff"] = currentTime - this.prevTime;
+            }
+        }
+
+        this.prevTime = currentTime;
+    }
+
+    afterDraw()  : void {
+
+    }
+
 }
 
 
@@ -308,7 +349,7 @@ function getIOVariables(pkg: PackageInfo){
 
     for(let [i, token] of tokens.entries()){
         if(["uniform", "in", "out"].includes(token.text)){
-            if(["uPMVMatrix", "uNMatrix", "tick", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
+            if(["uPMVMatrix", "uNMatrix", "tick", "time", "timeDiff", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
                 continue;
             }
 
