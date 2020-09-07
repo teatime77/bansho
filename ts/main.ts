@@ -618,9 +618,6 @@ export function initEdit(){
 
     initBansho(true);
     Glb.edit     = true;
-    if(Glb.getJsonFile){
-        getElement("get-json-file").style.display = "inline";
-    }
 
     
     glb = new Glb();
@@ -642,7 +639,11 @@ export function initEdit(){
     }
     else{
 
-        initFirebase(showFileList);
+        initFirebase(()=>{
+            getElement("db-off").style.display = "none";
+
+            showFileList();
+        });
     }
 }
 

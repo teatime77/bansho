@@ -377,9 +377,15 @@ function onCodeInput(){
     console.log(`input ${sel.rangeCount} rng:[${rng}] ` );
     for(let div of pkgVertexShaderDiv.children){
         if(div.nodeName == "DIV" && div.firstChild != null && div.firstChild.nodeName == "SPAN"){
+            // DIVの最初の子がSPANの場合
+
             let span = div.firstChild;
             if(span.firstChild != null && span.firstChild.nodeName == "DIV"){
+                // SPANの最初の子がDIVの場合
+
                 console.log("お引っ越し");
+
+                // SPANのすべての子を、親のDIVの次に移動する。
                 let next_nd = div.nextSibling;
                 while(span.firstChild != null){
                     let nd = span.firstChild;
@@ -387,11 +393,14 @@ function onCodeInput(){
                     pkgVertexShaderDiv.insertBefore(nd, next_nd);
                 }
 
+                // 元のDIVは削除する。
+                pkgVertexShaderDiv.removeChild(div);
                 break;
             }
         }
     }
 
+    let changed = 0;
     for(let nd of pkgVertexShaderDiv.childNodes){
 
         if(nd.nodeType == Node.TEXT_NODE){
@@ -410,6 +419,11 @@ function onCodeInput(){
                         continue;
                     }
                 }
+
+                if(div.dataset.innerHTML == div.innerHTML){
+                    continue;
+                }
+                changed++;
 
                 let col = undefined;
                 if(nd == div1){
@@ -437,10 +451,13 @@ function onCodeInput(){
                     setChar(sel, div, col);
                 }
 
+                div.dataset.innerHTML = div.innerHTML;
+
                 // console.log(`  ${div.tagName} col:${col}   [${div.textContent}] [${div.innerHTML} ] ` );
             }
         }
     }
+    console.log(`changed : ${changed}`);
 }
 
 class Term {

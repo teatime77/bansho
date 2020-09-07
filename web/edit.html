@@ -116,9 +116,9 @@ input[type="radio"]:checked + label {
 <body onload="bansho.initEdit()">
 <div style="display: grid; grid-template-rows:110px 100px 50px 1fr; grid-template-columns:150px 1fr 300px 200px; width: 100%; height: 100%;">
     <div style="grid-row: 1; grid-column: 1/span 4; background-color: cornsilk; ">
-        <b id="get-json-file" style="color: red; display: none;">JSON</b>
+        <b id="db-off" style="color: red; ">DB off</b>
         <button id="add-shape" >図形を挿入</button>
-        <select id="sample-3d" style="width: 8em;">
+        <button id="open-package">パッケージ</button>
         </select>
         <input type="radio" name="tool-type" value="select" checked />選択
         <input type="radio" name="tool-type" value="Point" />点
@@ -156,7 +156,6 @@ input[type="radio"]:checked + label {
 
         <button id="add-text-block" style="font-family: Segoe UI Emoji;">➕✏️</button>
         <button id="add-speech" style="font-family: Segoe UI Emoji;">➕🔊</button>
-        <button id="open-package">パッケージ</button>
         <!-- <label for="line-feed" style="display: none;">
             <input type="checkbox" id="line-feed" />改行
         </label> -->

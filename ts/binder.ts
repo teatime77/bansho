@@ -709,7 +709,8 @@ function setBinderEvent(){
         currentTex.shapeFormula = texShapeInp.value.trim();
         currentTex.texelType = texTexelTypeSel.value;
 
-        texEditDlg.close();        
+        texEditDlg.close();
+        makeGraph();
     })
 }
 
@@ -1219,20 +1220,11 @@ vec3 PseudoColor(float min_val, float max_val, float val){
 
 
 let userShader = `
-
-uniform mat4 uPMVMatrix;
 uniform int   tick;
 
 uniform sampler2D inPos;
-uniform sampler2D inVel;
-uniform sampler2D inMass;
+out vec3 outPos;
 
-out vec3  outPos;
-out vec3  outVel;
-out float outMass;
-
-out vec4 fragmentColor;
-    
 int rnd_cnt = 0;
 float rnd(){
     return 2.0 * fract( sin(float(gl_VertexID) * 12.9898 + float(rnd_cnt++) * 78.233) * 43758.5453) - 1.0;
@@ -1240,62 +1232,12 @@ float rnd(){
 
 void main(void) {
     int idx = int(gl_VertexID);
-
-    vec3  pos;
-    vec3  vel;
-    float mass;
-
+    
     if(tick == 0){
-        if(gl_VertexID == 0){
-            pos = vec3(0.0, 0.0, 0.0);
-            vel = vec3(0.0, 0.0, 0.0);
-            mass = 10.0;
-        }
-        else{
-            pos = vec3(rnd(), rnd(), rnd());
-            vel = vec3(0.1 * rnd(), 0.1 * rnd(), 0.1 * rnd());
-            mass = 0.5 + abs(rnd());    
-        }
+
     }
     else{
 
-        pos  = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
-        vel  = vec3(texelFetch(inVel, ivec2(idx, 0), 0));
-        mass = texelFetch(inMass, ivec2(idx, 0), 0).r;
-
-        vec3 F = vec3(0.0, 0.0, 0.0);
-        for(int idx1 = 0; idx1 < @{cnt}; idx1++){
-            vec3  pos1  = vec3(texelFetch(inPos, ivec2(idx1, 0), 0));
-            float mass1 = texelFetch(inMass, ivec2(idx1, 0), 0).r;
-
-            float r = length(pos1 - pos);
-    
-            if(r != 0.0){
-
-                r *= 100.0;
-                F += (mass * mass1 * 0.01 / (r * r)) * normalize(pos1 - pos);
-            }
-        }
-
-        vel += F / mass;
-        pos += vel;
     }
-
-    if(gl_VertexID == 0){
-
-        gl_PointSize  = 4.0;
-        fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);
-    }
-    else{
-
-        gl_PointSize  = 2.0;
-        fragmentColor = vec4(0.0, 0.0, 1.0, 1.0);
-    }
-
-    gl_Position   = uPMVMatrix * vec4(pos, 1.0);
-    
-    outPos  = pos;
-    outVel  = vel;
-    outMass = mass;
 }`;
 }
