@@ -8,8 +8,10 @@ const padding = 10;
 
 export let mapSel   : HTMLSelectElement;
 let mapTitle : HTMLInputElement;
-export let mapDlg : HTMLDialogElement;
-let mapTbl : HTMLTableElement;
+export let docsDlg : HTMLDialogElement;
+export let docsTbl : HTMLTableElement;
+export let docClickCallBack : (src: HTMLElement, id: number)=>void;
+
 let mapDiv : HTMLDivElement;
 
 var dom_list : (HTMLElement | SVGSVGElement)[] = [];
@@ -574,25 +576,15 @@ export function putMap(){
 export function delMap(){
 }
 
-function setMapSel(){
-    if(indexFile.maps.length == 1 || ! Glb.edit){
-        getMap(indexFile.maps[0].id);
-    }
-    if(! Glb.edit){
-        return;
-    }
-
-    getElement("map-edit").style.display = "block";
-
-    indexFile.docs.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
+export function setDocTbl(){
     let tr : HTMLTableRowElement;
-    mapTbl.innerHTML = "";
+    docsTbl.innerHTML = "";
 
     let ncol = 8;
     let nrow = Math.ceil(indexFile.docs.length / ncol);
     for(let row of range(nrow)){
         tr = document.createElement("tr");
-        mapTbl.appendChild(tr);
+        docsTbl.appendChild(tr);
         for(let col of range(ncol)){
             let idx = col * nrow + row;
             if(indexFile.docs.length <= idx){
@@ -604,20 +596,8 @@ function setMapSel(){
             let td = document.createElement("td");
             td.id = `td-${doc.id}`;
             td.addEventListener("click", function(ev: MouseEvent){
-                let id = parseInt(this.id.substring(3));
-                let doc2 = indexFile.docs.find(x => x.id == id)!;
-
-                if(mapDocsTmp.includes(doc2)){
-
-                    removeArrayElement(mapDocsTmp, doc2);
-                    this.style.backgroundColor = "white";
-                }
-                else{
-
-                    mapDocsTmp.push(doc2);
-                    this.style.backgroundColor = "lightgrey";
-                }
-
+                let id = parseInt(td.id.substring(3));
+                docClickCallBack(this, id);
             });
             td.innerHTML = doc.title;
 
@@ -626,6 +606,20 @@ function setMapSel(){
     
         }
     }
+}
+
+function setMapSel(){
+    if(indexFile.maps.length == 1 || ! Glb.edit){
+        getMap(indexFile.maps[0].id);
+    }
+    if(! Glb.edit){
+        return;
+    }
+
+    getElement("map-edit").style.display = "block";
+
+    indexFile.docs.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
+    setDocTbl();
     
     for(let map of indexFile.maps){
         let opt = document.createElement("option");
@@ -638,11 +632,25 @@ function setMapSel(){
 
 export function showMapDlg(){
     mapDocsTmp = mapDocs.slice();
-    mapDlg.showModal();
+    docClickCallBack = function(td: HTMLElement, id: number){
+        let doc2 = indexFile.docs.find(x => x.id == id)!;
+
+        if(mapDocsTmp.includes(doc2)){
+
+            removeArrayElement(mapDocsTmp, doc2);
+            td.style.backgroundColor = "white";
+        }
+        else{
+
+            mapDocsTmp.push(doc2);
+            td.style.backgroundColor = "lightgrey";
+        }
+    }
+    docsDlg.showModal();
 }
 
 export function mapDlgOk(){
-    mapDlg.close();
+    docsDlg.close();
     mapDocs = mapDocsTmp;
     makeDot(mapDocs, mapEdges, true);
 }
@@ -656,8 +664,8 @@ export function initGraph(){
     mapTitle = getElement("map-title") as HTMLInputElement;
     mapDiv = getElement("map-div") as HTMLDivElement;
 
-    mapDlg = getElement("map-dlg") as HTMLDialogElement;
-    mapTbl = getElement("map-tbl") as HTMLTableElement;
+    docsDlg = getElement("docs-dlg") as HTMLDialogElement;
+    docsTbl = getElement("docs-tbl") as HTMLTableElement;
 
     msg(`init graph edit:${Glb.edit}`);
 

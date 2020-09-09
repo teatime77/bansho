@@ -70,6 +70,7 @@ window.MathJax = {
 <script src="js/gpu.js?ver=1" ></script>
 <script src="js/firebase.js?ver=1" ></script>
 
+<script src="js/graph.js?ver=1" ></script>
 <script src="js/physics.js?ver=1" ></script>
 <script src="js/binder.js?ver=1" ></script>
 <script src="js/lex.js?ver=1" ></script>
@@ -140,15 +141,12 @@ input[type="radio"]:checked + label {
         <input type="radio" name="tool-type" value="FuncLine" />曲線
         <input type="radio" name="tool-type" value="Surface" />曲面
         <br/>
-        <button id="delete-action" >削除</button>
-        <input  id="txt-file" type="text" style="width: 6em;" disabled />
-        <select id="sel-file" size="1" style="width: 8em;"></select>
+        <input  id="txt-file" type="text" style="width: 2em;" disabled />
+        <button id="show-map-dlg" >文書一覧</button>
         <input id="txt-title" type="text" style="width: 8em;" spellcheck="false" />
 
         <button id="new-doc" >新規</button>
-        <button id="get-doc" >開く</button>
         <button id="put-doc" >保存</button>
-        <button id="del-doc" >削除</button>
 
         <button id="play-pause" style="font-family: 'Segoe UI Emoji'" >▶️</button>
         <button id="fast-reverse" style="font-family: Segoe UI Emoji;" >⏮</button>
@@ -156,6 +154,10 @@ input[type="radio"]:checked + label {
 
         <button id="add-text-block" style="font-family: Segoe UI Emoji;">➕✏️</button>
         <button id="add-speech" style="font-family: Segoe UI Emoji;">➕🔊</button>
+
+        <button id="delete-action" style="float: right;" >削除</button>
+        <button id="del-doc"  style="float: right;" >文書削除</button>
+
         <!-- <label for="line-feed" style="display: none;">
             <input type="checkbox" id="line-feed" />改行
         </label> -->
@@ -244,5 +246,10 @@ GPGPUのパッケージの編集
 </dialog>
 
 </div>
+
+<dialog id="docs-dlg">
+    <table id="docs-tbl" ></table>
+</dialog>
+    
 </body>
 </html>

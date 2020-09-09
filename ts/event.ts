@@ -80,25 +80,10 @@ export function setEventListener(){
         putData(true);
     });
 
-    // 開くボタン
-    document.getElementById("get-doc")!.addEventListener("click", (ev: MouseEvent)=>{
-        glb.txtFile.value  = glb.selFile.value.trim();
-        glb.openDoc(glb.txtFile.value);
-    });
-
     // 保存ボタン
     document.getElementById("put-doc")!.addEventListener("click", (ev: MouseEvent)=>{
         console.assert( ! isNaN(glb.docID) );
         putData(false);
-    });
-
-    // 削除ボタン
-    document.getElementById("del-doc")!.addEventListener("click", (ev: MouseEvent)=>{
-        let title = glb.selFile.options[glb.selFile.selectedIndex].innerText;
-        msgBox(`${title}を削除しますか?`, ()=>{
-            let id = parseInt(glb.selFile.value.trim());
-            delDoc(id);
-        });
     });
 
     // タイトル
@@ -111,11 +96,6 @@ export function setEventListener(){
     document.getElementById("delete-action")!.addEventListener("click", (ev: MouseEvent)=>{
         glb.deleteWidget();
     });
-
-    // ファイルリスト
-    glb.selFile.addEventListener("change", (ev: Event)=>{
-        glb.txtFile.value = glb.selFile.value;
-    })
 
     // TEXTAREA キー プレス
     glb.textArea.addEventListener("keypress", (ev:KeyboardEvent)=>{
@@ -155,6 +135,33 @@ export function setEventListener(){
         glb.msgBoxDlg.close();
         glb.msgBoxCB();
     });
+
+    // 文書一覧 ボタン
+    getElement("show-map-dlg").addEventListener("click", (ev: MouseEvent)=>{
+        docClickCallBack = function(td: HTMLElement, id: number){
+            docsDlg.close();
+            glb.openDoc(id);
+        };
+
+        docsDlg.showModal();
+    });
+
+
+    // 文書削除ボタン
+    document.getElementById("del-doc")!.addEventListener("click", (ev: MouseEvent)=>{
+        docClickCallBack = function(td: HTMLElement, id: number){
+            docsDlg.close();
+
+            let doc = indexFile.docs.find(x => x.id == id)!;
+
+            msgBox(`${doc.title}を削除しますか?`, ()=>{
+                delDoc(doc.id);
+            });    
+        };
+
+        docsDlg.showModal();
+    });
+
 }
 
 export function setTextBlockEventListener(act: TextBlock){
@@ -404,7 +411,6 @@ export function fetchFileList(fnc:(obj: any)=>void){
     .catch(error => {
         msg(`fetch file list error ${error}`);
     });
-
 }
 
 //--------------------------------------------------
@@ -431,12 +437,13 @@ export function setGraphEventListener(){
         delMap();
     });
 
+
     getElement("show-map-dlg").addEventListener("click", (ev: MouseEvent)=>{
         showMapDlg();
     });
 
     getElement("map-dlg-cancel").addEventListener("click", (ev: MouseEvent)=>{
-        mapDlg.close();
+        docsDlg.close();
     });
 
     getElement("map-dlg-ok").addEventListener("click", (ev: MouseEvent)=>{

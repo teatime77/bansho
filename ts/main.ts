@@ -21,7 +21,6 @@ export class Glb {
     board : HTMLDivElement;
     textArea : HTMLTextAreaElement;
     txtFile : HTMLInputElement;
-    selFile  : HTMLSelectElement;
     txtTitle: HTMLInputElement;
     msgBoxDlg: HTMLDialogElement;
     msgBoxCB!: ()=>void;
@@ -49,11 +48,13 @@ export class Glb {
         this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
 
         this.txtFile  = document.getElementById("txt-file") as HTMLInputElement;
-        this.selFile  = document.getElementById("sel-file") as HTMLSelectElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
-
+        
         this.msgBoxDlg = getElement("msg-box-dlg") as HTMLDialogElement;
+
+        docsDlg = getElement("docs-dlg") as HTMLDialogElement;
+        docsTbl = getElement("docs-tbl") as HTMLTableElement;    
     }
         
     showPlayButton = ()=>{
@@ -314,11 +315,13 @@ export class Glb {
         }
     }
     
-    openDoc(path: string){
+    openDoc(doc_id: number){
+        glb.txtFile.value = `${doc_id}`;
+
         if(Glb.getJsonFile){
 
-            fetchText(`json/${path}.json`, (text: string)=>{
-                glb.docID = parseInt(path);
+            fetchText(`json/${doc_id}.json`, (text: string)=>{
+                glb.docID = doc_id;
                 console.assert( ! isNaN(glb.docID) );
                 let data = JSON.parse(text);
                 this.initDoc(JSON.parse(data.text));
@@ -326,7 +329,7 @@ export class Glb {
         }
         else{
 
-            fetchDB(path, (id: string | null, data: any)=>{
+            fetchDB(`${doc_id}`, (id: string | null, data: any)=>{
                 glb.docID = parseInt(id!);
                 console.assert( ! isNaN(glb.docID) );
                 this.initDoc(JSON.parse(data.text));
@@ -543,19 +546,11 @@ function showFileList(){
     if(indexFile.docs.length != 0){
 
         indexFile.docs.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
-
-        for(let file of indexFile.docs){
-            let opt = document.createElement("option");
-            opt.value = `${file.id}`;
-            opt.textContent = file.title;
-            glb.selFile.add(opt);
-        }
+        setDocTbl();
 
         let id = getIdFromUrl();
-        if(id != ""){
+        if(! isNaN(id)){
     
-            glb.selFile.value = id;
-            glb.txtFile.value = id;
             glb.openDoc(id);
         }
     }
@@ -592,16 +587,16 @@ export function putData(is_new: boolean){
 function getIdFromUrl(){
     let k = window.location.href.lastIndexOf('?');
     if(k == -1){
-        return "";
+        return NaN;
     }
 
     let s = window.location.href.substring(k + 1);
     let v = s.split('=');
     if(v.length == 2 && v[0] == "id"){
-        return v[1];
+        return parseInt(v[1]);
     }
     else{
-        return "";
+        return NaN;
     }
 }
 
@@ -625,7 +620,7 @@ export function initEdit(){
     initSpeech();
 
     setEventListener();
-
+    
     initDraw();
 
     initBinder();
@@ -661,7 +656,7 @@ export function initPlay(){
     initDraw();
 
     let doc_id = getIdFromUrl();
-    if(doc_id != ""){
+    if(! isNaN(doc_id)){
 
         if(Glb.getJsonFile){
             fetchText("json/index.json", (text: string)=>{
