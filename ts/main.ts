@@ -6,7 +6,6 @@ export let glb: Glb;
 
 export class Glb {
     static edit: boolean;
-    static svgGraph: SVGSVGElement;
     static getJsonFile : boolean;
     docID   : number = NaN;
     widgets : Widget[] = [];
@@ -546,7 +545,7 @@ function showFileList(){
     if(indexFile.docs.length != 0){
 
         indexFile.docs.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
-        setDocTbl();
+        setDocsTbl();
 
         let id = getIdFromUrl();
         if(! isNaN(id)){

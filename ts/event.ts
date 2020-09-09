@@ -439,7 +439,7 @@ export function setGraphEventListener(){
 
 
     getElement("show-map-dlg").addEventListener("click", (ev: MouseEvent)=>{
-        showMapDlg();
+        showDocsDlg();
     });
 
     getElement("map-dlg-cancel").addEventListener("click", (ev: MouseEvent)=>{
@@ -447,7 +447,7 @@ export function setGraphEventListener(){
     });
 
     getElement("map-dlg-ok").addEventListener("click", (ev: MouseEvent)=>{
-        mapDlgOk();
+        docsDlgOk();
     });
 }
 }

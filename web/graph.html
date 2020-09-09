@@ -24,7 +24,6 @@ window.MathJax = {
 </script>
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script src="lib/dagre.min.js"></script>
 <script src="lib/viz.js"></script>
 <script src="lib/full.render.js"></script>
 
@@ -79,13 +78,12 @@ window.MathJax = {
     <button id="put-map" >保存</button>
     <button id="del-map" >削除</button>
     <button id="show-map-dlg" >文書一覧</button>
-    <button id="save-graph">保存</button>
 </div>
 <br/>
 <div id="map-div"></div>
 
-<dialog id="map-dlg">
-<table id="map-tbl" ></table>
+<dialog id="docs-dlg">
+<table id="docs-tbl" ></table>
 <button id="map-dlg-cancel">Cancel</button>
 <button id="map-dlg-ok">OK</button>
 </dialog>
