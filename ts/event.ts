@@ -1,6 +1,5 @@
 namespace bansho {
 
-let prevCharIndex = 0;
 export let TemporarySelections: TextSelection[] = [];
 
 export function setEventListener(){
@@ -189,33 +188,12 @@ export function setTextBlockEventListener(act: TextBlock){
     }, false);
 }
 
-export function setSpeechEventListener(uttr: SpeechSynthesisUtterance){
+export function setSpeechEventListener(act: Speech, uttr: SpeechSynthesisUtterance){
     // スピーチ 終了
-    uttr.onend = function(ev: SpeechSynthesisEvent ) {
-        glb.isSpeaking = false;
-        msg(`speech end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
-
-        Array.from(TemporarySelections).forEach(x => x.disable());
-        console.assert(TemporarySelections.length == 0);
-
-        deselectShape();
-
-        if(glb.pauseFlag){
-    
-            glb.pauseFlag = false;
-            glb.showPlayButton();
-        }
-        else{
-
-            glb.playWidgets();
-        }
-    };
+    uttr.onend = act.onSpeechEnd;
 
     // スピーチ 境界
-    uttr.onboundary = function(ev: SpeechSynthesisEvent ) { 
-        msg(`speech bdr: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(prevCharIndex, ev.charIndex)}`);
-        prevCharIndex = ev.charIndex;
-    };
+    uttr.onboundary = act.onSpeechBoundary;
 }
 
 /**

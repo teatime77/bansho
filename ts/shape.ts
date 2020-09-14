@@ -282,15 +282,7 @@ export function showProperty(act: Widget){
 }
 
 export function deselectShape(){
-    // 手前のウイジェット
-    let prev_acts = glb.widgets.slice(0, getTimePos());
-
-    // 手前の選択を無効にする。
-    prev_acts.forEach(x => {
-        if(x instanceof ShapeSelection){
-            x.setEnable(false);
-        }
-    });
+    glb.widgets.filter(x => x instanceof ShapeSelection).forEach(x => x.setEnable(false));
 }
 
 export function initDraw(){

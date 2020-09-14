@@ -100,6 +100,9 @@ export class Widget{
     }
 }
 
+/*
+    図形の選択
+*/
 export class ShapeSelection extends Widget {
     shapes: (Point|LineSegment|Angle)[] = [];
 
@@ -116,6 +119,9 @@ export class ShapeSelection extends Widget {
     }
 }
 
+/*
+    テキストの選択
+*/
 export class TextSelection extends Widget {
     textAct!: TextBlock;
     startIdx: number = -1;
@@ -225,61 +231,6 @@ export class TextWidget extends Widget {
         });
     }
 
-}
-
-export class Speech extends TextWidget {
-
-    constructor(text: string){
-        super(text);
-    }
-
-    summary() : string {
-        return `🔊 ${this.Text}`;
-    }
-
-    getCaptionSpeech(): [string, string]{
-        let caption = "";
-        let speech = "";
-        let st = 0;
-        while(st < this.Text.length){
-            let k1 = this.Text.indexOf("'", st);
-            if(k1 == -1){
-                caption += this.Text.substring(st);
-                speech  += this.Text.substring(st);
-                break;
-            }
-    
-            caption += this.Text.substring(st, k1);
-            speech  += this.Text.substring(st, k1);
-    
-            k1++;
-            let k2 = this.Text.indexOf("'", k1);
-            if(k2 == -1){
-    
-                caption += this.Text.substring(st);
-                speech  += this.Text.substring(st);
-                break;
-            }
-    
-            let v = this.Text.substring(k1, k2).split("|");
-            if(v.length != 2){
-    
-                let s = this.Text.substring(k1 - 1, k2 + 1)
-                
-                caption += s;
-                speech  += s;
-            }
-            else{
-    
-                caption += v[0];
-                speech  += v[1];
-            }
-    
-            st = k2 + 1;
-        }
-
-        return[caption, speech];
-    }
 }
 
 export class TextBlock extends TextWidget {

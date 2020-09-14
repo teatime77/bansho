@@ -19,7 +19,7 @@ export class Glb {
     selSummary : HTMLSelectElement;
     board : HTMLDivElement;
     textArea : HTMLTextAreaElement;
-    txtFile : HTMLInputElement;
+    txtDocId : HTMLInputElement;
     txtTitle: HTMLInputElement;
     msgBoxDlg: HTMLDialogElement;
     msgBoxCB!: ()=>void;
@@ -46,7 +46,7 @@ export class Glb {
 
         this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
 
-        this.txtFile  = document.getElementById("txt-file") as HTMLInputElement;
+        this.txtDocId  = document.getElementById("txt-doc-id") as HTMLInputElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
         
@@ -108,7 +108,8 @@ export class Glb {
             glb.updateTimePos(pos, true);
 
             if(act instanceof Speech){
-                speak(act);
+
+                act.startSpeak(true);
                 return;
             }
         }
@@ -217,15 +218,21 @@ export class Glb {
         window.scrollTo(0,document.body.scrollHeight);
     
         setTimePos(pos);
-        glb.prevTimePos            = pos;
+        glb.prevTimePos = pos;
         
         let act = this.currentWidget();
 
         if(act instanceof Speech){
             
-            let [caption, speech] = act.getCaptionSpeech();
+            Speech.nextPos = 0;
+            let [caption, speech] = act.splitCaptionSpeech(false);
             glb.caption.textContent = caption;
             reprocessMathJax(act, glb.caption, caption);
+
+            if(!playing){
+
+                deselectShape();
+            }
         }
         else{
 
@@ -234,24 +241,11 @@ export class Glb {
 
         if(Glb.edit){
 
-            glb.textArea.style.borderColor = act instanceof Speech ? "blue" : "grey";
+            glb.textArea.style.borderColor = act instanceof Speech     ? "blue"   : "grey";
+            glb.textArea.value             = act instanceof TextWidget ? act.Text : "";
 
-            glb.textArea.value = act instanceof TextWidget ? act.Text : "";
-        }
-
-        if(act instanceof Widget){
-
-            if(act instanceof TextWidget){
-
-                if(act instanceof Speech){
-                    if(!playing){
-                        deselectShape();
-                    }    
-                }
-            }
-            
-            if(Glb.edit){
-
+            if(act != undefined){
+                
                 showProperty(act);
             }
         }
@@ -309,13 +303,16 @@ export class Glb {
 
             if(act instanceof Speech){
                 glb.pauseFlag = true;
-                speak(act);
+                act.startSpeak(true);
             }
         }
     }
     
     openDoc(doc_id: number){
-        glb.txtFile.value = `${doc_id}`;
+        if(glb.txtDocId != null){
+
+            glb.txtDocId.value = `${doc_id}`;
+        }
 
         if(Glb.getJsonFile){
 
