@@ -38,7 +38,7 @@ export function initSpeech(){
 }
 
 export class Speech extends TextWidget {
-    static pendigWidget : ShapeSelection | null = null;
+    static pendigShapeSelection : ShapeSelection | null = null;
     static pause : number = 0;
     static nextPos : number = 0;
     static timePos : number;
@@ -116,12 +116,13 @@ export class Speech extends TextWidget {
     }
 
     startSpeak(start: boolean){
+        deselectShape();
         if(start){
 
             Speech.nextPos = 0;
             Speech.timePos = getTimePos();
 
-            Speech.pendigWidget = null;
+            Speech.pendigShapeSelection = null;
         }
 
         let [caption, speech] = this.splitCaptionSpeech(true);
@@ -130,22 +131,47 @@ export class Speech extends TextWidget {
         this.speak(caption, speech);
 
         if(Speech.pause == 0){
+            // スピーチが分割されないか、最後のフレーズの場合
 
-            if(Speech.pendigWidget != null){
-                let act = Speech.pendigWidget;
-                while(Speech.subPos < act.shapes.length){
-                    act.shapes[Speech.subPos].select(true);
-                    Speech.subPos++;
+            if(start){
+                // スピーチの最初の場合
+
+                // 次のスピーチの手前まで実行する。
+                for(let pos = Speech.timePos + 1; pos < glb.widgets.length; pos++){
+                    let act = glb.widgets[pos];
+                    if(act instanceof Speech){    
+                        return;
+                    }
+    
+                    Speech.timePos = pos;
+                    act.enable();    
+                }    
+            }
+            else{
+                // 2番目以降のフレーズの場合
+
+                if(Speech.pendigShapeSelection != null){
+                    // 処理の途中の図形選択がある場合
+
+                    let act = Speech.pendigShapeSelection;
+                    while(Speech.subPos < act.shapes.length){
+                        act.shapes[Speech.subPos].select(true);
+                        Speech.subPos++;
+                    }
+                    Speech.pendigShapeSelection = null;
                 }
-                Speech.pendigWidget = null;
             }
         }
         else{
+            // スピーチが分割され、最後のフレーズでない場合
 
             for(let idx = 0; idx < Speech.pause; idx++){
 
                 let act : Widget
-                if(Speech.pendigWidget == null){
+                if(Speech.pendigShapeSelection == null){
+                    // 処理の途中の図形選択がない場合
+
+                    // 次の処理を得る。
                     Speech.timePos++;
                     if(Speech.timePos < glb.widgets.length){
 
@@ -157,19 +183,35 @@ export class Speech extends TextWidget {
                     }
                 }
                 else{
-                    act = Speech.pendigWidget;
+                    // 処理の途中の図形選択がある場合
+
+                    act = Speech.pendigShapeSelection;
                 }
+
                 if(act instanceof ShapeSelection){
+                    // 図形選択の場合
+
+                    // 図形選択をする。
                     act.shapes[Speech.subPos].select(true);
                     console.log(`select ${Speech.subPos}`);
 
-                    Speech.subPos++;
-                    if(Speech.subPos < act.shapes.length){
-                        Speech.pendigWidget = act;
+                    if(Speech.subPos + 1 < act.shapes.length){
+                        // 続きがある場合
+
+                        Speech.subPos++;
+                        Speech.pendigShapeSelection = act;
                     }
                     else{
-                        Speech.pendigWidget = null;
+                        // 続きがない場合
+                        
+                        Speech.pendigShapeSelection = null;
                     }
+                }
+                else{
+                    // 図形選択でない場合
+
+                    // 処理を有効にする。
+                    act.enable();
                 }
             }
         }
@@ -249,7 +291,7 @@ export class Speech extends TextWidget {
             else{
                 setTimePos(Speech.timePos);
 
-                glb.playWidgets();
+                glb.playNextWidgets();
             }
         }
     }

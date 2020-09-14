@@ -1358,7 +1358,7 @@ export abstract class CompositeShape extends Shape {
 
     setEnable(enable: boolean){
         super.setEnable(enable);
-        this.handles.forEach(x => x.setEnable(enable));
+        this.handles.filter(x => this.id < x.id) .forEach(x => x.setEnable(enable));
     }
 
     clickHandle(ev: MouseEvent, pt:Vec2) : Point{

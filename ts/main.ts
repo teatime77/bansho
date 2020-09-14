@@ -4,6 +4,8 @@ declare let MathJax:any;
 
 export let glb: Glb;
 
+let workWidget : Widget | undefined = undefined;
+
 export class Glb {
     static edit: boolean;
     static getJsonFile : boolean;
@@ -77,7 +79,7 @@ export class Glb {
         else{
     
             this.btnPlayPause.innerHTML = "⏸";
-            this.playWidgets();
+            this.playNextWidgets();
         }
         this.isPlaying = ! this.isPlaying;
     }
@@ -101,7 +103,7 @@ export class Glb {
         }
     }
     
-    playWidgets(){
+    playNextWidgets(){
         for(let pos = getTimePos() + 1; pos < glb.widgets.length; pos++){
             let act = glb.widgets[pos];
             act.enable();
@@ -118,17 +120,17 @@ export class Glb {
     }
 
     addWidget(act: Widget){
-        let selIdx = getTimePos() + 1;
+        let selIdx = getTimePos();
     
-        glb.widgets.splice(selIdx, 0, act);
+        glb.widgets.splice(selIdx + 1, 0, act);
 
         // 要約を表示する。
         let opt = document.createElement("option");
         opt.innerHTML = act.summary();
-        glb.selSummary.add(opt, selIdx + 1);
+        glb.selSummary.add(opt, 1 + selIdx + 1);
     
         setTimePosMax( glb.widgets.length - 1 );
-        this.updateTimePos(selIdx, false);
+        this.updateTimePos(selIdx + 1, false);
     
         this.textArea.focus();
     }
@@ -138,19 +140,19 @@ export class Glb {
 
         glb.widgets.splice(idx, 1);
         
-        let opt = glb.selSummary.options[idx];
+        let opt = glb.selSummary.options[idx + 1];
         removeHtmlElement(opt);
+
         act.delete();
 
         return idx;
     }
 
     deleteWidget(){
-        if(getTimePos() == -1){
+        let act = glb.currentWidget();
+        if(act == undefined){
             return;
         }
-
-        let act = glb.widgets[getTimePos()];
 
         if(act instanceof TextBlock){
             // TextBlockの場合
@@ -189,7 +191,7 @@ export class Glb {
 
         this.updateTimePos( Math.min(act_idx, glb.widgets.length - 1), false );
     }
-
+    
     /**
      * ⏮, rngTimelineChange, playWidgets, addWidget, deleteWidget, deserializeDoc
      * @param pos 
@@ -439,7 +441,6 @@ export function setTimePosMax(pos: number){
         glb.timeline.max = `${pos}`;
     }
 }
-
 
 export function parseObject(obj: any) : any {
     if(obj == undefined || obj == null || typeof obj != "object"){
@@ -743,5 +744,35 @@ export function onClickBlock(act:TextBlock, ev:MouseEvent){
     ev.stopPropagation();
     onClickPointerMove(act, ev, true);
 }
+
+
+export function cutWidget(){
+    if(workWidget != undefined){
+        throw new Error();
+    }
+
+    workWidget = glb.currentWidget();
+    if(!(workWidget instanceof Speech)){
+        throw new Error();
+    }
+
+    glb.deleteWidget();
+}
+
+export function pasteWidget(){
+    if(workWidget instanceof Speech){
+        glb.addWidget(workWidget);
+        workWidget = undefined;
+
+        glb.selSummary.focus();
+    }
+    else{
+
+        throw new Error();
+    }
+
+
+}
+
 
 }

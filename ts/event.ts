@@ -46,6 +46,15 @@ export function setEventListener(){
         glb.rngTimelineChange();
     });
 
+    glb.selSummary.addEventListener("keyup", (ev: KeyboardEvent)=>{
+        if(ev.ctrlKey){
+            switch(ev.code){
+            case "KeyX": cutWidget()  ; break;
+            case "KeyV": pasteWidget(); break;
+            }
+        }
+    });
+
     glb.selSummary.addEventListener("keypress", (ev: KeyboardEvent)=>{
         if(ev.code == "Enter"){
             let act = glb.currentWidget();
@@ -71,7 +80,7 @@ export function setEventListener(){
 
     // スピーチの追加
     document.getElementById("add-speech")!.addEventListener("click", (ev: MouseEvent)=>{
-        glb.addWidget(new Speech("🔊"));
+        glb.addWidget(new Speech(""));
     });
 
     // 新規ボタン
