@@ -1197,6 +1197,7 @@ export abstract class Shape extends Widget {
                 this.divCaption.style.backgroundColor = "transparent";
                 this.divCaption.style.cursor = "move";
                 this.divCaption.style.pointerEvents = "all";
+                this.divCaption.style.zIndex = "4";
         
                 this.parentView.div2.appendChild(this.divCaption);
 

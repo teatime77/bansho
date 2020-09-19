@@ -21,6 +21,7 @@ let pkgEditDlg            : HTMLDialogElement;
 let pkgParamsInp          : HTMLInputElement;
 let pkgNumInputFormulaInp : HTMLInputElement;
 let pkgFragmentShaderSel  : HTMLSelectElement;
+let pkgDisplaySel         : HTMLSelectElement;
 export let pkgVertexShaderDiv: HTMLDivElement;
 
 let currentPkg            : PackageInfo;
@@ -95,6 +96,19 @@ export class Variable {
         return obj;
     }
 
+    /*
+        コピー先がテクスチャの場合に、コピー元からテクセル型とshapeをコピーする。
+    */
+    copyTypeShape(srcVar: Variable){
+        if((this.type == "sampler2D" || this.type == "sampler3D") && this.texelType == null){
+            this.texelType = srcVar.type;
+            if(this.shapeFormula == ""){
+
+                this.shapeFormula = srcVar.package.numInputFormula;
+            }
+        }
+    }
+
     click(ev: MouseEvent){
         if(ev.ctrlKey){
             if(srcVar == null){
@@ -102,13 +116,9 @@ export class Variable {
             }
             else{
                 srcVar.dstVars.push(this);
-                if((this.type == "sampler2D" || this.type == "sampler3D") && this.texelType == null){
-                    this.texelType = srcVar.type;
-                    if(this.shapeFormula == ""){
 
-                        this.shapeFormula = srcVar.package.numInputFormula;
-                    }
-                }
+                // コピー先がテクスチャの場合に、コピー元からテクセル型とshapeをコピーする。
+                this.copyTypeShape(srcVar);
 
                 srcVar = null;
                 makeGraph();
@@ -130,6 +140,7 @@ export class PackageInfo {
     mode             : string = "";
     vertexShader!    : string;
     fragmentShader   : string = gpgputs.GPGPU.minFragmentShader;
+    display          : string = "";
 
     static newObj() : PackageInfo {
         // 空き番を探す。
@@ -222,23 +233,11 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         let packages: gpgputs.Package[] = [];
 
         for(let pkgInfo of this.packageInfos){
-            let pkg = new gpgputs.Package(pkgInfo);
-            pkg.mode = gpgputs.getDrawMode(pkgInfo.mode);
-            pkg.args = {};
-            pkg.numInput = calcPkgNumInput(pkgInfo.params, pkgInfo.numInputFormula);
-            if(isNaN(pkg.numInput)){
-                throw new Error();
-            }
-            if(pkgInfo.numGroup != undefined){
-                pkg.numGroup = calcPkgNumInput(pkgInfo.params, pkgInfo.numGroup);
-                if(isNaN(pkg.numGroup)){
-                    throw new Error();
-                }
-            }
+            let pkg = makePkgFromInfo(pkgInfo);
 
             packages.push(pkg);
 
-
+            // ソースの文字列内の変数の値を代入。
             if(pkgInfo.vertexShader.includes("@{")){
                 let map = getParamsMap([ sim.params, pkgInfo.params ]);
                 if(map == null){
@@ -256,28 +255,11 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
                 pkg.vertexShader = shader;
             }
 
+            // パッケージの入出力変数のリスト
             let vars = this.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
-            for(let va1 of vars){
-                if(pkg.args[va1.name] == undefined){
-                    if(va1.type == "sampler2D" || va1.type == "sampler3D"){
+            setIOVarsValue(pkgInfo, pkg, vars);
 
-                        let shape = calcTexShape(pkgInfo, va1.shapeFormula);
-                        if(va1.texelType == null || shape == null){
-                            throw new Error();
-                        }
-                        if(pkg.vertexShader.includes("@factorize@")){
-                            console.assert(shape.length == 2 && shape[0] == 1);
-                            shape = Factorize(shape[1]);
-                        }
-
-                        pkg.args[va1.name] = new gpgputs.TextureInfo(va1.texelType, shape);
-                    }
-                    else{
-                        pkg.args[va1.name] = new Float32Array( pkg.numInput * gpgputs.vecDim(va1.type) );
-                    }
-                }
-            }
-
+            // 頂点シェーダの字句解析をする。
             let tokens = Lex(pkg.vertexShader, true);
             if(tokens.some(x => x.text == "time")){
                 pkg.args["time"] = 0;
@@ -292,18 +274,25 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         }
 
         for(let pkg of packages){
+            // パッケージの入出力変数のリスト
             let vars = this.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
             for(let src of vars){
 
+                // すべてのコピー先の変数に対し
                 for(let dst of src.dstVars){
+                    // コピー先の変数のパッケージ
                     let dstPkg = packages.find(x => x.id == dst.package.id);
                     if(dstPkg == undefined){
                         throw new Error();
                     }
+
+                    // コピー元の変数からコピー先の変数へバインドする。
                     pkg.bind(src.name, dst.name, dstPkg);
                 }
             }
         }
+
+        this.makeDisplayPkgs(packages);
 
         this.view.gpgpu!.drawables.push(... packages);
 
@@ -335,11 +324,107 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     }
 
     afterDraw()  : void {
-
     }
 
+    makeBindVars(packages: gpgputs.Package[], info1: PackageInfo, pkg1: gpgputs.Package, info2: PackageInfo, varNames: string[]){
+        // パッケージの入出力変数のリスト
+        let vars1 = this.varsAll.filter(x => x.id.startsWith(`${info1.id}_`));
+
+        let vars2 = getIOVariables(info2);
+
+        let pkg2 = makePkgFromInfo(info2);
+
+        for(let name of varNames){
+            let srcVar = vars1.find(x => x.name == `out${name}`);
+            let dstVar = vars2.find(x => x.name == `in${name}`);
+            
+            if(srcVar == undefined || dstVar == undefined){
+                throw new Error();
+            }
+
+            // コピー先がテクスチャの場合に、コピー元からテクセル型とshapeをコピーする。
+            dstVar.copyTypeShape(srcVar);
+        }
+
+        setIOVarsValue(info2, pkg2, vars2);
+
+        for(let name of varNames){
+            // コピー元の変数からコピー先の変数へバインドする。
+            pkg1.bind(`out${name}`, `in${name}`, pkg2);
+        }
+
+        this.view.gpgpu!.makePackage(pkg2);
+        packages.push(pkg2);
+
+        return pkg2;
+    }
+
+
+    makeDisplayPkgs(packages: gpgputs.Package[]){
+        for(let info1 of this.packageInfos){
+            let pkg1 = packages.find(x => x.id == info1.id)!;
+            console.assert(pkg1 != undefined);
+
+            if(info1.display == "Arrow3D"){
+                let info2 = Object.assign(PackageInfo.newObj(), ArrowFanPkg(pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec", "Color" ]);
+                
+                let info3 = Object.assign(PackageInfo.newObj(), ArrowTubePkg(pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
+            }        
+        }
+    }
 }
 
+function setIOVarsValue(pkgInfo: PackageInfo, pkg: gpgputs.Package, vars: Variable[]){
+    for(let va1 of vars){
+        if(pkg.args[va1.name] == undefined){
+            // 値が未定義の場合
+
+            if(va1.type == "sampler2D" || va1.type == "sampler3D"){
+                // テクスチャの場合
+
+                let shape = calcTexShape(pkgInfo, va1.shapeFormula);
+                if(va1.texelType == null || shape == null){
+                    throw new Error();
+                }
+                if(pkg.vertexShader.includes("@factorize@")){
+                    // 頂点数を因数分解する場合
+
+                    console.assert(shape.length == 2 && shape[0] == 1);
+                    shape = Factorize(shape[1]);
+                }
+
+                pkg.args[va1.name] = new gpgputs.TextureInfo(va1.texelType, shape);
+            }
+            else{
+                // 配列の場合
+
+                pkg.args[va1.name] = new Float32Array( pkg.numInput! * gpgputs.vecDim(va1.type) );
+            }
+        }
+    }
+}
+
+function makePkgFromInfo(pkgInfo: PackageInfo){
+    let pkg = new gpgputs.Package(pkgInfo);
+    pkg.mode = gpgputs.getDrawMode(pkgInfo.mode);
+    pkg.args = {};
+    pkg.numInput = calcPkgNumInput(pkgInfo.params, pkgInfo.numInputFormula);
+    if(isNaN(pkg.numInput)){
+        throw new Error();
+    }
+    if(pkgInfo.numGroup != undefined){
+        pkg.numGroup = calcPkgNumInput(pkgInfo.params, pkgInfo.numGroup);
+        if(isNaN(pkg.numGroup)){
+            throw new Error();
+        }
+    }
+
+    return pkg;
+}
 
 function getIOVariables(pkg: PackageInfo){
     let vars: Variable[] = [];
@@ -459,6 +544,8 @@ function showPackageEditDlg(pkg: PackageInfo){
         pkgFragmentShaderSel.value = "plane";
     }
 
+    pkgDisplaySel.value = currentPkg.display;
+
     setCode(pkg.vertexShader);
     pkgEditDlg.showModal();
     console.log(`pkg.id click`);    
@@ -552,6 +639,7 @@ export function initBinder(){
     pkgParamsInp          = getElement("pkg-params") as HTMLInputElement;
     pkgNumInputFormulaInp = getElement("pkg-numInput") as HTMLInputElement;
     pkgFragmentShaderSel  = getElement("pkg-fragment-shader") as HTMLSelectElement;
+    pkgDisplaySel         = getElement("pkg-display") as HTMLSelectElement;
     pkgVertexShaderDiv    = getElement("pkg-vertex-shader") as HTMLDivElement;
     
     //-------------------------------------------------- テクスチャ編集画面
@@ -598,10 +686,6 @@ function setBinderEvent(){
         }
         else if(sel.value == "Arrow1D"){
             sim.packageInfos.push( Object.assign(PackageInfo.newObj(), Arrow1DPkg) );
-        }
-        else if(sel.value == "Arrow3D"){
-            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), ArrowFanPkg()) );
-            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), ArrowTubePkg()) );
         }
         else if(sel.value == "surface"){
             sim.packageInfos.push( Object.assign(PackageInfo.newObj(), SurfacePkg()) );
@@ -695,6 +779,8 @@ function setBinderEvent(){
             else{
                 throw new Error();
             }
+
+            currentPkg.display = pkgDisplaySel.value;
 
             pkgEditDlg.close();
 
@@ -965,11 +1051,12 @@ void main(void) {
 };
 
 
-function ArrowFanPkg(){
+function ArrowFanPkg(cnt: number){
+    let npt = 9;
     return {
-    params          : "npt = 9, r = 0.5, g = 0.5, b = 0.5",
-    numInputFormula : "cnt * 3 * npt",
-    numGroup        : "npt",
+    params          : "",
+    numInputFormula : `${cnt} * 3 * ${npt}`,
+    numGroup        : `${npt}`,
     mode            : "TRIANGLE_FAN",
     fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
     vertexShader    : `
@@ -980,18 +1067,20 @@ uniform int   tick;
 
 uniform sampler2D inPos;
 uniform sampler2D inVec;
+uniform sampler2D inColor;
 
 void main(void) {
     int idx = int(gl_VertexID);
 
-    int ip  = idx % @{npt};
-    idx /= @{npt};
+    int ip  = idx % ${npt};
+    idx /= ${npt};
 
     int mod = idx % 3;
     idx /= 3;
 
-    vec3 pos = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
-    vec3 vec = vec3(texelFetch(inVec, ivec2(idx, 0), 0));
+    vec3 pos   = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
+    vec3 vec   = vec3(texelFetch(inVec, ivec2(idx, 0), 0));
+    vec4 color = texelFetch(inColor, ivec2(idx, 0), 0);
 
     // 円錐の底面の円の中心
     vec3 p1 = pos + 0.8 * vec;;
@@ -1040,7 +1129,7 @@ void main(void) {
 
         vec3 e2 = normalize(cross(p1, e1));
 
-        float theta = 2.0 * PI * float(ip - 1) / float(@{npt} - 2);
+        float theta = 2.0 * PI * float(ip - 1) / float(${npt} - 2);
 
         // 円の中心
         vec3 cc;
@@ -1084,8 +1173,7 @@ void main(void) {
 
     float nx = nv.x, ny = nv.y, nz = nv.z;
 
-    // fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 1.0);
-    fragmentColor = vec4(@{r}, @{g}, @{b}, 1.0);
+    fragmentColor = color;
 
     ${bansho.tailShader}
 }`
@@ -1094,11 +1182,13 @@ void main(void) {
 }
 
 
-function ArrowTubePkg(){
+function ArrowTubePkg(cnt: number){
+    let npt = 9;
+
     return {
-    params          : "npt = 9, r = 0.5, g = 0.5, b = 0.5",
-    numInputFormula : "cnt * 2 * npt",
-    numGroup        : "2 * npt",
+    params          : "",
+    numInputFormula : `${cnt} * 2 * ${npt}`,
+    numGroup        : `2 * ${npt}`,
     mode            : "TRIANGLE_STRIP",
     fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
     vertexShader    : `
@@ -1109,6 +1199,7 @@ function ArrowTubePkg(){
     
     uniform sampler2D inPos;
     uniform sampler2D inVec;
+    uniform sampler2D inColor;
     
     void main(void) {
         int idx = int(gl_VertexID);
@@ -1116,11 +1207,12 @@ function ArrowTubePkg(){
         int lh  = idx % 2;
         idx /= 2;
     
-        int ip  = idx % @{npt};
-        idx /= @{npt};
+        int ip  = idx % ${npt};
+        idx /= ${npt};
     
-        vec3 pos = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
-        vec3 vec = vec3(texelFetch(inVec, ivec2(idx, 0), 0));
+        vec3 pos   = vec3(texelFetch(inPos, ivec2(idx, 0), 0));
+        vec3 vec   = vec3(texelFetch(inVec, ivec2(idx, 0), 0));
+        vec4 color = texelFetch(inColor, ivec2(idx, 0), 0);
     
         vec3 e1 = normalize(vec3(vec.y - vec.z, vec.z - vec.x, vec.x - vec.y));
     
@@ -1140,7 +1232,7 @@ function ArrowTubePkg(){
         // 円の半径
         float r = 0.02;
     
-        float theta = 2.0 * PI * float(ip - 1) / float(@{npt} - 2);
+        float theta = 2.0 * PI * float(ip - 1) / float(${npt} - 2);
     
         // 円周上の点
         vec3 p3 = cc + r * cos(theta) * e1 + r * sin(theta) * e2;
@@ -1154,8 +1246,7 @@ function ArrowTubePkg(){
     
         float nx = nv.x, ny = nv.y, nz = nv.z;
     
-        // fragmentColor = vec4(abs(ny), abs(nz), abs(nx), 1.0);
-        fragmentColor = vec4(@{r}, @{g}, @{b}, 1.0);
+        fragmentColor = color;
     
         ${bansho.tailShader}
     }`
