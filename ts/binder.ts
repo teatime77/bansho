@@ -1,5 +1,8 @@
 namespace bansho {
 
+declare let mat4:any;
+declare let vec4:any;
+
 declare let Viz : any;
 
 let viz : any;
@@ -158,6 +161,7 @@ export class PackageInfo {
             mode            : "",
             vertexShader    : "",
             fragmentShader  : "",
+            display         : ""
         } as unknown as PackageInfo;
     }
 }
@@ -169,6 +173,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     varsAll      : Variable[] = [];
     startTime    : number = 0;
     prevTime     : number = 0;
+    points       : Point[] = [];
 
     constructor(){
         super();
@@ -299,6 +304,9 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         this.view.gpgpu!.drawScenelistener = this;
 
         this.startTime = NaN;
+
+        // 3D位置指定をしたPointのリスト
+        this.points = getAll().filter(x => x instanceof Point && x.pos3D != undefined) as Point[];
     }
 
     beforeDraw() : void {
@@ -323,7 +331,54 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         this.prevTime = currentTime;
     }
 
-    afterDraw()  : void {
+    afterDraw(projViewMat: Float32Array)  : void {
+        for(let pt of this.points){
+            let v1: Float32Array;
+
+            let vcm = pt.pos3D!.split(',');
+            if(vcm.length == 3){
+
+                let vn = vcm.map(x => parseFloat(x.trim()));
+                if(vn.some(x => isNaN(x))){
+                    throw new Error();
+                }
+
+                vn.push(1.0);
+                v1 = new Float32Array(vn);
+            }
+            else{
+
+                let v = pt.pos3D!.split('.');
+                let i = parseInt(v[0]);
+                let name = v[1];
+                let j = parseInt(v[2]);
+
+                if(isNaN(i) || isNaN(j) || this.packageInfos.length <= i){
+                    throw new Error();
+                }
+
+                let pkg = this.view.gpgpu!.drawables[i] as gpgputs.Package;
+                
+                let vpos = pkg.args[name] as Float32Array;
+                if(!(vpos instanceof Float32Array)){
+                    throw new Error();
+                }
+
+                v1 = vec4.fromValues(vpos[3 * j], vpos[3 * j + 1], vpos[3 * j + 2], 1.0);
+            }
+            let v2 = vec4.create();
+
+            vec4.transformMat4(v2, v1, projViewMat);
+            v2[0] /= v2[3];
+            v2[1] /= v2[3];
+
+            let [x1, y1, w, h] = this.view.parseViewBox();
+
+            pt.pos.x = (x1 + 0.5 * w) + 0.5 * w * v2[0] ;
+            pt.pos.y = (y1 + 0.5 * h) + 0.5 * h * v2[1] ;
+
+            pt.setPos();
+        }
     }
 
     makeBindVars(packages: gpgputs.Package[], info1: PackageInfo, pkg1: gpgputs.Package, info2: PackageInfo, varNames: string[]){

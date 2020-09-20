@@ -522,7 +522,7 @@ export class View extends Widget {
     }
 
     calcHeight(){
-        let [x1, y1, w, h] = this.parseViewBox1()
+        let [x1, y1, w, h] = this.parseViewBox()
         this.Height = this.Width * h / w;
     }
 
@@ -571,7 +571,7 @@ export class View extends Widget {
         this.div2.style.height = `${this.Height}px`;
     }
 
-    parseViewBox1(){
+    parseViewBox(){
         const v = this.ViewBox.split(' ').map(x => x.trim());
         console.assert(v.length == 4);
 
@@ -584,12 +584,12 @@ export class View extends Widget {
     }
 
     getViewBox() : string{
-        let [x1, y1, w, h] = this.parseViewBox1()
+        let [x1, y1, w, h] = this.parseViewBox()
 
         return `${x1}, ${y1}, ${x1 + w}, ${y1 + h}`;
     }
 
-    parseViewBox2(value: string){
+    setViewBox(value: string){
         const v = value.split(',').map(x => x.trim());
         console.assert(v.length == 4);
         const x1 = parseFloat(v[0]);
@@ -597,11 +597,8 @@ export class View extends Widget {
         const x2 = parseFloat(v[2]);
         const y2 = parseFloat(v[3]);
 
-        return `${x1} ${y1} ${x2 - x1} ${y2 - y1}`;
-    }
+        this.ViewBox = `${x1} ${y1} ${x2 - x1} ${y2 - y1}`;
 
-    setViewBox(value: string){
-        this.ViewBox = this.parseViewBox2(value);
         this.updateViewBox();
     }
 
@@ -845,7 +842,7 @@ export class View extends Widget {
     svgClick = (ev: MouseEvent)=>{
         glb.view = this;
         const pt1 = this.getSvgPoint(ev, null);
-        if(this.capture != null){
+        if(this.capture != null || ! Glb.edit){
             return;
         }
     
@@ -1408,6 +1405,7 @@ export abstract class CompositeShape extends Shape {
 
 export class Point extends Shape {
     pos : Vec2 = new Vec2(NaN, NaN);
+    pos3D : string | undefined = undefined;
     bindTo: Shape|undefined;    //!!! リネーム注意 !!!
 
     circle : SVGCircleElement;
@@ -1448,13 +1446,17 @@ export class Point extends Shape {
     }
 
     propertyNames() : string[] {
-        return [ "X", "Y", "Name", "Caption" ];
+        return [ "X", "Y", "Name", "Caption", "Pos3D" ];
     }
 
     makeObj() : any {
         let obj = Object.assign(super.makeObj(), {
              pos: this.pos
         });
+
+        if(this.pos3D != undefined){
+            obj.pos3D = this.pos3D;
+        }
 
         if(this.bindTo != undefined){
             obj.bindTo = { ref: this.bindTo.id };
@@ -1483,6 +1485,22 @@ export class Point extends Shape {
     setY(value:any){
         this.pos.y =  parseFloat(value);
         this.updatePos();
+    }
+
+    getPos3D(){
+        return this.pos3D != undefined ? this.pos3D : "";
+    }
+
+    setPos3D(value: any){
+        let s = (value as string).trim();
+        if(s != ""){
+
+            this.pos3D = s;
+        }
+        else{
+
+            this.pos3D = undefined;
+        }
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
