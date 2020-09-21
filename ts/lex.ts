@@ -41,7 +41,7 @@ let SymbolTable : Array<string> = new  Array<string> (
 );
     
 let ReservedWords = [ 
-    "if", "else", "return", "for", "while", "break", "continue",
+    "if", "else", "return", "for", "while", "break", "continue", "switch", "case", "default",
     "in", "out", "uniform", "const", "precision", "highp", 
     "tick", "time", "timeDiff", "gl_Position", "gl_PointSize", "texelFetch", "sin", "cos", "sign", "abs",
 ];
@@ -186,7 +186,10 @@ export function Lex(text : string, skip_space: boolean = false) : Array<Token> {
             token_type = TokenType.newLine;
         }
         else if(ch1 + ch2 == "//"){
-            pos += 2;
+
+            // 行末までスキップする。
+            for(pos += 2; pos < text.length && text[pos] != '\n'; pos++);
+            
             token_type = TokenType.lineComment;
         }
         else if (isLetter(ch1) || ch1 == '_') {

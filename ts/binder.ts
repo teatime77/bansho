@@ -43,6 +43,7 @@ export function addTokenNode(div: HTMLDivElement, token: Token){
         case TokenType.reservedWord: span.style.color = "blue"; break;
         case TokenType.type        : span.style.color = "green"; break;
         case TokenType.Number      : span.style.color = "red"; break;
+        case TokenType.lineComment : span.style.color = "teal"; break;
         }
         span.textContent = token.text;
         div.appendChild(span);
@@ -420,7 +421,8 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             let pkg1 = packages.find(x => x.id == info1.id)!;
             console.assert(pkg1 != undefined);
 
-            if(info1.display == "Arrow3D"){
+            switch(info1.display){
+            case "Arrow3D":{
                 let info2 = Object.assign(PackageInfo.newObj(), ArrowFanPkg(pkg1.numInput!));
 
                 this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec", "Color" ]);
@@ -428,6 +430,16 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
                 let info3 = Object.assign(PackageInfo.newObj(), ArrowTubePkg(pkg1.numInput!));
 
                 this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
+                break;
+            }
+
+            case "Parallelogram":{
+                let info2 = Object.assign(PackageInfo.newObj(), ParallelogramPkg(pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec1", "Vec2", "Color" ]);
+                break;
+            }
+
             }        
         }
     }

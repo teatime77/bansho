@@ -171,7 +171,6 @@ void main(void) {
 }
 
 
-
 //--------------------------------------------------
 // 三角錐
 //--------------------------------------------------
@@ -719,6 +718,74 @@ export function ArrowTubePkg(cnt: number){
 
     } as unknown as PackageInfo;
 }
+
+
+//--------------------------------------------------
+// 平行四辺形
+//--------------------------------------------------
+
+export function ParallelogramPkg(cnt: number){
+    return {
+    params          : "",
+    numInputFormula : `${cnt} * 4`,
+    mode            : "TRIANGLE_STRIP",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+${bansho.headShader}
+
+uniform int   tick;
+
+uniform sampler2D inPos;
+uniform sampler2D inVec1;
+uniform sampler2D inVec2;
+uniform sampler2D inColor;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    int ip = idx % 4;
+    idx    /= 4;
+
+    vec3 pos   = vec3(texelFetch(inPos  , ivec2(idx, 0), 0));
+    vec3 v1    = vec3(texelFetch(inVec1 , ivec2(idx, 0), 0));
+    vec3 v2    = vec3(texelFetch(inVec2 , ivec2(idx, 0), 0));
+    vec4 color =      texelFetch(inColor, ivec2(idx, 0), 0) ;
+
+    switch(ip){
+    case 0:
+        gl_Position = uPMVMatrix * vec4(pos, 1.0);
+        break;
+    case 1:
+        gl_Position = uPMVMatrix * vec4(pos + v2, 1.0);
+        break;
+    case 2:
+        gl_Position = uPMVMatrix * vec4(pos + v1, 1.0);
+        break;
+    case 3:
+        gl_Position = uPMVMatrix * vec4(pos + v2 + v1, 1.0);
+        break;
+    }
+
+    vec3 nrm = normalize(cross(v1, v2));
+
+    fragmentColor = color;
+
+    vec3 transformedNormal = uNMatrix * nrm;
+
+    float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
+    vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+}`
+
+    } as unknown as PackageInfo;
+}
+
+
+
+
+
+
+
 
 //--------------------------------------------------
 // 曲面
