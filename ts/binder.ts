@@ -30,6 +30,10 @@ export let pkgVertexShaderDiv: HTMLDivElement;
 
 let currentPkg            : PackageInfo;
 
+export function getSimulation(){
+    return sim;
+}
+
 export function addTokenNode(div: HTMLDivElement, token: Token){
     if(token.typeTkn == TokenType.space){
 
@@ -363,39 +367,15 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
     afterDraw(projViewMat: Float32Array)  : void {
         for(let pt of this.points){
-            let v1: Float32Array;
 
-            let vcm = pt.pos3D!.split(',');
-            if(vcm.length == 3){
-
-                let vn = vcm.map(x => parseFloat(x.trim()));
-                if(vn.some(x => isNaN(x))){
-                    throw new Error();
-                }
-
-                vn.push(1.0);
-                v1 = new Float32Array(vn);
+            let nums = parseMath({}, pt.pos3D!) as number[];
+            if( ! Array.isArray(nums) || nums.length != 3 ){
+                throw new Error();
             }
-            else{
+            nums.push(1.0);
 
-                let v = pt.pos3D!.split('.');
-                let i = parseInt(v[0]);
-                let name = v[1];
-                let j = parseInt(v[2]);
+            let v1 = new Float32Array(nums);
 
-                if(isNaN(i) || isNaN(j) || this.packageInfos.length <= i){
-                    throw new Error();
-                }
-
-                let pkg = this.view.gpgpu!.drawables[i] as gpgputs.Package;
-                
-                let vpos = pkg.args[name] as Float32Array;
-                if(!(vpos instanceof Float32Array)){
-                    throw new Error();
-                }
-
-                v1 = vec4.fromValues(vpos[3 * j], vpos[3 * j + 1], vpos[3 * j + 2], 1.0);
-            }
             let v2 = vec4.create();
 
             vec4.transformMat4(v2, v1, projViewMat);
@@ -568,7 +548,7 @@ function getParamsMap(formulas: string[]){
             }
 
             let [name, value] = v;
-            let n = parseMath(map, value);
+            let n = parseMath(map, value) as number;
             if(isNaN(n)){
                 
                 return null;
@@ -587,7 +567,7 @@ function calcTexShape(pkg: PackageInfo, shapeFormula: string){
         return null;
     }
 
-    let shape  = shapeFormula.split(',').map(x => parseMath(map!, x.trim()));
+    let shape  = shapeFormula.split(',').map(x => parseMath(map!, x.trim())) as number[];
     if(shape.length < 1 || 3 < shape.length || shape.some(x => isNaN(x))){
         return null;
     }
@@ -605,7 +585,7 @@ function calcPkgNumInput(pkgParams: string, numInputFormula: string){
         return NaN;
     }
 
-    return parseMath(map, numInputFormula);
+    return parseMath(map, numInputFormula) as number;
 }
 
 function showTextureEditDlg(tex: Variable){
@@ -837,7 +817,7 @@ function setBinderEvent(){
         let map = getParamsMap([ simParamsInp.value, pkgParamsInp.value ]);
         if(map != null){
 
-            val  = parseMath(map, this.value.trim());
+            val  = parseMath(map, this.value.trim()) as number;
         }
 
         pkgNumInputFormulaInp.style.color = isNaN(val) ? "red" : "black";

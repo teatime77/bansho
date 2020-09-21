@@ -189,7 +189,7 @@ export function Lex(text : string, skip_space: boolean = false) : Array<Token> {
 
             // 行末までスキップする。
             for(pos += 2; pos < text.length && text[pos] != '\n'; pos++);
-            
+
             token_type = TokenType.lineComment;
         }
         else if (isLetter(ch1) || ch1 == '_') {
@@ -464,7 +464,7 @@ function onCodeInput(){
 }
 
 class Term {
-    calc(values: { [name: string]: number }) : number {
+    calc(values: { [name: string]: number }) : number | number[] {
         throw new Error();
     }
 }
@@ -477,7 +477,7 @@ class RefVar extends Term{
         this.name = name;
     }
 
-    calc(values: { [name: string]: number }) : number {
+    calc(values: { [name: string]: number }) : number | number[] {
         let x = values[this.name];
         if(x == undefined){
             return NaN;
@@ -495,23 +495,78 @@ class ConstNum extends Term{
         this.value = value;
     }
 
-    calc(values: { [name: string]: number }) : number {
+    calc(values: { [name: string]: number }) : number | number[] {
         return this.value;
     }
 }
 
 class App extends Term{
     opr : string;
+    refVar : RefVar | null = null;
     args: Term[];
 
-    constructor(opr: string, args: Term[]){
-        super();
-        this.opr = opr;
-        this.args = args.slice();
+    static startEnd : { [start : string] : string } = {
+        "(" : ")",
+        "[" : "]",
+        "{" : "}",
     }
 
-    calc(values: { [name: string]: number }) : number {
-        let val!: number;
+    constructor(opr: string, args: Term[], refVar: RefVar | null = null){
+        super();
+        this.opr    = opr;
+        this.refVar = refVar;
+        this.args   = args.slice();
+    }
+
+    calc(values: { [name: string]: number }) : number | number[] {
+        if(this.opr == "."){
+
+            if(this.refVar == null || this.args.length != 1 || !(this.args[0] instanceof App)){
+                throw new Error();
+            }
+            
+            let sim = getSimulation();
+
+            let info = sim.packageInfos.find(x => x.id == this.refVar!.name);
+            let pkg = sim.view.gpgpu!.drawables.find(x => (x as gpgputs.Package).id == this.refVar!.name) as gpgputs.Package;
+            if(info == undefined || pkg == undefined){
+                throw new Error();
+            }
+
+
+            let app2 = this.args[0] as App;
+            if(app2.opr != "[]" || app2.refVar == null || app2.args.length != 1){
+                throw new Error();
+            }
+
+            let va = info.vars.find(x => x.name == app2.refVar!.name);
+
+            let arg = pkg.args[app2.refVar!.name] as Float32Array;
+            if(va == undefined ||  ! (arg instanceof Float32Array )){
+                throw new Error();
+            }
+
+            let i = app2.args[0].calc(values);
+            if(typeof i != "number"){
+                throw new Error();
+            }
+            if(isNaN(i) || i < 0 || arg.length <= i){
+                throw new Error();
+            }
+
+            switch(va.type){
+                case "float": return arg[i];
+                case "vec2" : return [ arg[i*2], arg[i*2 + 1] ];
+                case "vec3" : return [ arg[i*3], arg[i*3 + 1], arg[i*3 + 2] ];
+                case "vec4" : return [ arg[i*4], arg[i*4 + 1], arg[i*4 + 2], arg[i*4 + 3] ];
+                default     : throw new Error();
+            }
+        }
+        else if(this.opr == "[]"){
+            return this.args.map(x => x.calc(values)) as number[];
+        }
+
+        let val!: any;
 
         for(let [i, arg] of this.args.entries()){
             let n = arg.calc(values);
@@ -520,11 +575,30 @@ class App extends Term{
                 val = n;
             }
             else{
-                switch(this.opr){
-                case "+": val += n; break;
-                case "-": val -= n; break;
-                case "*": val *= n; break;
-                case "/": val /= n; break;
+                if(typeof val == "number" && typeof n == "number"){
+
+                    switch(this.opr){
+                        case "+": val += n; break;
+                        case "-": val -= n; break;
+                        case "*": val *= n; break;
+                        case "/": val /= n; break;
+                    }
+                }
+                else if(Array.isArray(val) && Array.isArray(n) && val.length == (n as any).length){
+
+                    let vi = range(val.length);
+                    let v1 = val as number[];
+                    let v2 = n   as number[];
+
+                    switch(this.opr){
+                        case "+": val = vi.map(i => v1[i] + v2[i]); break;
+                        case "-": val = vi.map(i => v1[i] - v2[i]); break;
+                        case "*": val = vi.map(i => v1[i] * v2[i]); break;
+                        case "/": val = vi.map(i => v1[i] / v2[i]); break;
+                    }
+                }
+                else{
+                    throw new Error();
                 }
             }
         }
@@ -560,16 +634,56 @@ class Parser {
     }
 
 
-    PrimaryExpression() {
+    BracketExpression(app: App){
+        let start = this.token.text;
+        let endMark = App.startEnd[start];
+        if(endMark == undefined){
+            throw new Error();
+        }
+
+        this.next();
+
+        let trm1 = this.AdditiveExpression();
+        app.args.push(trm1);
+
+        while(this.token.text == ","){
+            this.next();
+
+            let trm2 = this.AdditiveExpression();
+            app.args.push(trm2);
+        }
+
+        if(this.token.text != endMark){
+            throw new Error();
+        }
+        this.next();
+    }
+
+    PrimaryExpression() : Term {
         let trm : Term;
 
         if(this.token.typeTkn == TokenType.identifier){
-            if(this.values[this.token.text] != undefined){
-                trm = new RefVar(this.token.text);
+            let refVar = new RefVar(this.token.text);
+            this.next();
+
+            if(this.token.text == '['){
+
+                let app = new App("[]", [], refVar);
+                this.BracketExpression(app);
+
+                return app;
+            }
+            else if(this.token.text == '.'){
                 this.next();
+
+                let trm2 = this.PrimaryExpression();
+
+                let app = new App(".", [ trm2 ], refVar);
+                return app;
             }
             else{
-                throw new Error();
+
+                return refVar;
             }
         }
         else if(this.token.typeTkn == TokenType.Number){
@@ -580,6 +694,13 @@ class Parser {
 
             trm = new ConstNum(n);
             this.next();
+        }
+        else if(this.token.text == '['){
+
+            let app = new App("[]", []);
+            this.BracketExpression(app);
+
+            return app;
         }
         else{
             throw new Error();
@@ -635,12 +756,27 @@ class Parser {
     }
 
     Expression(){
-        return this.AdditiveExpression();
+        let trm = this.AdditiveExpression();
+        if(this.token.text != ","){
+
+            return trm;
+        }
+
+        let app = new App("[]", [trm]);
+        
+        while(this.token.text == ","){
+            this.next();
+
+            let trm2 = this.AdditiveExpression();
+            app.args.push(trm2);
+        }
+
+        return app;
     }
     
 }
 
-export function parseMath(values: { [name: string]: number }, text: string) : number {
+export function parseMath(values: { [name: string]: number }, text: string) : number | number[] {
     try{
         let parser = new Parser(values, text);
         let trm = parser.Expression();
