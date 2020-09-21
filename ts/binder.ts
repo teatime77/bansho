@@ -5,6 +5,7 @@ declare let vec4:any;
 
 declare let Viz : any;
 
+const alphabet = "abcdefghijklmnopqrstuvwxyz";
 let viz : any;
 
 let sim: Simulation;
@@ -78,7 +79,6 @@ function setCode(text: string){
 }
 
 export class Variable {
-    id!              : string;
     package!         : PackageInfo;
     modifier!        : string;
     type!            : string;
@@ -91,10 +91,14 @@ export class Variable {
         Object.assign(this, obj);
     }
 
+    idVar(){
+        return `${this.package.id}_${this.name}`;
+    }
+
     makeObj() : any {
         let obj = Object.assign({}, this) as any;
         obj.typeName = Variable.name;
-        obj.dstVars = this.dstVars.map(x => `${x.id}`);
+        obj.dstVars = this.dstVars.map(x => x.idVar());
         delete obj.package;
 
         return obj;
@@ -145,17 +149,18 @@ export class PackageInfo {
     vertexShader!    : string;
     fragmentShader   : string = gpgputs.GPGPU.minFragmentShader;
     display          : string = "";
+    vars             : Variable[] = [];
 
     static newObj() : PackageInfo {
         // 空き番を探す。
         let id_num = 0;
-        while(sim.packageInfos.some(x => x.id == `pkg_${id_num}`)){
+        while(sim.packageInfos.some(x => x.id ==  alphabet[id_num])){
             id_num++;
         }
 
         return {
             typeName        : PackageInfo.name,
-            id              : `pkg_${id_num}`,
+            id              : alphabet[id_num],
             params          : "",
             numInputFormula : "",
             numGroup        : undefined,
@@ -171,13 +176,20 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     view!        : View;
     params       : string = "";
     packageInfos : PackageInfo[] = [];
-    varsAll      : Variable[] = [];
     startTime    : number = 0;
     prevTime     : number = 0;
     points       : Point[] = [];
 
     constructor(){
         super();
+    }
+
+    varsAll(){
+        let v: Variable[] = [];
+        for(let info of this.packageInfos){
+            v.push(... info.vars);
+        }
+        return v;
     }
 
     make(obj: any) : Widget {
@@ -195,27 +207,43 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         gl = gpgputs.gl;
 
         let va_map : { [id:string] : Variable} = {};
+        for(let info of this.packageInfos){
 
-        this.varsAll.forEach(x => va_map[x.id] = x);
+            info.vars = info.vars.map(x => new Variable(x));
 
-        for(let va of this.varsAll){
-            let pkg = this.packageInfos.find(x => va.id.startsWith(x.id + "_"));
-            if(pkg == undefined){
-                throw new Error();
+            for(let va of info.vars){
+                va.package = info;
+                va_map[va.idVar()] = va;
             }
-            va.package = pkg;
+        }
 
-            va.dstVars = (va.dstVars as unknown as string[]).map(id => va_map[id]);
+        for(let info of this.packageInfos){
+            for(let va of info.vars){
+                va.package = info;
+
+                va.dstVars = (va.dstVars as unknown as string[]).map(id => va_map[id]);
+            }
         }
 
         return this;
     }
 
     makeObj() : any {        
+        for(let [i, info] of this.packageInfos.entries()){
+            info.id = alphabet[i];
+        }
+
+        let infos = [];
+        for(let info of this.packageInfos){
+            let obj = Object.assign({}, info);
+            obj.vars = info.vars.map(va => va.makeObj());
+
+            infos.push(obj);
+        }
+
         return Object.assign(super.makeObj(), {
             params       : this.params,
-            packageInfos : this.packageInfos,
-            varsAll      : this.varsAll.map(x => x.makeObj())
+            packageInfos : infos
         });
     }
 
@@ -238,8 +266,11 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
         let packages: gpgputs.Package[] = [];
 
+        let info2pkg = new Map<PackageInfo, gpgputs.Package>();
+
         for(let pkgInfo of this.packageInfos){
             let pkg = makePkgFromInfo(pkgInfo);
+            info2pkg.set(pkgInfo, pkg);
 
             packages.push(pkg);
 
@@ -261,9 +292,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
                 pkg.vertexShader = shader;
             }
 
-            // パッケージの入出力変数のリスト
-            let vars = this.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
-            setIOVarsValue(pkgInfo, pkg, vars);
+            setIOVarsValue(pkgInfo, pkg);
 
             // 頂点シェーダの字句解析をする。
             let tokens = Lex(pkg.vertexShader, true);
@@ -279,10 +308,10 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             this.view.gpgpu!.makePackage(pkg);
         }
 
-        for(let pkg of packages){
-            // パッケージの入出力変数のリスト
-            let vars = this.varsAll.filter(x => x.id.startsWith(`${pkg.id}_`));
-            for(let src of vars){
+        for(let info of this.packageInfos){
+            let pkg = info2pkg.get(info)!;
+
+            for(let src of info.vars){
 
                 // すべてのコピー先の変数に対し
                 for(let dst of src.dstVars){
@@ -383,16 +412,13 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     }
 
     makeBindVars(packages: gpgputs.Package[], info1: PackageInfo, pkg1: gpgputs.Package, info2: PackageInfo, varNames: string[]){
-        // パッケージの入出力変数のリスト
-        let vars1 = this.varsAll.filter(x => x.id.startsWith(`${info1.id}_`));
-
-        let vars2 = getIOVariables(info2);
+        getIOVariables(info2);
 
         let pkg2 = makePkgFromInfo(info2);
 
         for(let name of varNames){
-            let srcVar = vars1.find(x => x.name == `out${name}`);
-            let dstVar = vars2.find(x => x.name == `in${name}`);
+            let srcVar = info1.vars.find(x => x.name == `out${name}`);
+            let dstVar = info2.vars.find(x => x.name == `in${name}`);
             
             if(srcVar == undefined || dstVar == undefined){
                 throw new Error();
@@ -402,7 +428,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             dstVar.copyTypeShape(srcVar);
         }
 
-        setIOVarsValue(info2, pkg2, vars2);
+        setIOVarsValue(info2, pkg2);
 
         for(let name of varNames){
             // コピー元の変数からコピー先の変数へバインドする。
@@ -454,8 +480,8 @@ export function make3D(canvas: HTMLCanvasElement){
     return gpgpu;
 }
 
-function setIOVarsValue(pkgInfo: PackageInfo, pkg: gpgputs.Package, vars: Variable[]){
-    for(let va1 of vars){
+function setIOVarsValue(pkgInfo: PackageInfo, pkg: gpgputs.Package){
+    for(let va1 of pkgInfo.vars){
         if(pkg.args[va1.name] == undefined){
             // 値が未定義の場合
 
@@ -503,7 +529,7 @@ function makePkgFromInfo(pkgInfo: PackageInfo){
 }
 
 function getIOVariables(pkg: PackageInfo){
-    let vars: Variable[] = [];
+    pkg.vars = [];
 
     let tokens = Lex(pkg.vertexShader, true);
     tokens = tokens.filter(x => x.typeTkn != TokenType.space);
@@ -522,11 +548,9 @@ function getIOVariables(pkg: PackageInfo){
                 type     : tokens[i + 1].text,
                 name     : name
             });
-            vars.push(iovar);
+            pkg.vars.push(iovar);
         }
     }
-
-    return vars;
 }
 
 function getParamsMap(formulas: string[]){
@@ -630,26 +654,25 @@ function showPackageEditDlg(pkg: PackageInfo){
 function makeGraph(){
     let texts : string[] = [];
 
-    let varsAll_old = sim.varsAll;
-    sim.varsAll = [];    
+    let varsAll_old = sim.varsAll();
+
     for(let pkg of sim.packageInfos){
-        let vars = getIOVariables(pkg);
-        sim.varsAll.push(...vars);
+        getIOVariables(pkg);
 
         let lines : string[] = [];
-        let invars = vars.filter(v=> v.modifier == "uniform" || v.modifier == "in");
+        let invars = pkg.vars.filter(v=> v.modifier == "uniform" || v.modifier == "in");
         for(let va of invars){
-            let old_va = varsAll_old.find(x => x.id == va.id);
+            let old_va = varsAll_old.find(x => x.idVar() == va.idVar());
             let shape = old_va != undefined ? old_va.shapeFormula : "";
 
-            lines.push(`${va.id} [ id="${va.id}", label = "${va.name} : ${shape}", shape = box];`);
-            lines.push(`${va.id} -> ${pkg.id}_vertex`);
+            lines.push(`${va.idVar()} [ id="${va.idVar()}", label = "${va.name} : ${shape}", shape = box];`);
+            lines.push(`${va.idVar()} -> ${pkg.id}_vertex`);
         }
 
-        let outvars = vars.filter(v=> v.modifier == "out");
+        let outvars = pkg.vars.filter(v=> v.modifier == "out");
         for(let x of outvars){
-            lines.push(`${x.id} [ id="${x.id}", label = "${x.name}", shape = box];`);
-            lines.push(`${pkg.id}_vertex -> ${x.id}`);
+            lines.push(`${x.idVar()} [ id="${x.idVar()}", label = "${x.name}", shape = box];`);
+            lines.push(`${pkg.id}_vertex -> ${x.idVar()}`);
         }
         
         texts.push(... `subgraph cluster_${pkg.id} {
@@ -662,17 +685,18 @@ function makeGraph(){
         `.split('\n'))
     }
 
+    let varsAll_new = sim.varsAll();
     for(let src_old of varsAll_old){
-        let src_new = sim.varsAll.find(x => x.id == src_old.id);
+        let src_new = varsAll_new.find(x => x.idVar() == src_old.idVar());
         if(src_new != undefined){
             src_new.texelType    = src_old.texelType;
             src_new.shapeFormula = src_old.shapeFormula;
 
             for(let dst_old of src_old.dstVars){
-                let dst_new = sim.varsAll.find(x => x.id == dst_old.id);
+                let dst_new = varsAll_new.find(x => x.idVar() == dst_old.idVar());
                 if(dst_new != undefined){
                     src_new.dstVars.push(dst_new);
-                    texts.push(`${src_new.id} -> ${dst_new.id} `);
+                    texts.push(`${src_new.idVar()} -> ${dst_new.idVar()} `);
                 }
             }
         }
@@ -869,12 +893,9 @@ function setBinderEvent(){
 
         // パッケージを削除する。
         removeArrayElement(sim.packageInfos, currentPkg);
-        
-        // パッケージ内の変数を削除する。
-        sim.varsAll = sim.varsAll.filter(x => x.package != currentPkg);
 
         // パッケージ内の変数へのバインドを削除する。
-        sim.varsAll.forEach(x => {
+        sim.varsAll().forEach(x => {
             x.dstVars = x.dstVars.filter(y => y.package != currentPkg);
         });
 
@@ -930,11 +951,11 @@ function setGraphEvent(){
         });
     }
 
-    for(let va of sim.varsAll){
+    for(let va of sim.varsAll()){
         let dom = getElement(`${va.package.id}_${va.name}`);
         dom.addEventListener("click", function(ev: MouseEvent){
 
-            let va1 = sim.varsAll.find(x => this.id == `${x.package.id}_${x.name}`);
+            let va1 = sim.varsAll().find(x => this.id == x.idVar());
             if(va1 == undefined) throw new Error();
             va1.click(ev);
         });
