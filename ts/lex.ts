@@ -217,13 +217,13 @@ export function Lex(text : string, skip_space: boolean = false) : Array<Token> {
                 token_type = TokenType.identifier;
             }
         }
-        else if (isDigit(ch1)) {
+        else if (isDigit(ch1) || ch1 == '-' && isDigit(ch2)) {
             // 数字の場合
 
             token_type = TokenType.Number;
 
             // 10進数の終わりを探します。
-            for (; pos < text.length && isDigit(text[pos]); pos++);
+            for (pos++; pos < text.length && isDigit(text[pos]); pos++);
 
             if (pos < text.length && text[pos] == '.') {
                 // 小数点の場合
@@ -610,10 +610,8 @@ class App extends Term{
 class Parser {
     tokens: Token[];
     token!: Token;
-    values: { [name: string]: number };
 
-    constructor(values: { [name: string]: number }, text: string){
-        this.values = values;
+    constructor(text: string){
         this.tokens = Lex(text, true);
         if(this.tokens.length == 0){
             
@@ -776,18 +774,19 @@ class Parser {
     
 }
 
-export function parseMath(values: { [name: string]: number }, text: string) : number | number[] {
-    try{
-        let parser = new Parser(values, text);
-        let trm = parser.Expression();
-        if(parser.token.typeTkn != TokenType.eot){
-            throw new Error();
-        }
-        return trm.calc(values);
+export function parseMath(text: string) : Term {
+    let parser = new Parser(text);
+    let trm = parser.Expression();
+    if(parser.token.typeTkn != TokenType.eot){
+        throw new Error();
     }
-    catch(e){
-        return NaN;
-    }
+
+    return trm;
+}
+
+export function parseCalcMath(values: { [name: string]: number }, text: string) : number | number[] {
+    let trm = parseMath(text);
+    return trm.calc(values);
 }
 
 }

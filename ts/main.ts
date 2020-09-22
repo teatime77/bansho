@@ -476,6 +476,9 @@ export function parseObject(obj: any) : any {
     case Simulation.name:
         return new Simulation().make(obj);
 
+    case ViewPoint.name:
+        return new ViewPoint().make(obj);
+    
     case PackageInfo.name:
         return obj;
 

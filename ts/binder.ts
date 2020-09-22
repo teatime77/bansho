@@ -5,7 +5,7 @@ declare let vec4:any;
 
 declare let Viz : any;
 
-const alphabet = "abcdefghijklmnopqrstuvwxyz";
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 let viz : any;
 
 let sim: Simulation;
@@ -199,12 +199,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     make(obj: any) : Widget {
         super.make(obj);
 
-        let prevView = glb.widgets.slice().reverse().find(x => x instanceof View) as View;
-        if(prevView == undefined){
-            throw new Error();
-        }
-
-        this.view = prevView;
+        this.view = getPrevView();
         if(this.view.gpgpu == null){
             this.view.gpgpu = make3D(this.view.canvas);
         }
@@ -258,6 +253,8 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     enable(){
         sim = this;
         this.applyGraph();
+
+        this.view.gpgpu!.drawParam = new gpgputs.DrawParam(0, 0, 0, 0, 0, -5.0);
     }
 
     disable(){
@@ -374,9 +371,14 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     }
 
     afterDraw(projViewMat: Float32Array)  : void {
+        let vp = glb.widgets.find(x => x instanceof ViewPoint && x.progress() <= 1.0) as ViewPoint;
+        if(vp != undefined){
+            vp.setDrawParam();
+        }
+
         for(let pt of this.points){
 
-            let nums = parseMath({}, pt.pos3D!) as number[];
+            let nums = parseCalcMath({}, pt.pos3D!) as number[];
             if( ! Array.isArray(nums) || nums.length != 3 ){
                 throw new Error();
             }
@@ -394,6 +396,9 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
             pt.pos.x = (x1 + 0.5 * w) + 0.5 * w * v2[0] ;
             pt.pos.y = (y1 + 0.5 * h) + 0.5 * h * v2[1] ;
+            if(isNaN(pt.pos.x) || isNaN(pt.pos.y)){
+                throw new Error();
+            }
 
             pt.setPos();
         }
@@ -457,6 +462,99 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             }        
         }
     }
+}
+
+export class ViewPoint extends Widget {
+    Rotaion     : string = "0, 0, 0";
+    Translation : string = "0, 0, -5";
+    Duration    : number = 3;
+
+    view!       : View;
+    startTime   : number = 0;
+    
+    constructor(){
+        super();
+    }
+
+    make(obj: any) : Widget {
+        super.make(obj);
+
+        return this;
+    }
+
+    makeObj() : any {        
+        return Object.assign(super.makeObj(), {
+            Rotaion     : this.Rotaion,
+            Translation : this.Translation,
+            Duration    : this.Duration
+        });
+    }
+
+    summary() : string {
+        return "視点";
+    }
+    
+    enable(){
+        this.startTime = (new Date()).getTime();
+        console.log("視点 有効");
+    }
+
+    disable(){
+        this.startTime = 0;
+    }
+
+    progress(){
+        let t = ((new Date()).getTime() - this.startTime) /  (1000 * this.Duration);
+        return t;
+    }
+
+    setDrawParam(){
+        this.view = getPrevView();
+
+        if(this.view.gpgpu!.drawables.length == 0){
+            return;
+        }
+
+        let map = { pi: Math.PI, t:this.progress() };
+
+        let rot = parseMath(this.Rotaion).calc(map) as number[];
+        let trn = parseMath(this.Translation).calc(map) as number[];
+        for(let nums of [rot, trn]){
+            if(! Array.isArray(nums) || nums.length != 3 || nums.some(x => typeof x != "number")){
+                throw new Error();
+            }
+        }
+
+        this.view.gpgpu!.drawParam = new gpgputs.DrawParam(rot[0], rot[1], rot[2], trn[0], trn[1], trn[2]);
+    }
+
+    propertyNames() : string[] {
+        return [ "Rotaion", "Translation", "Duration" ];
+    }
+
+    setRotaion(value:any){
+        let trm = parseMath(value);
+        this.Rotaion = value;
+    }
+
+    setTranslation(value:any){
+        let trm = parseMath(value);
+        this.Translation = value;
+    }
+
+    setDuration(value:any){
+        this.Duration = value;
+    }
+
+}
+
+export function getPrevView(){
+    let prevView = glb.widgets.slice().reverse().find(x => x instanceof View) as View;
+    if(prevView == undefined){
+        throw new Error();
+    }
+
+    return prevView;
 }
 
 export function make3D(canvas: HTMLCanvasElement){
@@ -556,7 +654,7 @@ function getParamsMap(formulas: string[]){
             }
 
             let [name, value] = v;
-            let n = parseMath(map, value) as number;
+            let n = parseCalcMath(map, value) as number;
             if(isNaN(n)){
                 
                 return null;
@@ -575,7 +673,7 @@ function calcTexShape(pkg: PackageInfo, shapeFormula: string){
         return null;
     }
 
-    let shape  = shapeFormula.split(',').map(x => parseMath(map!, x.trim())) as number[];
+    let shape  = shapeFormula.split(',').map(x => parseCalcMath(map!, x.trim())) as number[];
     if(shape.length < 1 || 3 < shape.length || shape.some(x => isNaN(x))){
         return null;
     }
@@ -593,7 +691,7 @@ function calcPkgNumInput(pkgParams: string, numInputFormula: string){
         return NaN;
     }
 
-    return parseMath(map, numInputFormula) as number;
+    return parseCalcMath(map, numInputFormula) as number;
 }
 
 function showTextureEditDlg(tex: Variable){
@@ -745,12 +843,19 @@ export function initBinder(){
 }
 
 function setBinderEvent(){
-    getElement("open-package").addEventListener("click", (ev: MouseEvent)=>{
-
+    // パッケージ追加
+    getElement("add-package").addEventListener("click", (ev: MouseEvent)=>{
         sim = new Simulation();
         sim.make({});
         glb.addWidget(sim);
         simEditDlg.showModal();
+    });
+
+    // 視点追加
+    getElement("add-viewpoint").addEventListener("click", (ev: MouseEvent)=>{
+        let vp = new ViewPoint();
+        vp.make({});
+        glb.addWidget(vp);
     });
     
     //-------------------------------------------------- シミュレーション編集画面
@@ -825,7 +930,7 @@ function setBinderEvent(){
         let map = getParamsMap([ simParamsInp.value, pkgParamsInp.value ]);
         if(map != null){
 
-            val  = parseMath(map, this.value.trim()) as number;
+            val  = parseCalcMath(map, this.value.trim()) as number;
         }
 
         pkgNumInputFormulaInp.style.color = isNaN(val) ? "red" : "black";
@@ -898,7 +1003,7 @@ function setBinderEvent(){
         let map = getParamsMap([ simParamsInp.value, currentTex.package.params ]);
         if(map != null){
 
-            let vals  = items.map(x => parseMath(map!, x.trim()));
+            let vals  = items.map(x => parseCalcMath(map!, x.trim()));
             let text  = vals.map(x => `${x}`).join(", ");
     
             texShapeValue.innerText = text;

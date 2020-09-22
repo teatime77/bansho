@@ -953,7 +953,7 @@ function initSample3D(gpgpu: gpgputs.GPGPU){
 
 
 function getSample3D(gpgpu: gpgputs.GPGPU) : gpgputs.AbsDrawable | null {
-    gpgpu.drawParam = new gpgputs.DrawParam(0, 0, 0, 0, -5.0);
+    gpgpu.drawParam = new gpgputs.DrawParam(0, 0, 0, 0, 0, -5.0);
 
     switch(sample3DSel.value){
         case "円": return (new gpgputs.Circle(new gpgputs.Color(1,0,0,1), 20)).scale(0.2, 0.1, 0.2).move(1, 0, 0.5);
