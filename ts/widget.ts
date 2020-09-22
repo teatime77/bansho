@@ -243,9 +243,9 @@ export class TextBlock extends TextWidget {
 
         let nextEle = null;
 
-        if(getTimePos() != -1){
+        if(getTimelinePos() != -1){
 
-            for(let act of glb.widgets.slice(getTimePos() + 1)){
+            for(let act of glb.widgets.slice(getTimelinePos() + 1)){
                 if(act instanceof TextBlock){
                     nextEle = act.div;
                     break;

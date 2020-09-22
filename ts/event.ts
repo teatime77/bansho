@@ -34,7 +34,7 @@ export function setEventListener(){
     if(glb.timeline != null){
 
         glb.timeline.addEventListener("change", (ev: Event)=>{
-            glb.selSummary.selectedIndex = getTimePos() + 1;
+            glb.selSummary.selectedIndex = getTimelinePos() + 1;
             glb.rngTimelineChange();
         });
     }

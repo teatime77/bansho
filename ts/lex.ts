@@ -43,7 +43,7 @@ let SymbolTable : Array<string> = new  Array<string> (
 let ReservedWords = [ 
     "if", "else", "return", "for", "while", "break", "continue", "switch", "case", "default",
     "in", "out", "uniform", "const", "precision", "highp", 
-    "tick", "time", "timeDiff", "gl_Position", "gl_PointSize", "texelFetch", "sin", "cos", "sign", "abs",
+    "tick", "time", "timeDiff", "speech", "gl_Position", "gl_PointSize", "texelFetch", "sin", "cos", "sign", "abs",
 ];
 
 let TypeNames = [ "bool", "int", "float", "vec2", "vec3", "vec4", "void", "sampler2D", "sampler3D", "mat3", "mat4" ];

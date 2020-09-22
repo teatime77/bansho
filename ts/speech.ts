@@ -39,10 +39,13 @@ export function initSpeech(){
 
 export class Speech extends TextWidget {
     static pendigShapeSelection : ShapeSelection | null = null;
-    static pause : number = 0;
+    static span : number = 0;
     static nextPos : number = 0;
-    static timePos : number;
+    static timelinePos : number;
     static subPos : number = 0;
+    static duration : number;
+    static startTime : number;
+    static speechIdx : number;
 
     prevCharIndex = 0;
 
@@ -59,17 +62,28 @@ export class Speech extends TextWidget {
 
         if(splitPhrase){
 
-            let i1 = this.Text.indexOf(",,", Speech.nextPos);
-            if(i1 != -1){
+            Speech.duration = 0;
 
-                text = this.Text.substring(Speech.nextPos, i1);
+            let nextText = this.Text.substring(Speech.nextPos);
+            let found = nextText.match(/@(,+)?(?:t([.\d]*))?/);
+
+            if(found == null || (found[1] == undefined && found[2] == undefined)){
+
+                text = nextText;
             }
             else{
-                text = this.Text.substring(Speech.nextPos);
+                text = nextText.substring(0, found.index);
+
+                if(found[2] != undefined){
+                    Speech.duration = parseFloat(found[2]);
+                    if(isNaN(Speech.duration)){
+                        throw new Error();
+                    }
+                }
             }
         }
         else{
-            text = this.Text.replace(/,,/g, " ");
+            text = this.Text.replace( /(@,+(t[.\d]+)?)|(@t[.\d]+)/g, " ");
         }
 
         let caption = "";
@@ -120,30 +134,36 @@ export class Speech extends TextWidget {
         if(start){
 
             Speech.nextPos = 0;
-            Speech.timePos = getTimePos();
+            Speech.timelinePos = getTimelinePos();
 
             Speech.pendigShapeSelection = null;
+
+            Speech.speechIdx = 10 * glb.widgets.filter(x => x instanceof Speech).indexOf(this);
+        }
+        else{
+            Speech.speechIdx++;
         }
 
         let [caption, speech] = this.splitCaptionSpeech(true);
 
         this.getPhrase();
         this.speak(caption, speech);
+        Speech.startTime = (new Date()).getTime();
 
-        if(Speech.pause == 0){
+        if(Speech.span == 0){
             // スピーチが分割されないか、最後のフレーズの場合
 
             if(start){
                 // スピーチの最初の場合
 
                 // 次のスピーチの手前まで実行する。
-                for(let pos = Speech.timePos + 1; pos < glb.widgets.length; pos++){
+                for(let pos = Speech.timelinePos + 1; pos < glb.widgets.length; pos++){
                     let act = glb.widgets[pos];
                     if(act instanceof Speech){    
                         return;
                     }
     
-                    Speech.timePos = pos;
+                    Speech.timelinePos = pos;
                     act.enable();    
                 }    
             }
@@ -165,17 +185,17 @@ export class Speech extends TextWidget {
         else{
             // スピーチが分割され、最後のフレーズでない場合
 
-            for(let idx = 0; idx < Speech.pause; idx++){
+            for(let idx = 0; idx < Speech.span; idx++){
 
                 let act : Widget
                 if(Speech.pendigShapeSelection == null){
                     // 処理の途中の図形選択がない場合
 
                     // 次の処理を得る。
-                    Speech.timePos++;
-                    if(Speech.timePos < glb.widgets.length){
+                    Speech.timelinePos++;
+                    if(Speech.timelinePos < glb.widgets.length){
 
-                        act = glb.widgets[Speech.timePos];
+                        act = glb.widgets[Speech.timelinePos];
                         Speech.subPos = 0;
                     }
                     else{
@@ -218,21 +238,21 @@ export class Speech extends TextWidget {
     }
 
     getPhrase(){
-        let i1 = this.Text.indexOf(",,", Speech.nextPos);
-        if(i1 != -1){
+        Speech.span = 0;
 
-            let i2 = i1 + 2;
-            while(i2 < this.Text.length && this.Text[i2] == ','){
-                i2++;
-            }
+        let nextText = this.Text.substring(Speech.nextPos);
+        let found = nextText.match(/@(,+)?(?:t([.\d]*))?/);
+        if(found == null || (found[1] == undefined && found[2] == undefined)){
 
-            Speech.nextPos = i2;
-            Speech.pause = i2 - 1 - i1;
+            Speech.nextPos = this.Text.length;
         }
         else{
 
-            Speech.nextPos = this.Text.length;
-            Speech.pause = 0;
+            if(found[1] != undefined){
+
+                Speech.span = found[1].length;
+            }
+            Speech.nextPos += found.index! + found[0].length;
         }
     }
 
@@ -284,15 +304,18 @@ export class Speech extends TextWidget {
         }
         else{
 
-            if(Speech.nextPos < this.Text.length){
+            let waitTime = 1000 * Speech.duration - ((new Date()).getTime() - Speech.startTime);
+            setTimeout(()=>{
+                if(Speech.nextPos < this.Text.length){
 
-                this.startSpeak(false);
-            }
-            else{
-                setTimePos(Speech.timePos);
+                    this.startSpeak(false);
+                }
+                else{
+                    setTimePos(Speech.timelinePos);
+                    glb.playNextWidgets();
+                }
+            }, Math.max(0, waitTime));
 
-                glb.playNextWidgets();
-            }
         }
     }
 }

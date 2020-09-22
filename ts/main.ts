@@ -91,12 +91,12 @@ export class Glb {
 
     rngTimelineChange(){   
         setTimePosMax( glb.widgets.length - 1 );
-        this.updateTimePos(getTimePos(), false);
+        this.updateTimePos(getTimelinePos(), false);
     }
 
     currentWidget() : Widget | undefined {
-        if(getTimePos() != -1){
-            return glb.widgets[getTimePos()];
+        if(getTimelinePos() != -1){
+            return glb.widgets[getTimelinePos()];
         }
         else{
             return undefined;
@@ -104,7 +104,7 @@ export class Glb {
     }
     
     playNextWidgets(){
-        for(let pos = getTimePos() + 1; pos < glb.widgets.length; pos++){
+        for(let pos = getTimelinePos() + 1; pos < glb.widgets.length; pos++){
             let act = glb.widgets[pos];
             act.enable();
             glb.updateTimePos(pos, true);
@@ -120,7 +120,7 @@ export class Glb {
     }
 
     addWidget(act: Widget){
-        let selIdx = getTimePos();
+        let selIdx = getTimelinePos();
     
         glb.widgets.splice(selIdx + 1, 0, act);
 
@@ -413,7 +413,7 @@ export class Glb {
 
 }
 
-export function getTimePos(){
+export function getTimelinePos(){
     if(glb.timeline != null){
         return glb.timeline.valueAsNumber;
     }

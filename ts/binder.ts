@@ -306,6 +306,9 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             if(tokens.some(x => x.text == "timeDiff")){
                 pkg.args["timeDiff"] = 0;
             }
+            if(tokens.some(x => x.text == "speech")){
+                pkg.args["speech"] = 0;
+            }
 
             pkg.args["tick"] = undefined;
 
@@ -338,6 +341,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         this.view.gpgpu!.drawScenelistener = this;
 
         this.startTime = NaN;
+        Speech.speechIdx = 0;
 
         // 3D位置指定をしたPointのリスト
         this.points = getAll().filter(x => x instanceof Point && x.pos3D != undefined) as Point[];
@@ -359,6 +363,10 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
             if(pkg.args["timeDiff"] != undefined){
                 pkg.args["timeDiff"] = currentTime - this.prevTime;
+            }
+
+            if(pkg.args["speech"] != undefined){
+                pkg.args["speech"] = Speech.speechIdx;
             }
         }
 
@@ -516,7 +524,7 @@ function getIOVariables(pkg: PackageInfo){
 
     for(let [i, token] of tokens.entries()){
         if(["uniform", "in", "out"].includes(token.text)){
-            if(["uPMVMatrix", "uNMatrix", "tick", "time", "timeDiff", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
+            if(["uPMVMatrix", "uNMatrix", "tick", "time", "timeDiff", "speech", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
                 continue;
             }
 
@@ -944,6 +952,7 @@ function setGraphEvent(){
 
 export function openSimulationDlg(act: Simulation){
     sim = act;
+    sim.points = [];
     simParamsInp.value = sim.params;
     sim.disable();
     simEditDlg.showModal();
