@@ -339,6 +339,7 @@ export class Glb {
 
     
     initDoc(doc: any){
+        glb.widgets.forEach(x => x.delete());
         glb.widgets = [];
         glb.refMap = new Map<number, Widget>();
         setTimePosMax(-1);

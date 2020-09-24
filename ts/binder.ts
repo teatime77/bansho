@@ -261,6 +261,10 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         this.view.gpgpu!.clearAll();
     }
 
+    delete(){
+        this.view.gpgpu!.clearAll();
+    }
+
     applyGraph(){
         this.view.gpgpu!.clearAll();
         // this.view.gpgpu = make3D(this.view.canvas);

@@ -4,6 +4,9 @@ let jpVoice : SpeechSynthesisVoice|null = null;
 let voiceName = "Google 日本語";
 // let voiceName = "Microsoft Haruka Desktop - Japanese";
 
+let pattern  = / @(,+)?(?:t([.\d]*))? /;
+let patternG = / @(,+)?(?:t([.\d]*))? /g;
+
 function setVoice(){
     const voices = speechSynthesis.getVoices()
     voiceList = [];
@@ -65,9 +68,9 @@ export class Speech extends TextWidget {
             Speech.duration = 0;
 
             let nextText = this.Text.substring(Speech.nextPos);
-            let found = nextText.match(/@(,+)?(?:t([.\d]*))?/);
+            let found = nextText.match(pattern);
 
-            if(found == null || (found[1] == undefined && found[2] == undefined)){
+            if(found == null){
 
                 text = nextText;
             }
@@ -75,6 +78,8 @@ export class Speech extends TextWidget {
                 text = nextText.substring(0, found.index);
 
                 if(found[2] != undefined){
+                    // 時間指定がある場合
+
                     Speech.duration = parseFloat(found[2]);
                     if(isNaN(Speech.duration)){
                         throw new Error();
@@ -83,7 +88,7 @@ export class Speech extends TextWidget {
             }
         }
         else{
-            text = this.Text.replace( /(@,+(t[.\d]+)?)|(@t[.\d]+)/g, " ");
+            text = this.Text.replace(patternG, " ");
         }
 
         let caption = "";
@@ -241,14 +246,15 @@ export class Speech extends TextWidget {
         Speech.span = 0;
 
         let nextText = this.Text.substring(Speech.nextPos);
-        let found = nextText.match(/@(,+)?(?:t([.\d]*))?/);
-        if(found == null || (found[1] == undefined && found[2] == undefined)){
+        let found = nextText.match(pattern);
+        if(found == null){
 
             Speech.nextPos = this.Text.length;
         }
         else{
 
             if(found[1] != undefined){
+                // カンマ(,)がある場合
 
                 Speech.span = found[1].length;
             }
@@ -261,8 +267,7 @@ export class Speech extends TextWidget {
             setVoice();
         }
 
-
-        console.log(`speak caption:${caption}`);
+        console.log(`speak ${Speech.speechIdx} caption:${caption}`);
     
         if(glb.caption != undefined){
             glb.caption.textContent = caption;
