@@ -171,7 +171,8 @@ export class PackageInfo {
             mode            : "",
             vertexShader    : "",
             fragmentShader  : "",
-            display         : ""
+            display         : "",
+            vars            : []
         } as unknown as PackageInfo;
     }
 }
@@ -310,6 +311,9 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             if(tokens.some(x => x.text == "speech")){
                 pkg.args["speech"] = 0;
             }
+            if(tokens.some(x => x.text == "attention")){
+                pkg.args["attention"] = -1;
+            }
 
             pkg.args["tick"] = undefined;
 
@@ -368,6 +372,17 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
             if(pkg.args["speech"] != undefined){
                 pkg.args["speech"] = Speech.speechIdx;
+            }
+
+            if(pkg.args["attention"] != undefined){
+                if(pkg.id == Speech.attentionId){
+
+                    pkg.args["attention"] = Speech.attentionIdx;
+                }
+                else{
+
+                    pkg.args["attention"] = -1;
+                }
             }
         }
 
@@ -445,12 +460,19 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             console.assert(pkg1 != undefined);
 
             switch(info1.display){
+            case "Tube":{                
+                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(1.0, pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
+                break;
+            }
+    
             case "Arrow3D":{
                 let info2 = Object.assign(PackageInfo.newObj(), ArrowFanPkg(pkg1.numInput!));
 
                 this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec", "Color" ]);
                 
-                let info3 = Object.assign(PackageInfo.newObj(), ArrowTubePkg(pkg1.numInput!));
+                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(0.8, pkg1.numInput!));
 
                 this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
                 break;
@@ -626,7 +648,7 @@ function getIOVariables(pkg: PackageInfo){
 
     for(let [i, token] of tokens.entries()){
         if(["uniform", "in", "out"].includes(token.text)){
-            if(["uPMVMatrix", "uNMatrix", "tick", "time", "timeDiff", "speech", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
+            if(["uPMVMatrix", "uNMatrix", "tick", "time", "timeDiff", "speech", "attention", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
                 continue;
             }
 
@@ -737,6 +759,12 @@ function showPackageEditDlg(pkg: PackageInfo){
     pkgDisplaySel.value = currentPkg.display;
 
     setCode(pkg.vertexShader);
+
+    let div = getElement("pkg-speech");
+    let v = Array.from(glb.widgets.filter(x => x instanceof Speech).entries()).map(i => `${i[0]} ${(i[1] as Speech).Text}`);
+    v = v.map(x => x.replace(/ @/g, '&nbsp;<span style="color:red">@</span>'));
+    div.innerHTML = v.join("<br/>");
+
     pkgEditDlg.showModal();
     console.log(`pkg.id click`);    
 }
@@ -848,7 +876,7 @@ export function initBinder(){
 
 function setBinderEvent(){
     // パッケージ追加
-    getElement("add-package").addEventListener("click", (ev: MouseEvent)=>{
+    getElement("add-simulation").addEventListener("click", (ev: MouseEvent)=>{
         sim = new Simulation();
         sim.make({});
         glb.addWidget(sim);

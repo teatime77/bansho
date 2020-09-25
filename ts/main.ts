@@ -253,20 +253,6 @@ export class Glb {
         }
     }
 
-    updateFocusedTextBlock(){
-        const text = this.textArea.value.trim();
-        const act = this.currentWidget()!;
-
-        if(act instanceof TextBlock){
-
-            const html = makeHtmlLines(text);
-            act.div.innerHTML = html;
-            act.Text = text;
-
-            reprocessMathJax(act, act.div, html);
-        }
-    }
-
     updateTextMath(){
         const act = this.currentWidget();
         if(! (act instanceof TextWidget)){
@@ -283,12 +269,22 @@ export class Glb {
 
                 changed = true;
             }
+        }
 
-            if(changed){
-                // テキストか改行が変更された場合
+        if(changed){
+            // テキストか改行が変更された場合
 
-                this.updateFocusedTextBlock();
+            if(act instanceof TextBlock){
+
+                const html = makeHtmlLines(text);
+                act.div.innerHTML = html;
+                act.Text = text;
+    
+                reprocessMathJax(act, act.div, html);
             }
+
+            let i = glb.widgets.indexOf(act);
+            glb.selSummary.options[1 + i].innerHTML = act.summary();
         }
     }
 
@@ -543,17 +539,11 @@ export function parseObject(obj: any) : any {
     }
 }
 
-function showFileList(){    
-    if(indexFile.docs.length != 0){
+function openDocFromUrl(){
+    let id = getIdFromUrl();
+    if(! isNaN(id)){
 
-        indexFile.docs.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
-        setDocsTbl();
-
-        let id = getIdFromUrl();
-        if(! isNaN(id)){
-    
-            glb.openDoc(id);
-        }
+        glb.openDoc(id);
     }
 }
 
@@ -582,6 +572,7 @@ export function putData(is_new: boolean){
 
     putNewDoc(is_new, title, text, ()=>{
         alert(`保存しました。 ${title}`);
+        getIndexFile(false);
     })
 }
 
@@ -609,6 +600,31 @@ export function initBansho(edit: boolean){
     Glb.getJsonFile = href.includes("://127.0.0.1:8080") || href.includes("://ban-sho.web.app/");
 }
 
+function getIndexFile(open_doc_from_url: boolean){
+    if(Glb.getJsonFile){
+        fetchText("json/index.json", (text: string)=>{
+            indexFile = JSON.parse(text);
+            setDocsTbl();
+
+            if(open_doc_from_url){
+                openDocFromUrl();
+            }
+        });
+    }
+    else{
+
+        initFirebase(()=>{
+            getElement("db-off").style.display = "none";
+
+            setDocsTbl();
+
+            if(open_doc_from_url){
+                openDocFromUrl();
+            }
+        });
+    }
+}
+
 export function initEdit(){
     console.log("body load");
 
@@ -627,20 +643,7 @@ export function initEdit(){
     initBinder();
 
     console.log(`window.location.href : ${window.location.href}`);
-    if(Glb.getJsonFile){
-        fetchText("json/index.json", (text: string)=>{
-            indexFile = JSON.parse(text);
-            showFileList();
-        });
-    }
-    else{
-
-        initFirebase(()=>{
-            getElement("db-off").style.display = "none";
-
-            showFileList();
-        });
-    }
+    getIndexFile(true);
 }
 
 export function initPlay(){

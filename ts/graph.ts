@@ -197,6 +197,11 @@ export function setDocsTbl(){
     let tr : HTMLTableRowElement;
     docsTbl.innerHTML = "";
 
+    if(indexFile.docs.length == 0){
+        return;
+    }
+    indexFile.docs.sort((x: any, y: any)=>x.title.localeCompare(y.title, 'ja'));
+
     let ncol = 8;
     let nrow = Math.ceil(indexFile.docs.length / ncol);
     for(let row of range(nrow)){
@@ -218,9 +223,7 @@ export function setDocsTbl(){
             });
             td.innerHTML = doc.title;
 
-
             tr!.appendChild(td);
-    
         }
     }
 }

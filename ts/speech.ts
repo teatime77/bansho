@@ -4,8 +4,8 @@ let jpVoice : SpeechSynthesisVoice|null = null;
 let voiceName = "Google 日本語";
 // let voiceName = "Microsoft Haruka Desktop - Japanese";
 
-let pattern  = / @(,+)?(?:t([.\d]*))? /;
-let patternG = / @(,+)?(?:t([.\d]*))? /g;
+let pattern  = / @(,+)?(?:t([.\d]*))?(?:([A-Z])([0-9]+))?(\s|$)/;
+let patternG = / @(,+)?(?:t([.\d]*))?(?:([A-Z])([0-9]+))?(\s|$)/g;
 
 function setVoice(){
     const voices = speechSynthesis.getVoices()
@@ -49,6 +49,8 @@ export class Speech extends TextWidget {
     static duration : number;
     static startTime : number;
     static speechIdx : number;
+    static attentionId : string;
+    static attentionIdx : number;
 
     prevCharIndex = 0;
 
@@ -57,7 +59,8 @@ export class Speech extends TextWidget {
     }
 
     summary() : string {
-        return `🔊 ${this.Text}`;
+        let i = glb.widgets.filter(x => x instanceof Speech).indexOf(this);
+        return `🔊${i} ${this.Text}`;
     }
 
     splitCaptionSpeech(splitPhrase: boolean): [string, string]{
@@ -66,6 +69,9 @@ export class Speech extends TextWidget {
         if(splitPhrase){
 
             Speech.duration = 0;
+            Speech.span = 0;
+            Speech.attentionId = "";
+            Speech.attentionIdx = -1;
 
             let nextText = this.Text.substring(Speech.nextPos);
             let found = nextText.match(pattern);
@@ -73,10 +79,17 @@ export class Speech extends TextWidget {
             if(found == null){
 
                 text = nextText;
+                Speech.nextPos = this.Text.length;
             }
             else{
                 text = nextText.substring(0, found.index);
 
+                if(found[1] != undefined){
+                    // カンマ(,)がある場合
+    
+                    Speech.span = found[1].length;
+                }
+    
                 if(found[2] != undefined){
                     // 時間指定がある場合
 
@@ -85,6 +98,18 @@ export class Speech extends TextWidget {
                         throw new Error();
                     }
                 }
+    
+                if(found[3] != undefined){
+                    // アテンション指定がある場合
+
+                    Speech.attentionId = found[3];
+                    Speech.attentionIdx = parseInt(found[4]);
+                    if(isNaN(Speech.attentionIdx)){
+                        throw new Error();
+                    }
+                }
+
+                Speech.nextPos += found.index! + found[0].length;
             }
         }
         else{
@@ -151,7 +176,6 @@ export class Speech extends TextWidget {
 
         let [caption, speech] = this.splitCaptionSpeech(true);
 
-        this.getPhrase();
         this.speak(caption, speech);
         Speech.startTime = (new Date()).getTime();
 
@@ -239,26 +263,6 @@ export class Speech extends TextWidget {
                     act.enable();
                 }
             }
-        }
-    }
-
-    getPhrase(){
-        Speech.span = 0;
-
-        let nextText = this.Text.substring(Speech.nextPos);
-        let found = nextText.match(pattern);
-        if(found == null){
-
-            Speech.nextPos = this.Text.length;
-        }
-        else{
-
-            if(found[1] != undefined){
-                // カンマ(,)がある場合
-
-                Speech.span = found[1].length;
-            }
-            Speech.nextPos += found.index! + found[0].length;
         }
     }
 

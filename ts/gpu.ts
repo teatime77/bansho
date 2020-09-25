@@ -644,10 +644,10 @@ void main(void) {
 }
 
 //--------------------------------------------------
-// 矢印3D(管)
+// 管
 //--------------------------------------------------
 
-export function ArrowTubePkg(cnt: number){
+export function TubePkg(length: number, cnt: number){
     let npt = 9;
 
     return {
@@ -691,7 +691,7 @@ export function ArrowTubePkg(cnt: number){
         }
         else{
     
-            cc = pos + 0.8 * vec;
+            cc = pos + float(${length}) * vec;
         }
     
         // 円の半径

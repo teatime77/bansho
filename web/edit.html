@@ -117,7 +117,7 @@ input[type="radio"]:checked + label {
     <div style="grid-row: 1; grid-column: 1/span 4; background-color: cornsilk; ">
         <b id="db-off" style="color: red; ">DB off</b>
         <button id="add-shape" >図形を挿入</button>
-        <button id="add-package">パッケージ</button>
+        <button id="add-simulation">3D</button>
         <button id="add-viewpoint">視点</button>
         </select>
         <input type="radio" name="tool-type" value="select" checked />選択
@@ -221,13 +221,22 @@ GPGPUのパッケージの編集
     表示
     <select id="pkg-display">
         <option value="" selected>なし</option>
+        <option value="Tube">管</option>
         <option value="Arrow3D">矢印3D</option>
         <option value="Parallelogram">平行四辺形</option>
     </select>
 
-    <div id="pkg-vertex-shader" contenteditable spellcheck="false" style="font-family: monospace; font-weight: bold; background-color: white; padding: 10px; width: 600px; height: 600px; overflow: scroll; white-space: nowrap;">
-        <div></div>
-    </div>
+    <table><tr>
+        <td>
+            <div id="pkg-vertex-shader" contenteditable spellcheck="false" style="font-family: monospace; font-weight: bold; background-color: white; padding: 10px; width: 600px; height: 600px; overflow: scroll; white-space: nowrap;">
+                <div></div>
+            </div>
+        </td>
+        <td>
+            <div id="pkg-speech" style="font-family: monospace; font-weight: bold; background-color: white; padding: 10px; width: 600px; height: 600px; overflow: scroll; white-space: nowrap;"></div>
+        </td>
+    </tr></table>
+
     <button id="pkg-edit-cancel">Cancel</button>
     <button id="pkg-edit-ok">OK</button>
     <button id="pkg-edit-del" style="float: right;" >削除</button>
