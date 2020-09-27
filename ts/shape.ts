@@ -392,7 +392,6 @@ export class View extends Widget {
         this.div.style.position = "relative";
         this.div.style.padding = "0px";
         this.div.style.zIndex = "1";
-        this.div.style.backgroundColor = "cornsilk";
         this.div.style.cssFloat = "right";
 
         this.canvas = document.createElement("canvas");
@@ -1074,10 +1073,12 @@ export abstract class Shape extends Widget {
 
         if(this.svgName != null){
             this.svgName.parentElement!.removeChild(this.svgName);
+            this.svgName = null;
         }
 
         if(this.divCaption != null){
             this.divCaption.parentElement!.removeChild(this.divCaption);
+            this.divCaption = null;
         }
     }
 
@@ -1154,7 +1155,14 @@ export abstract class Shape extends Widget {
             if(this.svgName == null){
 
                 this.svgName = document.createElementNS("http://www.w3.org/2000/svg","text");
-                this.svgName.setAttribute("stroke", "navy");
+                if(glb.widgets.some(x => x instanceof Simulation)){
+
+                    this.svgName.setAttribute("stroke", "white");
+                }
+                else{
+
+                    this.svgName.setAttribute("stroke", "navy");
+                }
                 this.svgName.style.cursor = "pointer";
                 this.parentView.G0.appendChild(this.svgName);
 
@@ -1195,6 +1203,14 @@ export abstract class Shape extends Widget {
                 this.divCaption.style.cursor = "move";
                 this.divCaption.style.pointerEvents = "all";
                 this.divCaption.style.zIndex = "4";
+                if(glb.widgets.some(x => x instanceof Simulation)){
+
+                    this.divCaption.style.color = "white";
+                }
+                else{
+
+                    this.divCaption.style.color = "black";
+                }
         
                 this.parentView.div2.appendChild(this.divCaption);
 
@@ -1636,7 +1652,11 @@ export class Point extends Shape {
 
     delete(){
         super.delete();
-        this.circle.parentElement!.removeChild(this.circle);
+        if(this.circle != null){
+
+            this.circle.parentElement!.removeChild(this.circle);
+            this.circle = null!;
+        }
     }
 }
 

@@ -116,45 +116,25 @@ export class Speech extends TextWidget {
             text = this.Text.replace(patternG, " ");
         }
 
+        // `漢字|読み`をcaptionとspeechに分ける。
         let caption = "";
         let speech = "";
-        let st = 0;
-        while(st < text.length){
-            let k1 = text.indexOf("'", st);
-            if(k1 == -1){
-                caption += text.substring(st);
-                speech  += text.substring(st);
+    
+        while(true){
+            let f = text.match(/`([^|]+)\|([^`]+)`/);
+            if(f == null){
+                caption += text;
+                speech  += text;
                 break;
             }
     
-            caption += text.substring(st, k1);
-            speech  += text.substring(st, k1);
+            let s = text.substring(0, f.index);
+            caption += s + f[1];
+            speech  += s + f[2];
     
-            k1++;
-            let k2 = text.indexOf("'", k1);
-            if(k2 == -1){
-    
-                caption += text.substring(st);
-                speech  += text.substring(st);
-                break;
-            }
-    
-            let v = text.substring(k1, k2).split("|");
-            if(v.length != 2){
-    
-                let s = text.substring(k1 - 1, k2 + 1)
-                
-                caption += s;
-                speech  += s;
-            }
-            else{
-    
-                caption += v[0];
-                speech  += v[1];
-            }
-    
-            st = k2 + 1;
+            text = text.substring(f.index! + f[0].length);
         }
+        console.log(`[${caption}] [${speech}]`);
 
         return[caption, speech];
     }
