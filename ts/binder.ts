@@ -26,6 +26,7 @@ let pkgParamsInp          : HTMLInputElement;
 let pkgNumInputFormulaInp : HTMLInputElement;
 let pkgFragmentShaderSel  : HTMLSelectElement;
 let pkgDisplaySel         : HTMLSelectElement;
+let pkgSpeech             : HTMLDivElement;
 export let pkgVertexShaderDiv: HTMLDivElement;
 
 let currentPkg            : PackageInfo;
@@ -314,6 +315,9 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             if(tokens.some(x => x.text == "attention")){
                 pkg.args["attention"] = -1;
             }
+            if(tokens.some(x => x.text == "progress")){
+                pkg.args["progress"] = 0;
+            }
 
             pkg.args["tick"] = undefined;
 
@@ -384,6 +388,17 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
                     pkg.args["attention"] = -1;
                 }
             }
+
+            if(pkg.args["progress"] != undefined){
+                if(Speech.duration != 0){
+
+                    pkg.args["progress"] = Math.min(1.0,  ((new Date()).getTime() - Speech.startTime) / (1000 * Speech.duration));
+                }
+                else{
+
+                    pkg.args["progress"] = 0;
+                }
+            }           
         }
 
         this.prevTime = currentTime;
@@ -478,9 +493,13 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
                 break;
             }
 
+            case "Triangle":
+                let info2 = Object.assign(PackageInfo.newObj(), TrianglePkg(pkg1.numInput!));
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec1", "Vec2", "Color" ]);
+                break;
+
             case "Parallelogram":{
                 let info2 = Object.assign(PackageInfo.newObj(), ParallelogramPkg(pkg1.numInput!));
-
                 this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec1", "Vec2", "Color" ]);
                 break;
             }
@@ -648,7 +667,7 @@ function getIOVariables(pkg: PackageInfo){
 
     for(let [i, token] of tokens.entries()){
         if(["uniform", "in", "out"].includes(token.text)){
-            if(["uPMVMatrix", "uNMatrix", "tick", "time", "timeDiff", "speech", "attention", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
+            if(["uPMVMatrix", "uNMatrix", "tick", "time", "timeDiff", "speech", "attention", "progress", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
                 continue;
             }
 
@@ -760,10 +779,9 @@ function showPackageEditDlg(pkg: PackageInfo){
 
     setCode(pkg.vertexShader);
 
-    let div = getElement("pkg-speech");
     let v = Array.from(glb.widgets.filter(x => x instanceof Speech).entries()).map(i => `${i[0]} ${(i[1] as Speech).Text}`);
     v = v.map(x => x.replace(/ @/g, '&nbsp;<span style="color:red">@</span>'));
-    div.innerHTML = v.join("<br/>");
+    pkgSpeech.innerHTML = v.join("<br/>");
 
     pkgEditDlg.showModal();
     console.log(`pkg.id click`);    
@@ -859,6 +877,7 @@ export function initBinder(){
     pkgFragmentShaderSel  = getElement("pkg-fragment-shader") as HTMLSelectElement;
     pkgDisplaySel         = getElement("pkg-display") as HTMLSelectElement;
     pkgVertexShaderDiv    = getElement("pkg-vertex-shader") as HTMLDivElement;
+    pkgSpeech             = getElement("pkg-speech") as HTMLDivElement;
     
     //-------------------------------------------------- テクスチャ編集画面
     texEditDlg      = getElement("tex-edit-dlg") as HTMLDialogElement;
@@ -1006,6 +1025,20 @@ function setBinderEvent(){
             }
 
             currentPkg.display = pkgDisplaySel.value;
+
+            let lines = pkgSpeech.innerText.replace(/\n\n/g, '\n').replace(/\xA0/g, ' ').split('\n');
+            let acts  = glb.widgets.filter(x => x instanceof Speech) as Speech[];
+            if(lines.length == acts.length){
+                for(let [i, act] of acts.entries()){
+                    let s = lines[i].replace(/^\d+\s/, "");
+                    if(s != act.Text){
+                        console.log(`前:[${act.Text}]`);
+                        console.log(`後:[${s}]`);
+                        act.Text = s;
+                        updateSummary(act);
+                    }
+                }
+            }
 
             pkgEditDlg.close();
 

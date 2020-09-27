@@ -9,6 +9,7 @@ let workWidget : Widget | undefined = undefined;
 export class Glb {
     static edit: boolean;
     static getJsonFile : boolean;
+    static startPlayTime: number = 0;
     docID   : number = NaN;
     widgets : Widget[] = [];
     widgetMap : Widget[] = [];
@@ -65,6 +66,8 @@ export class Glb {
 
     clickPlayPause(){
         if(this.isPlaying){
+
+            Glb.startPlayTime = 0;
     
             if(glb.isSpeaking){
                 glb.pauseFlag = true;
@@ -78,6 +81,7 @@ export class Glb {
         }
         else{
     
+            Glb.startPlayTime = (new Date()).getTime();
             this.btnPlayPause.innerHTML = "⏸";
             this.playNextWidgets();
         }

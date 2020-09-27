@@ -178,6 +178,10 @@ export class Speech extends TextWidget {
 
         this.speak(caption, speech);
         Speech.startTime = (new Date()).getTime();
+        if(Glb.startPlayTime != 0){
+            let t = Math.round((Speech.startTime - Glb.startPlayTime) / 1000);
+            getElement("play-time").innerText = `${Math.floor(t / 60)}:${t % 60}`;
+        }
 
         if(Speech.span == 0){
             // スピーチが分割されないか、最後のフレーズの場合
