@@ -13,9 +13,12 @@ let mapDiv : HTMLDivElement;
 let skipIds = [ 182, 1, 8, 154, 155, 153, -100, -101, -102 ];
 let skipIds2 = skipIds.map(x => `${x}`);
 
+let mapId      : number;
 let mapDocs    : FileInfo[] = [];
 let mapDocsTmp : FileInfo[];
 let mapEdges   : Edge[] = [];
+let goalIds  : number[] = [];
+let pathIds  : number[] = [];
 
 let srcDoc : FileInfo | null = null;
 let srcG   : SVGElement;
@@ -27,6 +30,42 @@ class Edge {
     label!: string;
 }
 
+function setPathIds(){
+    let oldPathIds = pathIds;
+    pathIds = [];
+    let pendings : number[] = goalIds.slice();
+
+    while(pendings.length != 0){
+        let id = pendings.pop()!;
+
+        pathIds.push(id);
+
+        let srcIds = mapEdges.filter(x => x.dstId == id && ! pathIds.includes(x.srcId)).map(x => x.srcId);
+        pendings.push(... Array.from(new Set(srcIds)));
+    }
+
+    for(let id of new Set(oldPathIds.concat(pathIds))){
+        let box = getElement(`${id}`);
+        let ellipse = getChildNode(box as unknown as SVGGElement, "ellipse");
+        if(pathIds.includes(id)){
+            ellipse!.setAttribute("fill", "aqua");
+        }
+        else{
+            ellipse!.setAttribute("fill", "white");
+        }
+    }
+}
+
+function getChildNode(g : SVGGElement, nodeName: string){
+    for(let nd of g.childNodes){
+        console.log(`${nd.nodeName}`);
+        if(nd.nodeName == nodeName){
+
+            return nd as SVGEllipseElement;
+        }
+    }
+    throw new Error();
+}
 
 function setMapSvgEvent(){
     for(let doc of mapDocs){
@@ -34,6 +73,13 @@ function setMapSvgEvent(){
             continue;
         }
         let box = getElement(`${doc.id}`);
+
+        if(doc.len != 0){
+
+            let text = getChildNode(box as unknown as SVGGElement, "text");
+            text.setAttribute("fill", "blue");
+        }
+
         box.addEventListener("click", function(ev:MouseEvent){
             if(! Glb.edit){
                 return;
@@ -46,16 +92,8 @@ function setMapSvgEvent(){
             }
             console.log(`click ${doc1.id} ${doc1.title}`);
 
-            let g = this as unknown as SVGGElement;
-            let ellipse : SVGEllipseElement;
-            for(let nd of g.childNodes){
-                console.log(`${nd.nodeName}`);
-                if(nd.nodeName == "ellipse"){
+            let ellipse = getChildNode(this as unknown as SVGGElement, "ellipse");
 
-                    ellipse = nd as SVGEllipseElement;
-                    break;
-                }
-            }
             if(ev.ctrlKey){
 
                 if(srcDoc == null){
@@ -76,6 +114,16 @@ function setMapSvgEvent(){
                     srcG.setAttribute("fill", "white");
                     srcDoc = null;
                 }
+            }
+            else if(ev.shiftKey){
+                if(goalIds.includes(doc1.id)){
+                    removeArrayElement(goalIds, doc1.id);
+                }
+                else{
+                    goalIds.push(doc1.id);
+                }
+
+                setPathIds();
             }
             else{
 
@@ -169,6 +217,10 @@ export function getMap(map_id: number){
     else{
 
         fetchDB(`${map_id}`, (id: string | null, data:any)=>{
+            mapId   = parseInt(id!);
+            if(isNaN(mapId)){
+                throw new Error();
+            }
             let obj = JSON.parse(data.text);
             mapEdges = obj.edges;
             setMapDocs();
@@ -188,6 +240,19 @@ export function newMap(){
 
 
 export function putMap(){
+    let map_data = {
+        text : JSON.stringify({ edges: mapEdges })
+    }
+    
+    let log = `[${mapId}]にマップを書き込みました。`;
+    writeDB(
+        `${mapId}`, map_data, log,
+        ()=>{
+            alert(log);
+        }
+    );
+
+
 }
 
 export function delMap(){

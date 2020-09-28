@@ -32,6 +32,7 @@ class TextFile {
 export class FileInfo {
     id!    : number;
     title! : string;
+    len!   : number;
 }
 
 function newFileInfo(id: number, title: string){
@@ -126,11 +127,13 @@ export function initFirebase(fnc:()=>void){
     dropZone.addEventListener('drop', handleFileSelect, false);
 }
 
-function writeDB(id: string, data: any, msg: string, fnc:()=>void){
+export function writeDB(id: string, data: any, msg: string, fnc:(()=>void) | null = null){
     db.collection('users').doc(loginUid!).collection('docs').doc(id).set(data)
     .then(function() {
         console.log(msg);
-        fnc();
+        if(fnc != null){
+            fnc();
+        }
     })
     .catch(function(error : any) {
         console.error("Error adding document: ", error);
@@ -298,6 +301,7 @@ export function initDB(){
     initFirebase(()=>{
         set_click("db-upload", dbUpload);
         set_click("db-backup", dbBackup);
+        set_click("db-batch",  dbBatch);
     });
 }
 
@@ -412,5 +416,54 @@ export function dbBackup(){
         });
     });    
 }
+
+
+export function dbBatch(){
+    db.collection('users').doc(loginUid!).collection('docs').get()
+    .then((querySnapshot: any) => {
+        querySnapshot.forEach((dt: any) => {
+            const doc = dt.data();
+            if(dt.id == "index"){
+                console.log(`索引`);
+            }
+            else{
+                let dt_id = parseInt(dt.id);
+                console.assert(! isNaN(dt_id));
+
+                let   d = JSON.parse(doc.text);
+                if(d.widgets != undefined){
+
+                    let info = indexFile.docs.find(x => x.id == dt_id)!;
+                    console.assert(info != undefined);
+                    
+                    info.len = d.widgets.length;
+                    console.log(`${dt.id} ${d.widgets.length} ${d.title}`);
+                }
+                else if(d.edges != undefined){
+    
+                    console.log(`${dt.id} エッジ : ${d.edges.length}`);
+                }
+                else{
+    
+                    console.assert(false);
+                }
+            }
+        });
+
+        let tmpIdx = cloneIndexFile();
+        writeDB("index", tmpIdx, "索引を更新しました。");
+    });    
+}
+
+
+
+
+
+
+
+
+
+
+
 
 }
