@@ -27,6 +27,16 @@ export const tailShader = `
     vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
 `;
 
+export const tailShader2 = `
+    gl_Position = uPMVMatrix * vec4(outPos, 1.0);
+    fragmentColor = outColor;
+
+    vec3 transformedNormal = uNMatrix * outNrm;
+
+    float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
+    vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+`;
+
 //--------------------------------------------------
 // 球
 //--------------------------------------------------
@@ -777,7 +787,6 @@ void main(void) {
 }
 
 
-
 //--------------------------------------------------
 // 平行四辺形
 //--------------------------------------------------
@@ -842,6 +851,96 @@ void main(void) {
 
 
 
+
+//--------------------------------------------------
+// 直方体
+//--------------------------------------------------
+
+export function CuboidPkg(cnt: number){
+    return {
+    params          : "",
+    numInputFormula : `${cnt} * 6 * 6`,
+    mode            : "TRIANGLES",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+${bansho.headShader}
+
+uniform int   tick;
+
+uniform sampler2D inPos;
+uniform sampler2D inSize;
+uniform sampler2D inColor;
+
+void main(void){
+    int idx = int(gl_VertexID);
+
+    // 三角形の3点
+    int i1 = idx % 3;
+    idx /= 3;
+
+    // 面内の2つ三角形
+    int i2 = idx % 2;
+    idx /= 2;
+
+    // p1の有無
+    int i3 = idx % 2;
+    idx /= 2;
+
+    // x, y, zの役割
+    int i4 = idx % 3;
+    idx /= 3;
+
+    vec3 pos      = texelFetch(inPos  , ivec2(idx, 0), 0).xyz;
+    vec3 size     = texelFetch(inSize , ivec2(idx, 0), 0).xyz;
+    vec4 outColor = texelFetch(inColor, ivec2(idx, 0), 0) ;
+
+    vec3 v[3];
+    v[ i4     ] = vec3(size.x, 0.0   , 0.0 );
+    v[(i4+1)%3] = vec3(0.0   , size.y, 0.0 );
+    v[(i4+2)%3] = vec3(0.0   , 0.0   , size.z );
+
+    vec3 pos2 = pos;
+    if(i3 == 1){
+        pos2 += v[0];
+    }
+    
+    vec3 q1 = pos2;
+    if(i2 == 1){
+        q1 += v[1] + v[2];
+    }
+    vec3 q2 = pos2 + v[1];
+    vec3 q3 = pos2 + v[2];
+
+    // 直方体の中心
+    vec3 c1 = pos + 0.5 * size;
+
+    // 三角形の重心
+    vec3 c2 = 0.3 * (q1 + q2 + q3);
+
+    // 法線ベクトル
+    vec3 outNrm = normalize(cross(q3 - q1, q2 - q1));
+
+    if(dot(c2 - c1, outNrm) < 0.0){
+        // 法線ベクトルが外を向いていない場合
+
+        outNrm = - outNrm;
+    }
+
+    // 三角形の頂点の座標
+    vec3 outPos;
+    switch(i1){
+    case 0: outPos = q1; break;
+    case 1: outPos = q2; break;
+    case 2: outPos = q3; break;
+    }
+
+    ${bansho.tailShader2}
+
+}`
+
+    } as unknown as PackageInfo;
+}
 
 
 

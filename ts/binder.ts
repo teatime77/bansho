@@ -455,6 +455,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             dstVar.copyTypeShape(srcVar);
         }
 
+        info2.params = info1.params;
         setIOVarsValue(info2, pkg2);
 
         for(let name of varNames){
@@ -501,6 +502,12 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             case "Parallelogram":{
                 let info2 = Object.assign(PackageInfo.newObj(), ParallelogramPkg(pkg1.numInput!));
                 this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec1", "Vec2", "Color" ]);
+                break;
+            }
+
+            case "Cuboid":{
+                let info2 = Object.assign(PackageInfo.newObj(), CuboidPkg(pkg1.numInput!));
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Size", "Color" ]);
                 break;
             }
 

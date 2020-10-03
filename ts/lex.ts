@@ -632,6 +632,10 @@ class Parser {
         }
     }
 
+    current(){
+        return this.token.text;
+    }
+
 
     BracketExpression(app: App){
         let start = this.token.text;
@@ -700,6 +704,18 @@ class Parser {
             this.BracketExpression(app);
 
             return app;
+        }
+        else if(this.token.text == '('){
+
+            this.next();
+            trm = this.Expression();
+
+            if(this.current() != ')'){
+                throw new Error();
+            }
+            this.next();
+
+            return trm;
         }
         else{
             throw new Error();

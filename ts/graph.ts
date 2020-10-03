@@ -127,7 +127,7 @@ function setMapSvgEvent(){
             }
             else{
 
-                window.open(`play.html?id=${doc1.id}`, '_blank');
+                window.open(`edit.html?id=${doc1.id}`, '_blank');
             }
         });
     }
