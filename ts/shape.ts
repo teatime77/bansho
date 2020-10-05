@@ -487,13 +487,14 @@ export class View extends Widget {
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            "Width"    : this.Width,
-            "Height"   : this.Height,
-            "ViewBox"  : this.svg.getAttribute("viewBox"),
-            "FlipY"    : this.FlipY,
-            "ShowXAxis": this.ShowXAxis,
-            "ShowYAxis": this.ShowYAxis,
-            "xyAxis"   : this.xyAxis.map(x => (x == null ? null : x.toObj()))
+            "Width"     : this.Width,
+            "Height"    : this.Height,
+            "AutoHeight": this.AutoHeight,
+            "ViewBox"   : this.svg.getAttribute("viewBox"),
+            "FlipY"     : this.FlipY,
+            "ShowXAxis" : this.ShowXAxis,
+            "ShowYAxis" : this.ShowYAxis,
+            "xyAxis"    : this.xyAxis.map(x => (x == null ? null : x.toObj()))
         });
     }
 
@@ -1203,6 +1204,7 @@ export abstract class Shape extends Widget {
                 this.divCaption.style.cursor = "move";
                 this.divCaption.style.pointerEvents = "all";
                 this.divCaption.style.zIndex = "4";
+                this.divCaption.style.fontSize = "x-large";
                 if(glb.widgets.some(x => x instanceof Simulation)){
 
                     this.divCaption.style.color = "white";
@@ -1422,6 +1424,7 @@ export abstract class CompositeShape extends Shape {
 export class Point extends Shape {
     pos : Vec2 = new Vec2(NaN, NaN);
     pos3D : string | undefined = undefined;
+    Visible : boolean = true;
     bindTo: Shape|undefined;    //!!! リネーム注意 !!!
 
     circle : SVGCircleElement;
@@ -1453,7 +1456,9 @@ export class Point extends Shape {
 
     setEnable(enable: boolean){
         super.setEnable(enable);
-        this.circle.setAttribute("visibility", (enable ? "visible" : "hidden"));
+
+        let visible = (enable && (this.Visible != false || !glb.isPlaying));
+        this.circle.setAttribute("visibility", (visible ? "visible" : "hidden"));
     }
 
     updateRatio(){
@@ -1462,7 +1467,7 @@ export class Point extends Shape {
     }
 
     propertyNames() : string[] {
-        return [ "X", "Y", "Name", "Caption", "Pos3D" ];
+        return [ "X", "Y", "Name", "Caption", "Pos3D", "Visible" ];
     }
 
     makeObj() : any {
@@ -1476,6 +1481,10 @@ export class Point extends Shape {
 
         if(this.bindTo != undefined){
             obj.bindTo = { ref: this.bindTo.id };
+        }
+
+        if(this.Visible == false){
+            obj.Visible = false;
         }
 
         return obj;
@@ -1517,6 +1526,10 @@ export class Point extends Shape {
 
             this.pos3D = undefined;
         }
+    }
+
+    setVisible(value: any){
+        this.Visible = value;
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {

@@ -10,6 +10,9 @@ export class Glb {
     static edit: boolean;
     static getJsonFile : boolean;
     static startPlayTime: number = 0;
+    static msgBoxDlg: HTMLDialogElement;
+    static msgBoxCB: ()=>void;
+
     docID   : number = NaN;
     widgets : Widget[] = [];
     widgetMap : Widget[] = [];
@@ -18,14 +21,13 @@ export class Glb {
     caption: HTMLHeadingElement;
     btnPlayPause: HTMLButtonElement;
     timeline : HTMLInputElement | null = null;
+    playTime : HTMLSpanElement  | null = null;
     tblProperty : HTMLTableElement;
     selSummary : HTMLSelectElement;
     board : HTMLDivElement;
     textArea : HTMLTextAreaElement;
     txtDocId : HTMLInputElement;
     txtTitle: HTMLInputElement;
-    msgBoxDlg: HTMLDialogElement;
-    msgBoxCB!: ()=>void;
 
     toolType = "";
     view: View | null = null;
@@ -43,6 +45,7 @@ export class Glb {
     constructor(){
         this.caption  = document.getElementById("caption") as HTMLHeadingElement;
         this.timeline = document.getElementById("timeline") as HTMLInputElement;
+        this.playTime = document.getElementById("play-time") as HTMLSpanElement;
         this.tblProperty = document.getElementById("tbl-property") as HTMLTableElement;
         this.selSummary    = document.getElementById("sel-summary") as HTMLSelectElement;
         this.board    = document.getElementById("board") as HTMLDivElement;
@@ -53,8 +56,6 @@ export class Glb {
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
         
-        this.msgBoxDlg = getElement("msg-box-dlg") as HTMLDialogElement;
-
         docsDlg = getElement("docs-dlg") as HTMLDialogElement;
         docsTbl = getElement("docs-tbl") as HTMLTableElement;    
     }
@@ -65,7 +66,15 @@ export class Glb {
     }
 
     clickPlayPause(){
+        this.isPlaying = ! this.isPlaying;
+
         if(this.isPlaying){
+
+            Glb.startPlayTime = (new Date()).getTime();
+            this.btnPlayPause.innerHTML = "⏸";
+            this.playNextWidgets();
+        }
+        else{
 
             Glb.startPlayTime = 0;
     
@@ -79,13 +88,6 @@ export class Glb {
                 this.showPlayButton();
             }
         }
-        else{
-    
-            Glb.startPlayTime = (new Date()).getTime();
-            this.btnPlayPause.innerHTML = "⏸";
-            this.playNextWidgets();
-        }
-        this.isPlaying = ! this.isPlaying;
     }
 
     onPlayComplete = ()=>{
@@ -559,7 +561,7 @@ export function getAll() : Widget[] {
     return v;
 }
 
-export function putData(is_new: boolean){
+export function putDoc(is_new: boolean){
     let v = getAll();
     for(let [i, x] of v.entries()){
         x.id = i;
@@ -641,6 +643,8 @@ export function initEdit(){
     initSpeech();
 
     setEventListener();
+
+    setMsgBoxEventListener();
     
     initDraw();
 

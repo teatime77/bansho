@@ -7,11 +7,7 @@ export let docsDlg : HTMLDialogElement;
 export let docsTbl : HTMLTableElement;
 export let docClickCallBack : (src: HTMLElement, id: number)=>void;
 
-let mapTitle : HTMLInputElement;
 let mapDiv : HTMLDivElement;
-
-let skipIds = [ 182, 1, 8, 154, 155, 153, -100, -101, -102 ];
-let skipIds2 = skipIds.map(x => `${x}`);
 
 let mapId      : number;
 let mapDocs    : FileInfo[] = [];
@@ -58,10 +54,9 @@ function setPathIds(){
 
 function getChildNode(g : SVGGElement, nodeName: string){
     for(let nd of g.childNodes){
-        console.log(`${nd.nodeName}`);
         if(nd.nodeName == nodeName){
 
-            return nd as SVGEllipseElement;
+            return nd as SVGElement;
         }
     }
     throw new Error();
@@ -69,9 +64,6 @@ function getChildNode(g : SVGGElement, nodeName: string){
 
 function setMapSvgEvent(){
     for(let doc of mapDocs){
-        if(skipIds.includes(doc.id) || skipIds2.includes(doc.id as unknown as string )){
-            continue;
-        }
         let box = getElement(`${doc.id}`);
 
         if(doc.len != 0){
@@ -133,18 +125,41 @@ function setMapSvgEvent(){
     }
     
     for(let edge of mapEdges){
-        if(skipIds.includes(edge.srcId) || skipIds.includes(edge.dstId)){
-            continue;
-        }
         let dom = getElement(`${edge.srcId}:${edge.dstId}`);
         if(dom == null){
             console.log(`err edge ${edge.srcId}:${edge.dstId}`);
             continue;
         }
+
+        if(Glb.edit){
+
+            let path = getChildNode(dom as unknown as SVGGElement, "path");
+            path.setAttribute("stroke-width", "3");
+            path.style.cursor = "pointer";
+        }
+
         dom.addEventListener("click", function(ev:MouseEvent){
+            if(! ev.ctrlKey){
+                return;
+            }
+
             let v = this.id.split(':');
             let [srcId, dstId] = v.map(x => parseInt(x));
-            console.log(`click ${srcId} -> ${dstId}`);
+
+            let srcDoc = indexFile.docs.find(x => x.id == srcId)!;
+            let dstDoc = indexFile.docs.find(x => x.id == dstId)!;
+            if(srcDoc == undefined || dstDoc == undefined){
+                throw new Error();
+            }
+
+            console.log(`click ${srcId}:${srcDoc.title} -> ${dstId}:${dstDoc.title}`);
+            msgBox(`${srcDoc.title} から ${dstDoc.title} へのリンクを削除しますか?`, ()=>{
+                console.log(`OK ${srcId}:${srcDoc.title} -> ${dstId}:${dstDoc.title}`);
+
+                let edge = mapEdges.find(x => x.srcId == srcId && x.dstId == dstId);
+                removeArrayElement(mapEdges, edge);
+                makeDot();
+            })
         });
     }
 }
@@ -158,10 +173,6 @@ function makeDot(){
     }
 
     for(let edge of mapEdges){
-        if(skipIds.includes(edge.srcId) || skipIds.includes(edge.dstId)){
-            continue;
-        }
-
         let id = `${edge.srcId}:${edge.dstId}`;
         edgeLines.push(`b${edge.srcId} -> b${edge.dstId} [ id="${id}" ];`);
     }
@@ -251,8 +262,6 @@ export function putMap(){
             alert(log);
         }
     );
-
-
 }
 
 export function delMap(){
@@ -349,13 +358,14 @@ export function initGraph(){
     initBansho(window.location.href.includes("?edit=true"));
 
     mapSel = getElement("map-sel") as HTMLSelectElement;
-    mapTitle = getElement("map-title") as HTMLInputElement;
     mapDiv = getElement("map-div") as HTMLDivElement;
 
     docsDlg = getElement("docs-dlg") as HTMLDialogElement;
     docsTbl = getElement("docs-tbl") as HTMLTableElement;
 
     msg(`init graph edit:${Glb.edit}`);
+
+    setMsgBoxEventListener();
 
     if(Glb.getJsonFile){
         fetchText("json/index.json", (text: string)=>{

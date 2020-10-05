@@ -405,9 +405,13 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
     }
 
     afterDraw(projViewMat: Float32Array)  : void {
-        let vp = glb.widgets.find(x => x instanceof ViewPoint && x.progress() <= 1.0) as ViewPoint;
-        if(vp != undefined){
-            vp.setDrawParam();
+        if(getTimelinePos() != -1){
+            let widgets = glb.widgets.slice(0, getTimelinePos() + 1).reverse();
+
+            let vp = widgets.find(x => x instanceof ViewPoint) as ViewPoint;
+            if(vp != undefined){
+                vp.setDrawParam();
+            }
         }
 
         for(let pt of this.points){
@@ -517,6 +521,9 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 }
 
 export class ViewPoint extends Widget {
+    static lastViewPoint : ViewPoint | null = null;
+    static lastProgress  : number = 0;
+
     Rotaion     : string = "0, 0, 0";
     Translation : string = "0, 0, -5";
     Duration    : number = 3;
@@ -548,7 +555,7 @@ export class ViewPoint extends Widget {
     
     enable(){
         this.startTime = (new Date()).getTime();
-        console.log("視点 有効");
+        console.log(`視点 有効 (${this.Rotaion}) (${this.Translation})`);
     }
 
     disable(){
@@ -557,10 +564,18 @@ export class ViewPoint extends Widget {
 
     progress(){
         let t = ((new Date()).getTime() - this.startTime) /  (1000 * this.Duration);
-        return t;
+        return Math.min(1.0, t);
     }
 
     setDrawParam(){
+        if(ViewPoint.lastViewPoint == this && ViewPoint.lastProgress == this.progress()){
+            // 前回と同じ場合
+
+            return;
+        }
+        ViewPoint.lastViewPoint = this;
+        ViewPoint.lastProgress  = this.progress();
+
         this.view = getPrevView();
 
         if(this.view.gpgpu!.drawables.length == 0){

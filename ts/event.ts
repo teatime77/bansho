@@ -85,13 +85,13 @@ export function setEventListener(){
 
     // 新規ボタン
     document.getElementById("new-doc")!.addEventListener("click", (ev: MouseEvent)=>{
-        putData(true);
+        putDoc(true);
     });
 
     // 保存ボタン
     document.getElementById("put-doc")!.addEventListener("click", (ev: MouseEvent)=>{
         console.assert( ! isNaN(glb.docID) );
-        putData(false);
+        putDoc(false);
     });
 
     // タイトル
@@ -135,15 +135,6 @@ export function setEventListener(){
         }, 500);
     });
 
-    getElement("msg-box-cancel").addEventListener("click", (ev: MouseEvent)=>{
-        glb.msgBoxDlg.close();
-    });
-
-    getElement("msg-box-ok").addEventListener("click", (ev: MouseEvent)=>{
-        glb.msgBoxDlg.close();
-        glb.msgBoxCB();
-    });
-
     // 文書一覧 ボタン
     getElement("show-map-dlg").addEventListener("click", (ev: MouseEvent)=>{
         docClickCallBack = function(td: HTMLElement, id: number){
@@ -169,7 +160,19 @@ export function setEventListener(){
 
         docsDlg.showModal();
     });
+}
 
+export function setMsgBoxEventListener(){
+    Glb.msgBoxDlg = getElement("msg-box-dlg") as HTMLDialogElement;
+
+    getElement("msg-box-cancel").addEventListener("click", (ev: MouseEvent)=>{
+        Glb.msgBoxDlg.close();
+    });
+
+    getElement("msg-box-ok").addEventListener("click", (ev: MouseEvent)=>{
+        Glb.msgBoxDlg.close();
+        Glb.msgBoxCB();
+    });
 }
 
 export function setTextBlockEventListener(act: TextBlock){

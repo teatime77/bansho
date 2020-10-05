@@ -873,6 +873,8 @@ uniform sampler2D inSize;
 uniform sampler2D inColor;
 
 void main(void){
+    int sx  = textureSize(inPos, 0).x;
+
     int idx = int(gl_VertexID);
 
     // 三角形の3点
@@ -891,9 +893,13 @@ void main(void){
     int i4 = idx % 3;
     idx /= 3;
 
-    vec3 pos      = texelFetch(inPos  , ivec2(idx, 0), 0).xyz;
-    vec3 size     = texelFetch(inSize , ivec2(idx, 0), 0).xyz;
-    vec4 outColor = texelFetch(inColor, ivec2(idx, 0), 0) ;
+    // @factorize@
+    int col  = idx % sx;
+    int row  = idx / sx;
+
+    vec3 pos      = texelFetch(inPos  , ivec2(col, row), 0).xyz;
+    vec3 size     = texelFetch(inSize , ivec2(col, row), 0).xyz;
+    vec4 outColor = texelFetch(inColor, ivec2(col, row), 0) ;
 
     vec3 v[3];
     v[ i4     ] = vec3(size.x, 0.0   , 0.0 );

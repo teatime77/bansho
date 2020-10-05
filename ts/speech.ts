@@ -114,6 +114,7 @@ export class Speech extends TextWidget {
         }
         else{
             text = this.Text.replace(patternG, " ");
+            Speech.nextPos = this.Text.length;
         }
 
         // `漢字|読み`をcaptionとspeechに分ける。
@@ -134,7 +135,6 @@ export class Speech extends TextWidget {
     
             text = text.substring(f.index! + f[0].length);
         }
-        console.log(`[${caption}] [${speech}]`);
 
         return[caption, speech];
     }
@@ -158,12 +158,12 @@ export class Speech extends TextWidget {
 
         this.speak(caption, speech);
         Speech.startTime = (new Date()).getTime();
-        if(Glb.startPlayTime != 0){
+        if(Glb.startPlayTime != 0 && glb.playTime != null){
             let t = Math.round((Speech.startTime - Glb.startPlayTime) / 1000);
-            getElement("play-time").innerText = `${Math.floor(t / 60)}:${t % 60}`;
+            glb.playTime.innerText = `${Math.floor(t / 60)}:${t % 60}`;
         }
 
-        if(Speech.span == 0){
+        if(Speech.span == 0 && Speech.nextPos == this.Text.length){
             // スピーチが分割されないか、最後のフレーズの場合
 
             if(start){
@@ -255,7 +255,7 @@ export class Speech extends TextWidget {
             setVoice();
         }
 
-        console.log(`speak ${Speech.speechIdx} caption:${caption}`);
+        console.log(`🔊 ${Speech.speechIdx} ${caption}`);
     
         if(glb.caption != undefined){
             glb.caption.textContent = caption;

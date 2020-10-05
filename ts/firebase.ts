@@ -38,7 +38,8 @@ export class FileInfo {
 function newFileInfo(id: number, title: string){
     return {
         id   : id,
-        title: title
+        title: title,
+        len  : glb.widgets.length
     } as FileInfo;
 }
 
@@ -162,9 +163,10 @@ export function putNewDoc(is_new: boolean, title: string, text: string, fnc:()=>
             throw new Error();
         }
 
-        if(inf.title != title){
+        if(inf.title != title || inf.len != glb.widgets.length){
             set_index = true;
             inf.title = title;
+            inf.len   = glb.widgets.length;
         }
     }
 
