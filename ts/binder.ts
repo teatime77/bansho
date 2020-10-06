@@ -554,6 +554,9 @@ export class ViewPoint extends Widget {
     }
     
     enable(){
+        ViewPoint.lastViewPoint = null;
+        ViewPoint.lastProgress  = 0;
+        
         this.startTime = (new Date()).getTime();
         console.log(`視点 有効 (${this.Rotaion}) (${this.Translation})`);
     }
@@ -809,6 +812,18 @@ function showPackageEditDlg(pkg: PackageInfo){
     console.log(`pkg.id click`);    
 }
 
+function displayTitle(display: string){
+    switch(display){
+    case ""             : return "なし";
+    case "Tube"         : return "管";
+    case "Arrow3D"      : return "矢印3D";
+    case "Triangle"     : return "三角形";
+    case "Parallelogram": return "平行四辺形";
+    case "Cuboid"       : return "直方体";
+    default             : throw new Error();
+    }
+}
+
 function makeGraph(){
     let texts : string[] = [];
 
@@ -834,7 +849,7 @@ function makeGraph(){
         }
         
         texts.push(... `subgraph cluster_${pkg.id} {
-            label = "${pkg.id}";
+            label = "${pkg.id} ${displayTitle(pkg.display)}";
         
             ${pkg.id}_vertex [ id="${pkg.id}_vertex", label = "シェーダー", shape = box];
 

@@ -1741,6 +1741,9 @@ export class LineSegment extends CompositeShape {
 
     make(obj: any) : Widget {
         super.make(obj);
+
+        this.line.setAttribute("stroke", this.Color);
+
         for(let p of this.handles){
             console.assert(!isNaN(p.pos.x))
         }
