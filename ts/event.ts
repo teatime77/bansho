@@ -26,17 +26,20 @@ export function setEventListener(){
         glb.updateTimePos(glb.widgets.length - 1, false);
     });
 
-    if(! Glb.edit){
-        return;
-    }
-
     // タイムライン
     if(glb.timeline != null){
 
         glb.timeline.addEventListener("change", (ev: Event)=>{
-            glb.selSummary.selectedIndex = getTimelinePos() + 1;
+            if(glb.selSummary != null){
+
+                glb.selSummary.selectedIndex = getTimelinePos() + 1;
+            }
             glb.rngTimelineChange();
         });
+    }
+
+    if(! Glb.edit){
+        return;
     }
 
     // 要約一覧
