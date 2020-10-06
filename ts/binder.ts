@@ -350,7 +350,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         this.view.gpgpu!.drawScenelistener = this;
 
         this.startTime = NaN;
-        Speech.speechIdx = 0;
+        Speech.speechIdx = -1;
 
         // 3D位置指定をしたPointのリスト
         this.points = getAll().filter(x => x instanceof Point && x.pos3D != undefined) as Point[];
@@ -556,7 +556,7 @@ export class ViewPoint extends Widget {
     enable(){
         ViewPoint.lastViewPoint = null;
         ViewPoint.lastProgress  = 0;
-        
+
         this.startTime = (new Date()).getTime();
         console.log(`視点 有効 (${this.Rotaion}) (${this.Translation})`);
     }
