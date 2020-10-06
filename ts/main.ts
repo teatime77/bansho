@@ -222,8 +222,11 @@ export class Glb {
             }
         }
     
-        glb.board.scrollTop = glb.board.scrollHeight;
-        window.scrollTo(0,document.body.scrollHeight);
+        // スクロールはしない。
+        if(false){
+            glb.board.scrollTop = glb.board.scrollHeight;
+            window.scrollTo(0,document.body.scrollHeight);
+        }
     
         setTimePos(pos);
         glb.prevTimePos = pos;
@@ -356,11 +359,13 @@ export class Glb {
 
         document.title = `${(doc.title as string).split('\n')[0]} - 板書`
     
+        glb.board.removeChild(glb.caption);
         glb.board.innerHTML = "";
+        glb.board.appendChild(glb.caption);
     
         const h1 = document.createElement("h1");
         h1.innerHTML = doc.title;
-        glb.board.appendChild(h1);
+        glb.board.insertBefore(h1, glb.caption);
     
         for(let obj of doc.widgets){
             if(obj.typeName == "TextBox"){

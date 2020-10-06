@@ -415,7 +415,7 @@ export class View extends Widget {
 
         this.svg.setAttribute("preserveAspectRatio", "none");
         //---------- 
-        glb.board.appendChild(this.div);
+        glb.board.insertBefore(this.div, glb.caption);
         this.div.appendChild(this.svg);
 
         this.div2 = document.createElement("div");
@@ -996,6 +996,8 @@ export abstract class Shape extends Widget {
     svgName: SVGTextElement | null = null;
 
     Caption: string = "";
+    FontSize : string = "";
+
     captionPos = new Vec2(0, 0);
     divCaption : HTMLDivElement | null = null;
 
@@ -1029,6 +1031,10 @@ export abstract class Shape extends Widget {
         if(this.Caption != ""){
             obj.Caption    = this.Caption;
             obj.captionPos = this.captionPos;
+        }
+
+        if(this.FontSize != ""){
+            obj.FontSize = this.FontSize;
         }
 
         if(this.listeners.length != 0){
@@ -1140,6 +1146,11 @@ export abstract class Shape extends Widget {
         this.updateCaption();
     }
 
+    setFontSize(value: any){
+        this.FontSize = value;
+        this.updateCaption();
+    }
+
     updateName(){
         if(this.Name == ""){
             if(this.svgName != null){
@@ -1204,7 +1215,7 @@ export abstract class Shape extends Widget {
                 this.divCaption.style.cursor = "move";
                 this.divCaption.style.pointerEvents = "all";
                 this.divCaption.style.zIndex = "4";
-                this.divCaption.style.fontSize = "x-large";
+
                 if(glb.widgets.some(x => x instanceof Simulation)){
 
                     this.divCaption.style.color = "white";
@@ -1219,6 +1230,13 @@ export abstract class Shape extends Widget {
                 this.updateCaptionPos();
 
                 setCaptionEventListener(this);
+            }
+
+            if(this.FontSize != ""){
+                this.divCaption.style.fontSize = this.FontSize;
+            }
+            else{
+                this.divCaption.style.fontSize = "x-large";
             }
 
             this.divCaption.textContent = "$$\n" + this.Caption + "\$$";
@@ -1467,7 +1485,7 @@ export class Point extends Shape {
     }
 
     propertyNames() : string[] {
-        return [ "X", "Y", "Name", "Caption", "Pos3D", "Visible" ];
+        return [ "X", "Y", "Name", "Caption", "Pos3D", "Visible", "FontSize" ];
     }
 
     makeObj() : any {

@@ -241,7 +241,7 @@ export class TextBlock extends TextWidget {
     constructor(text: string){
         super(text);
 
-        let nextEle = null;
+        let nextEle = glb.caption;
 
         if(getTimelinePos() != -1){
 

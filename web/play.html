@@ -94,6 +94,20 @@ li {
     font-size: 16pt;
 }
 
+.caption {
+    clear: both;
+    text-align: center;
+    background-color: black;
+    color: white;
+    font-size: 24pt;
+    font-family: "Helvetica Neue",
+        Arial,
+        "Hiragino Kaku Gothic ProN",
+        "Hiragino Sans",
+        Meiryo,
+        sans-serif;
+}
+
 </style>
 
 </head>
@@ -105,8 +119,9 @@ li {
 <span style="color: red; font-size:16pt;">Chromeの音声合成を使っていますのでChromeをお使いください。</span> <br/>
 </p>
 
-<h3 id="caption" style="text-align: center;" ></h3>
-<div id="board" style="overflow: scroll; border-style:inset; border-width: 3px;" ></div>
+<div id="board" style="overflow: scroll; border-style:inset; border-width: 3px;" >
+    <div id="caption" class="caption"></div>
+</div>
 <p style="text-align: center;">
     <button id="play-pause" style="font-family: 'Segoe UI Emoji'; font-size: 28pt;" >▶️</button>
     <button id="fast-reverse" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏮</button>
