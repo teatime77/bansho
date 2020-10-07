@@ -745,35 +745,41 @@ ${bansho.headShader}
 
 uniform int   tick;
 
-uniform sampler2D inPos;
-uniform sampler2D inVec1;
-uniform sampler2D inVec2;
+uniform sampler2D inPos1;
+uniform sampler2D inPos2;
+uniform sampler2D inPos3;
 uniform sampler2D inColor;
 
 void main(void) {
+    int sx  = textureSize(inPos1, 0).x;
+
     int idx = int(gl_VertexID);
 
     int ip = idx % 3;
     idx    /= 3;
 
-    vec3 pos   = vec3(texelFetch(inPos  , ivec2(idx, 0), 0));
-    vec3 v1    = vec3(texelFetch(inVec1 , ivec2(idx, 0), 0));
-    vec3 v2    = vec3(texelFetch(inVec2 , ivec2(idx, 0), 0));
-    vec4 color =      texelFetch(inColor, ivec2(idx, 0), 0) ;
+    // @factorize@
+    int col  = idx % sx;
+    int row  = idx / sx;
+
+    vec3 pos1  = vec3(texelFetch(inPos1 , ivec2(col, row), 0));
+    vec3 pos2  = vec3(texelFetch(inPos2 , ivec2(col, row), 0));
+    vec3 pos3  = vec3(texelFetch(inPos3 , ivec2(col, row), 0));
+    vec4 color =      texelFetch(inColor, ivec2(col, row), 0) ;
 
     switch(ip){
     case 0:
-        gl_Position = uPMVMatrix * vec4(pos, 1.0);
+        gl_Position = uPMVMatrix * vec4(pos1, 1.0);
         break;
     case 1:
-        gl_Position = uPMVMatrix * vec4(pos + v2, 1.0);
+        gl_Position = uPMVMatrix * vec4(pos2, 1.0);
         break;
     case 2:
-        gl_Position = uPMVMatrix * vec4(pos + v1, 1.0);
+        gl_Position = uPMVMatrix * vec4(pos3, 1.0);
         break;
     }
 
-    vec3 nrm = normalize(cross(v1, v2));
+    vec3 nrm = normalize(cross(pos3 - pos1, pos2 - pos1));
 
     fragmentColor = color;
 

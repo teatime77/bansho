@@ -500,7 +500,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
             case "Triangle":
                 let info2 = Object.assign(PackageInfo.newObj(), TrianglePkg(pkg1.numInput!));
-                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec1", "Vec2", "Color" ]);
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos1", "Pos2", "Pos3", "Color" ]);
                 break;
 
             case "Parallelogram":{
