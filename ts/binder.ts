@@ -478,10 +478,24 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         for(let info1 of this.packageInfos){
             let pkg1 = packages.find(x => x.id == info1.id)!;
             console.assert(pkg1 != undefined);
-
+            
             switch(info1.display){
+            case "Circle":{                
+                let info2 = Object.assign(PackageInfo.newObj(), CirclePkg(sim, info1, pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "R", "Nrm", "Color" ]);
+                break;
+            }
+
+            case "Sphere":{                
+                let info2 = Object.assign(PackageInfo.newObj(), SpherePkg(sim, info1, pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "R", "Color" ]);
+                break;
+            }
+
             case "Tube":{                
-                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(1.0, pkg1.numInput!));
+                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(pkg1.numInput!));
 
                 this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
                 break;
@@ -492,7 +506,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
                 this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec", "Color" ]);
                 
-                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(0.8, pkg1.numInput!));
+                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(pkg1.numInput!, 0.8));
 
                 this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
                 break;
@@ -709,7 +723,7 @@ function getIOVariables(pkg: PackageInfo){
     }
 }
 
-function getParamsMap(formulas: string[]){
+export function getParamsMap(formulas: string[]){
     let map: { [name: string]: number } = {};
 
     for(let formula of formulas){
@@ -815,6 +829,8 @@ function showPackageEditDlg(pkg: PackageInfo){
 function displayTitle(display: string){
     switch(display){
     case ""             : return "なし";
+    case "Circle"       : return "円";
+    case "Sphere"       : return "球";
     case "Tube"         : return "管";
     case "Arrow3D"      : return "矢印3D";
     case "Triangle"     : return "三角形";
@@ -959,10 +975,7 @@ function setBinderEvent(){
     getElement("add-shape-pkg").addEventListener("click", (ev: MouseEvent)=>{
         let sel = getElement("sel-shape-pkg") as HTMLSelectElement;
 
-        if(sel.value == "sphere"){
-            sim.packageInfos.push( Object.assign(PackageInfo.newObj(), SpherePkg) );
-        }
-        else if(sel.value == "cube"){
+        if(sel.value == "cube"){
             sim.packageInfos.push( Object.assign(PackageInfo.newObj(), CubePkg()) );
         }
         else if(sel.value == "Arrow1D"){

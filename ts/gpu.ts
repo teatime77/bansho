@@ -355,7 +355,7 @@ void main(void) {
 // 粒子
 //--------------------------------------------------
 
-export let SpherePkg = {
+export let SpherePkgOLD = {
     params          : "n1 = 8, n2 = 8, radius = 0.04",
     numInputFormula : "cnt * n1 * n2 * 6",
     mode            : "TRIANGLES",
@@ -657,8 +657,11 @@ void main(void) {
 // 管
 //--------------------------------------------------
 
-export function TubePkg(length: number, cnt: number){
+export function TubePkg(cnt: number, length: number | undefined = undefined ){
     let npt = 9;
+    if(length == undefined){
+        length = 1;
+    }
 
     return {
     params          : "",
@@ -725,6 +728,152 @@ export function TubePkg(length: number, cnt: number){
     
         ${bansho.tailShader}
     }`
+
+    } as unknown as PackageInfo;
+}
+
+//--------------------------------------------------
+// 球
+//--------------------------------------------------
+
+export function SpherePkg(sim: Simulation, info: PackageInfo, cnt: number){
+    let map = getParamsMap([ sim.params, info.params ]);
+    if(map == null){
+        throw new Error();
+    }
+
+    let numDiv = map.numDiv;
+    if(numDiv == undefined || isNaN(numDiv)){
+        throw new Error();
+    }
+
+    return {
+    params          : "",
+    numInputFormula : `${cnt} * 2 * 2 * ${numDiv + 1} * ${numDiv}`,
+    numGroup        : `2 * 2 * ${numDiv + 1}`,
+    mode            : "TRIANGLE_STRIP",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+    ${bansho.headShader}
+    
+uniform sampler2D inPos;
+uniform sampler2D inR;
+uniform sampler2D inColor;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    // STRIPの上下
+    int lh  = idx % 2;
+    idx    /= 2;
+
+    // 経線方向の番号
+    int col = idx % ${2 * (numDiv + 1)};
+    idx    /= ${2 * (numDiv + 1)};
+
+    // 緯線方向の番号
+    int row  = idx % ${numDiv};
+    idx /= ${numDiv};
+
+    // 中心
+    vec3  pos     = texelFetch(inPos  , ivec2(idx, 0), 0).xyz;
+
+    // 半径
+    float r       = texelFetch(inR    , ivec2(idx, 0), 0).x;
+
+    // 色
+    vec4 outColor = texelFetch(inColor, ivec2(idx, 0), 0);
+
+    // 緯度
+    float u;
+    if(lh == 0){
+        u = PI * float(row  ) / float(${numDiv});
+    }
+    else{
+        u = PI * float(row+1) / float(${numDiv});
+    }
+
+    // 経度
+    float v = 2.0 * PI * float(col) / float(2 * ${numDiv});
+
+    // 三角形の頂点の座標
+    vec3 outPos = pos + r * vec3(sin(u) * cos(v), sin(u) * sin(v), cos(u));
+    
+    // 法線ベクトル
+    vec3 outNrm = normalize(outPos - pos);
+
+    ${bansho.tailShader2}
+}`
+
+    } as unknown as PackageInfo;
+}
+
+//--------------------------------------------------
+// 円
+//--------------------------------------------------
+
+export function CirclePkg(sim: Simulation, info: PackageInfo, cnt: number){
+    let map = getParamsMap([ sim.params, info.params ]);
+    if(map == null){
+        throw new Error();
+    }
+
+    let numDiv = map.numDiv;
+    if(numDiv == undefined || isNaN(numDiv)){
+        throw new Error();
+    }
+
+    return {
+    params          : "",
+    numInputFormula : `${cnt} * ${1 + numDiv + 1}`,
+    numGroup        : `${1 + numDiv + 1}`,
+    mode            : "TRIANGLE_FAN",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+    ${bansho.headShader}
+    
+uniform sampler2D inPos;
+uniform sampler2D inR;
+uniform sampler2D inNrm;
+uniform sampler2D inColor;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    // 経線方向の番号
+    int col = idx % ${1 + numDiv + 1};
+    idx    /= ${1 + numDiv + 1};
+
+    // 中心
+    vec3  pos     = texelFetch(inPos  , ivec2(idx, 0), 0).xyz;
+
+    // 半径
+    float r       = texelFetch(inR    , ivec2(idx, 0), 0).x;
+
+    // 法線
+    vec3 outNrm   = normalize(texelFetch(inNrm  , ivec2(idx, 0), 0).xyz);
+
+    // 色
+    vec4 outColor = texelFetch(inColor, ivec2(idx, 0), 0);
+
+    // 三角形の頂点の座標
+    vec3 outPos;
+
+    if(col == 0){
+        outPos = pos;
+    }
+    else{
+
+        // 経度
+        float v = 2.0 * PI * float(col - 1) / float(${numDiv});
+
+        outPos = pos + r * vec3(cos(v), sin(v), 0.0);
+    }
+
+    ${bansho.tailShader2}
+}`
 
     } as unknown as PackageInfo;
 }
