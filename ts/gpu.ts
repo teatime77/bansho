@@ -812,8 +812,8 @@ export function SpherePkg(sim: Simulation, info: PackageInfo, cnt: number){
 
     return {
     params          : "",
-    numInputFormula : `${cnt} * 2 * 2 * ${numDiv + 1} * ${numDiv}`,
-    numGroup        : `2 * 2 * ${numDiv + 1}`,
+    numInputFormula : `${cnt} * 2 * ${2 * numDiv + 1} * ${numDiv}`,
+    numGroup        : `2 * ${2 * numDiv + 1}`,
     mode            : "TRIANGLE_STRIP",
     fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
     vertexShader    : `
@@ -832,8 +832,8 @@ void main(void) {
     idx    /= 2;
 
     // 経線方向の番号
-    int col = idx % ${2 * (numDiv + 1)};
-    idx    /= ${2 * (numDiv + 1)};
+    int col = idx % ${2 * numDiv + 1};
+    idx    /= ${2 * numDiv + 1};
 
     // 緯線方向の番号
     int row  = idx % ${numDiv};
