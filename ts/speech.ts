@@ -117,6 +117,8 @@ export class Speech extends TextWidget {
             Speech.nextPos = this.Text.length;
         }
 
+        text = text.replace(/ sin /g, "`sin|サイン`").replace(/ cos /g, "`cos|コサイン`")
+
         // `漢字|読み`をcaptionとspeechに分ける。
         let caption = "";
         let speech = "";
@@ -162,6 +164,8 @@ export class Speech extends TextWidget {
             let t = Math.round((Speech.startTime - Glb.startPlayTime) / 1000);
             glb.playTime.innerText = `${Math.floor(t / 60)}:${t % 60}`;
         }
+
+        glb.widgets.forEach(x => { if(x instanceof Point) x.checkEndTime(); });
 
         if(Speech.span == 0 && Speech.nextPos == this.Text.length){
             // スピーチが分割されないか、最後のフレーズの場合

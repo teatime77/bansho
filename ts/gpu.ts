@@ -474,6 +474,59 @@ void main(void) {
     } as unknown as PackageInfo;
 }
 
+
+//--------------------------------------------------
+// 直線
+//--------------------------------------------------
+
+export function LinePkg(cnt: number){
+
+    return {
+        params          : "",
+        numInputFormula : `2 * ${cnt}`,
+        numGroup        : `2`,
+        mode            : "LINES",
+        fragmentShader  : gpgputs.GPGPU.pointFragmentShader,
+        vertexShader    : `
+    
+uniform sampler2D inPos;
+uniform sampler2D inVec;
+uniform sampler2D inColor;
+        
+uniform mat4 uPMVMatrix;
+
+out vec4 fragmentColor;
+
+void main(void) {
+    int sx  = textureSize(inPos, 0).x;
+
+    int idx = int(gl_VertexID);
+
+    int ip  = idx % 2;
+    idx    /= 2;
+
+    // @factorize@
+    int col  = idx % sx;
+    int row  = idx / sx;
+
+    vec3 pos = texelFetch(inPos, ivec2(col, row), 0).xyz;
+
+    if(ip == 1){
+        pos += texelFetch(inVec, ivec2(col, row), 0).xyz;
+    }
+
+    fragmentColor = texelFetch(inColor, ivec2(col, row), 0);
+
+    gl_PointSize  = 1.0;
+
+    gl_Position = uPMVMatrix * vec4(pos, 1.0);
+}
+
+`
+} as unknown as PackageInfo;
+}
+
+
 //--------------------------------------------------
 // 矢印
 //--------------------------------------------------
@@ -657,10 +710,20 @@ void main(void) {
 // 管
 //--------------------------------------------------
 
-export function TubePkg(cnt: number, length: number | undefined = undefined ){
+export function TubePkg(sim: Simulation, info: PackageInfo, cnt: number, length: number | undefined = undefined ){
     let npt = 9;
     if(length == undefined){
         length = 1;
+    }
+
+    let map = getParamsMap([ sim.params, info.params ]);
+    if(map == null){
+        throw new Error();
+    }
+
+    let radius = 0.02;
+    if(map.radius != undefined){
+        radius = map.radius;
     }
 
     return {
@@ -708,7 +771,7 @@ export function TubePkg(cnt: number, length: number | undefined = undefined ){
         }
     
         // 円の半径
-        float r = 0.02;
+        float r = float(${radius});
     
         float theta = 2.0 * PI * float(ip - 1) / float(${npt} - 2);
     
@@ -809,11 +872,194 @@ void main(void) {
     } as unknown as PackageInfo;
 }
 
+
 //--------------------------------------------------
 // 円
 //--------------------------------------------------
 
+export function CirclePkgNEW(sim: Simulation, info: PackageInfo, cnt: number){
+    let map = getParamsMap([ sim.params, info.params ]);
+    if(map == null){
+        throw new Error();
+    }
+
+    let numDiv1 = map.numDiv1;
+    if(numDiv1 == undefined || isNaN(numDiv1)){
+        throw new Error();
+    }
+
+    let numDiv2 = map.numDiv2;
+    if(numDiv2 == undefined || isNaN(numDiv2)){
+        throw new Error();
+    }
+
+    let radius = map.radius;
+    if(radius == undefined || isNaN(radius)){
+        radius = 3.0;
+    }
+
+    return {
+    params          : "",
+    numInputFormula : `${cnt} * 2 * ${numDiv1} * ${numDiv2 + 1}`,
+    mode            : "TRIANGLE_STRIP",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+${bansho.headShader}
+
+uniform sampler2D inPos;
+uniform sampler2D inR;
+uniform sampler2D inNrm;
+uniform sampler2D inColor;
+
+void main(void) {
+    int sx  = textureSize(inPos, 0).x;
+
+    int idx = int(gl_VertexID);
+
+    // STRIPの上下
+    int lh  = idx % 2;
+    idx    /= 2;
+
+    // 経線方向の番号
+    int col = idx % ${numDiv1};
+    idx    /= ${numDiv1};
+
+    // 経線方向の番号
+    int row = idx % ${numDiv2 + 1};
+    idx    /= ${numDiv2 + 1};
+
+    // @factorize@
+    int col1  = idx % sx;
+    int row1  = idx / sx;
+
+    // 中心
+    vec3  pos = texelFetch(inPos  , ivec2(col1, row1), 0).xyz;
+
+    // 半径
+    float r   = texelFetch(inR    , ivec2(col1, row1), 0).x;
+
+    // 法線
+    vec3 nrm  = normalize(texelFetch(inNrm  , ivec2(col1, row1), 0).xyz);
+
+    // 色
+    vec4 outColor = texelFetch(inColor, ivec2(col1, row1), 0);
+
+    vec3 e1 = normalize(vec3(nrm.y - nrm.z, nrm.z - nrm.x, nrm.x - nrm.y));
+    vec3 e2 = cross(nrm, e1);
+
+    float i1 = float(row) + float(col + lh * ${numDiv1}) / float(${numDiv1});
+    float i2 = i1 + 1.0 / float(${numDiv1});
+    
+    float u1 = 2.0 * PI * i1 / float(${numDiv2});
+    float u2 = 2.0 * PI * i2 / float(${numDiv2});
+
+    // 円の中心から管の中心へのベクトル
+    vec3 op = r * (cos(u1) * e1 + sin(u1) * e2);
+
+    // 管の中心の座標
+    vec3 pc = pos + op;
+
+    // 進行方向のベクトル
+    vec3 dc = pos + r * (cos(u2) * e1 + sin(u2) * e2) - pc;
+
+    // 遠心方向の単位ベクトル
+    vec3 f1 = normalize(op);
+
+    // 進行方向と遠心方向に垂直な単位ベクトル
+    vec3 f2 = normalize(cross(dc, f1));
+
+    float t = 2.0 * PI * float(col) / float(${numDiv1});
+    vec3 outPos = pc + float(${radius}) * (cos(t) * f1 + sin(t) * f2);
+
+    outColor    = vec4(u1 / 2.0 * PI, t / 2.0 * PI, 0.0, 1.0);
+    outColor    = vec4(t / 2.0 * PI, t / 2.0 * PI, 0.0, 1.0);
+    // outColor = vec4(abs(sin(t)), abs(sin(t)), 0.0, 1.0);
+
+    vec3 outNrm = outPos - pc;
+
+    ${bansho.tailShader2}
+}`
+
+    } as unknown as PackageInfo;
+}
 export function CirclePkg(sim: Simulation, info: PackageInfo, cnt: number){
+    let map = getParamsMap([ sim.params, info.params ]);
+    if(map == null){
+        throw new Error();
+    }
+
+    let numPnt = map.numPnt;
+    if(numPnt == undefined || isNaN(numPnt)){
+        throw new Error();
+    }
+
+    let sizePnt = map.sizePnt;
+    if(sizePnt == undefined || isNaN(sizePnt)){
+        sizePnt = 3.0;
+    }
+
+    return {
+    params          : "",
+    numInputFormula : `${cnt} * ${numPnt}`,
+    mode            : "POINTS",
+    fragmentShader  : gpgputs.GPGPU.pointFragmentShader,
+    vertexShader    : `
+
+uniform mat4 uPMVMatrix;
+
+out vec4 fragmentColor;
+
+#define PI 3.14159265359
+
+uniform sampler2D inPos;
+uniform sampler2D inR;
+uniform sampler2D inNrm;
+uniform sampler2D inColor;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    // 経線方向の番号
+    int col = idx % ${numPnt};
+    idx    /= ${numPnt};
+
+    // 中心
+    vec3  pos = texelFetch(inPos  , ivec2(idx, 0), 0).xyz;
+
+    // 半径
+    float r   = texelFetch(inR    , ivec2(idx, 0), 0).x;
+
+    // 法線
+    vec3 nrm  = normalize(texelFetch(inNrm  , ivec2(idx, 0), 0).xyz);
+
+    // 色
+    fragmentColor = texelFetch(inColor, ivec2(idx, 0), 0);
+
+    vec3 e1 = normalize(vec3(nrm.y - nrm.z, nrm.z - nrm.x, nrm.x - nrm.y));
+    vec3 e2 = cross(nrm, e1);
+
+    // 経度
+    float v = 2.0 * PI * float(col) / float(${numPnt});
+
+    // 三角形の頂点の座標
+    vec3 outPos = pos + r * (cos(v) * e1 + sin(v) * e2);
+
+    vec3 outNrm = nrm;
+
+    gl_Position   = uPMVMatrix * vec4(outPos, 1.0);
+    gl_PointSize  = float(${sizePnt});
+}`
+
+    } as unknown as PackageInfo;
+}
+
+
+//--------------------------------------------------
+// 円板
+//--------------------------------------------------
+
+export function DiskPkg(sim: Simulation, info: PackageInfo, cnt: number){
     let map = getParamsMap([ sim.params, info.params ]);
     if(map == null){
         throw new Error();
@@ -969,10 +1215,15 @@ void main(void) {
     int ip = idx % 6;
     idx    /= 6;
 
-    vec3 pos   = vec3(texelFetch(inPos  , ivec2(idx, 0), 0));
-    vec3 v1    = vec3(texelFetch(inVec1 , ivec2(idx, 0), 0));
-    vec3 v2    = vec3(texelFetch(inVec2 , ivec2(idx, 0), 0));
-    vec4 color =      texelFetch(inColor, ivec2(idx, 0), 0) ;
+    // @factorize@
+    int sx   = textureSize(inPos, 0).x;
+    int col  = idx % sx;
+    int row  = idx / sx;
+
+    vec3 pos   = vec3(texelFetch(inPos  , ivec2(col, row), 0));
+    vec3 v1    = vec3(texelFetch(inVec1 , ivec2(col, row), 0));
+    vec3 v2    = vec3(texelFetch(inVec2 , ivec2(col, row), 0));
+    vec4 color =      texelFetch(inColor, ivec2(col, row), 0) ;
 
     switch(ip){
     case 0:

@@ -1443,6 +1443,7 @@ export class Point extends Shape {
     pos : Vec2 = new Vec2(NaN, NaN);
     pos3D : string | undefined = undefined;
     Visible : boolean = true;
+    EndTime: number | undefined = undefined;
     bindTo: Shape|undefined;    //!!! リネーム注意 !!!
 
     circle : SVGCircleElement;
@@ -1485,7 +1486,7 @@ export class Point extends Shape {
     }
 
     propertyNames() : string[] {
-        return [ "X", "Y", "Name", "Caption", "Pos3D", "Visible", "FontSize" ];
+        return [ "X", "Y", "Name", "Caption", "Pos3D", "Visible", "FontSize", "EndTime" ];
     }
 
     makeObj() : any {
@@ -1503,6 +1504,10 @@ export class Point extends Shape {
 
         if(this.Visible == false){
             obj.Visible = false;
+        }
+
+        if(this.validEndTime()){
+            obj.EndTime = this.EndTime;
         }
 
         return obj;
@@ -1548,6 +1553,24 @@ export class Point extends Shape {
 
     setVisible(value: any){
         this.Visible = value;
+    }
+
+    validEndTime(){
+        return this.EndTime != undefined && 0 < this.EndTime;
+    }
+
+    getEndTime(){
+        return this.validEndTime() ? this.EndTime : 0;
+    }
+
+    setEndTime(value: any){
+        this.EndTime = value;
+    }
+
+    checkEndTime(){
+        if(this.validEndTime() && this.EndTime! <= Speech.speechIdx){
+            this.disable();
+        }
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {

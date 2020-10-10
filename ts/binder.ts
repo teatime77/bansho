@@ -487,6 +487,13 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
                 break;
             }
 
+            case "Disk":{                
+                let info2 = Object.assign(PackageInfo.newObj(), DiskPkg(sim, info1, pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "R", "Nrm", "Color" ]);
+                break;
+            }
+
             case "Sphere":{                
                 let info2 = Object.assign(PackageInfo.newObj(), SpherePkg(sim, info1, pkg1.numInput!));
 
@@ -495,9 +502,16 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             }
 
             case "Tube":{                
-                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(pkg1.numInput!));
+                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(sim, info1, pkg1.numInput!));
 
                 this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
+                break;
+            }
+
+            case "Line":{
+                let info2 = Object.assign(PackageInfo.newObj(), LinePkg(pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec", "Color" ]);
                 break;
             }
     
@@ -506,7 +520,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
                 this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec", "Color" ]);
                 
-                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(pkg1.numInput!, 0.8));
+                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(sim, info1, pkg1.numInput!, 0.8));
 
                 this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
                 break;
@@ -599,7 +613,7 @@ export class ViewPoint extends Widget {
             return;
         }
 
-        let map = { pi: Math.PI, t:this.progress() };
+        let map = { t:this.progress() };
 
         let rot = parseMath(this.Rotaion).calc(map) as number[];
         let trn = parseMath(this.Translation).calc(map) as number[];
@@ -708,6 +722,10 @@ function getIOVariables(pkg: PackageInfo){
         if(["uniform", "in", "out"].includes(token.text)){
             if(["uPMVMatrix", "uNMatrix", "tick", "time", "timeDiff", "speech", "attention", "progress", "fragmentColor", "gl_Position", "vLightWeighting"].includes(tokens[i + 2].text)){
                 continue;
+            }
+
+            if(token.text == "out" && 0 < i && [ "(", "," ].includes(tokens[i - 1].text)){
+                continue
             }
 
             let name = tokens[i + 2].text;
@@ -830,8 +848,10 @@ function displayTitle(display: string){
     switch(display){
     case ""             : return "なし";
     case "Circle"       : return "円";
+    case "Disk"         : return "円板";
     case "Sphere"       : return "球";
     case "Tube"         : return "管";
+    case "Line"         : return "直線";
     case "Arrow3D"      : return "矢印3D";
     case "Triangle"     : return "三角形";
     case "Parallelogram": return "平行四辺形";

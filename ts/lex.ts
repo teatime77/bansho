@@ -481,6 +481,11 @@ class RefVar extends Term{
     calc(values: { [name: string]: number }) : number | number[] {
         let x = values[this.name];
         if(x == undefined){
+
+            if(this.name == "pi" || this.name == "PI"){
+                return Math.PI;
+            }
+    
             return NaN;
         }
         return x;
