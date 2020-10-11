@@ -86,6 +86,11 @@ export function setEventListener(){
         glb.addWidget(new Speech(""));
     });
 
+    // 視点のダイアログの表示
+    document.getElementById("show-view-point")!.addEventListener("click", (ev: MouseEvent)=>{
+        openViewPointDlg();
+    });
+
     // 新規ボタン
     document.getElementById("new-doc")!.addEventListener("click", (ev: MouseEvent)=>{
         putDoc(true);

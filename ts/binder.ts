@@ -406,9 +406,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
     afterDraw(projViewMat: Float32Array)  : void {
         if(getTimelinePos() != -1){
-            let widgets = glb.widgets.slice(0, getTimelinePos() + 1).reverse();
-
-            let vp = widgets.find(x => x instanceof ViewPoint) as ViewPoint;
+            let vp = currentViewPoint();
             if(vp != undefined){
                 vp.setDrawParam();
             }
@@ -598,6 +596,20 @@ export class ViewPoint extends Widget {
         return Math.min(1.0, t);
     }
 
+    calcValues(){
+        let map = { t:this.progress() };
+
+        let rot = parseMath(this.Rotaion).calc(map) as number[];
+        let trn = parseMath(this.Translation).calc(map) as number[];
+        for(let nums of [rot, trn]){
+            if(! Array.isArray(nums) || nums.length != 3 || nums.some(x => typeof x != "number")){
+                throw new Error();
+            }
+        }
+
+        return [rot, trn];
+    }
+
     setDrawParam(){
         if(ViewPoint.lastViewPoint == this && ViewPoint.lastProgress == this.progress()){
             // 前回と同じ場合
@@ -613,15 +625,7 @@ export class ViewPoint extends Widget {
             return;
         }
 
-        let map = { t:this.progress() };
-
-        let rot = parseMath(this.Rotaion).calc(map) as number[];
-        let trn = parseMath(this.Translation).calc(map) as number[];
-        for(let nums of [rot, trn]){
-            if(! Array.isArray(nums) || nums.length != 3 || nums.some(x => typeof x != "number")){
-                throw new Error();
-            }
-        }
+        let [rot, trn] = this.calcValues();
 
         this.view.gpgpu!.drawParam = new gpgputs.DrawParam(rot[0], rot[1], rot[2], trn[0], trn[1], trn[2]);
     }
@@ -1197,6 +1201,69 @@ export function openSimulationDlg(act: Simulation){
     sim.disable();
     simEditDlg.showModal();
     makeGraph();
+}
+
+function currentViewPoint() {
+    let widgets = glb.widgets.slice(0, getTimelinePos() + 1).reverse();
+
+    return widgets.find(x => x instanceof ViewPoint) as (ViewPoint | undefined);
+}
+
+function setViewPointByDlg(dlg: HTMLDialogElement, vp: ViewPoint){
+    let rngs  = Array.from(dlg.children).filter(x => x instanceof HTMLInputElement && x.type == "range") as HTMLInputElement[];
+
+    let f = (rng: HTMLInputElement)=>{
+        return parseFloat(rng.value);
+    };
+
+    let g = (rng: HTMLInputElement)=>{ return (f(rng) * Math.PI / 180).toFixed(2) };
+
+    vp.Rotaion     = `${ g(rngs[0]) }, ${ g(rngs[1]) }, ${ g(rngs[2]) }`;
+    vp.Translation = `${ f(rngs[3]) }, ${ f(rngs[4]) }, ${ f(rngs[5]) }`;
+
+    ViewPoint.lastViewPoint = null;
+}
+
+export function openViewPointDlg(){
+    let vp = currentViewPoint()!;
+    if(vp == undefined){
+        return;
+    }
+    let dlg = getElement("view-point-dlg") as HTMLDialogElement;
+
+    let ranges  = Array.from(dlg.children).filter(x => x instanceof HTMLInputElement && x.type == "range") as HTMLInputElement[];
+    let numbers = Array.from(dlg.children).filter(x => x instanceof HTMLInputElement && x.type == "number") as HTMLInputElement[];
+    let btns   = Array.from(dlg.children).filter(x => x instanceof HTMLButtonElement) as HTMLButtonElement[];
+
+    btns[0].onclick = ()=>{ dlg.close(); };
+
+
+    let [rot, trn] = vp.calcValues();
+
+    for(let [i, rng] of ranges.entries()){
+        let num  = numbers[i];
+        let zero = btns[i + 1];
+
+        if(i < 3){
+
+            let val = `${Math.round(rot[i] * 180 / Math.PI)}`;
+            rng.value = val;
+            num.value = val;
+        }
+        else{
+
+            rng.value = `${trn[i - 3]}`;
+            num.value = `${trn[i - 3]}`;
+        }
+
+        rng.oninput = ()=> { num.value = rng.value; setViewPointByDlg(dlg, vp); };
+        num.oninput = ()=> { rng.value = num.value; setViewPointByDlg(dlg, vp); };
+        zero.onclick = ()=> { rng.value = "0"; num.value = "0"; setViewPointByDlg(dlg, vp); };
+    }
+
+
+    dlg.show();
+
 }
 
 export function Factorize(cnt: number){

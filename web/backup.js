@@ -21,7 +21,7 @@ for(let file of files){
 
     try {
         fs.writeFileSync(`json/${file.id}.json`, JSON.stringify(file.doc, null, 4));
-        console.log(`${file.id}`);
+        console.log(`write ${file.id}`);
     } catch(err) {
         console.assert(false);
     }
@@ -33,6 +33,8 @@ let line  = "//" + "-".repeat(80);
 docs.sort((x, y)=>x.title.localeCompare(y.title, 'ja'));
 
 for(let doc of docs){
+    console.log(`${doc.id} ${doc.widgets.length} ${doc.title}`);
+
     texts.push(`\n\n${line}\n// ${doc.title}\n${line}`);
 
     texts.push("\n/*")
