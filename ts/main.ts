@@ -26,7 +26,7 @@ export class Glb {
     selSummary : HTMLSelectElement;
     board : HTMLDivElement;
     textArea : HTMLTextAreaElement;
-    txtDocId : HTMLInputElement;
+    btnDocId : HTMLButtonElement;
     txtTitle: HTMLInputElement;
 
     toolType = "";
@@ -52,7 +52,7 @@ export class Glb {
 
         this.btnPlayPause = document.getElementById("play-pause") as HTMLButtonElement;
 
-        this.txtDocId  = document.getElementById("txt-doc-id") as HTMLInputElement;
+        this.btnDocId  = document.getElementById("txt-doc-id") as HTMLButtonElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
         
@@ -222,12 +222,6 @@ export class Glb {
             }
         }
     
-        // スクロールはしない。
-        if(false){
-            glb.board.scrollTop = glb.board.scrollHeight;
-            window.scrollTo(0,document.body.scrollHeight);
-        }
-    
         setTimePos(pos);
         glb.prevTimePos = pos;
         
@@ -316,9 +310,9 @@ export class Glb {
     }
     
     openDoc(doc_id: number){
-        if(glb.txtDocId != null){
+        if(glb.btnDocId != null){
 
-            glb.txtDocId.value = `${doc_id}`;
+            glb.btnDocId.textContent = `${doc_id}`;
         }
 
         if(Glb.getJsonFile){

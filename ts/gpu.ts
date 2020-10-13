@@ -526,6 +526,7 @@ void main(void) {
 } as unknown as PackageInfo;
 }
 
+const ArrowH = 5.0;
 
 //--------------------------------------------------
 // 矢印
@@ -576,8 +577,19 @@ void main(void) {
 // 矢印3D(扇)
 //--------------------------------------------------
 
-export function ArrowFanPkg(cnt: number){
+export function ArrowFanPkg(sim: Simulation, info: PackageInfo, cnt: number){
     let npt = 9;
+
+    let map = getParamsMap([ sim.params, info.params ]);
+    if(map == null){
+        throw new Error();
+    }
+
+    let radius = 0.02;
+    if(map.radius != undefined){
+        radius = map.radius;
+    }
+
     return {
     params          : "",
     numInputFormula : `${cnt} * 3 * ${npt}`,
@@ -608,7 +620,7 @@ void main(void) {
     vec4 color = texelFetch(inColor, ivec2(idx, 0), 0);
 
     // 円錐の底面の円の中心
-    vec3 p1 = pos + 0.8 * vec;;
+    vec3 p1 = pos + (1.0 - float(${ArrowH}) * float(${radius}) / length(vec) ) * vec;
 
     // 円錐の頂点
     vec3 p2 = pos + vec;
@@ -650,9 +662,9 @@ void main(void) {
     else{
         // 円錐の底面や矢印の始点の円周の場合
 
-        vec3 e1 = normalize(vec3(p1.y - p1.z, p1.z - p1.x, p1.x - p1.y));
+        vec3 e1 = normalize(vec3(vec.y - vec.z, vec.z - vec.x, vec.x - vec.y));
 
-        vec3 e2 = normalize(cross(p1, e1));
+        vec3 e2 = normalize(cross(vec, e1));
 
         float theta = 2.0 * PI * float(ip - 1) / float(${npt} - 2);
 
@@ -665,13 +677,13 @@ void main(void) {
         if(mod != 2){
 
             cc = p1;
-            r = 0.05;
+            r = 2.5 * float(${radius});
         }
         else{
             // 矢印の始点の円周の場合
 
             cc = pos;
-            r = 0.02;
+            r = float(${radius});
         }
 
         // 円周上の点
@@ -710,11 +722,8 @@ void main(void) {
 // 管
 //--------------------------------------------------
 
-export function TubePkg(sim: Simulation, info: PackageInfo, cnt: number, length: number | undefined = undefined ){
+export function TubePkg(sim: Simulation, info: PackageInfo, cnt: number, inArrow3D: boolean = false){
     let npt = 9;
-    if(length == undefined){
-        length = 1;
-    }
 
     let map = getParamsMap([ sim.params, info.params ]);
     if(map == null){
@@ -767,7 +776,14 @@ export function TubePkg(sim: Simulation, info: PackageInfo, cnt: number, length:
         }
         else{
     
-            cc = pos + float(${length}) * vec;
+            if(${inArrow3D}){
+
+                cc = pos + (1.0 - float(${ArrowH}) * float(${radius}) / length(vec) ) * vec;
+            }
+            else{
+
+                cc = pos + vec;
+            }
         }
     
         // 円の半径

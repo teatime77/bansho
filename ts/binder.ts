@@ -514,11 +514,11 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             }
     
             case "Arrow3D":{
-                let info2 = Object.assign(PackageInfo.newObj(), ArrowFanPkg(pkg1.numInput!));
+                let info2 = Object.assign(PackageInfo.newObj(), ArrowFanPkg(sim, info1, pkg1.numInput!));
 
                 this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "Vec", "Color" ]);
                 
-                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(sim, info1, pkg1.numInput!, 0.8));
+                let info3 = Object.assign(PackageInfo.newObj(), TubePkg(sim, info1, pkg1.numInput!, true));
 
                 this.makeBindVars(packages, info1, pkg1, info3, [ "Pos", "Vec", "Color" ]);
                 break;

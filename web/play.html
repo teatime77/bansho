@@ -115,19 +115,20 @@ li {
 
 <body onload="bansho.initPlay()">
 <p class="p1">
-<span style="color: red; font-size:20pt;">画面の下の</span> 
-<span style="font-family: 'Segoe UI Emoji'; font-size: 28pt;" >▶️</span><span style="color: red; font-size:20pt;">ボタンをクリックすると再生が始まります。</span> <br/>
 <span style="color: red; font-size:16pt;">Chromeの音声合成を使っていますのでChromeをお使いください。</span> <br/>
 </p>
-
-<div id="board" style="overflow: scroll; border-style:inset; border-width: 3px;" >
-    <div id="caption" class="caption"></div>
-</div>
-<input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
+<p style="text-align: center;">
+</p>
 <p style="text-align: center;">
     <button id="play-pause" style="font-family: 'Segoe UI Emoji'; font-size: 28pt;" >▶️</button>
     <button id="fast-reverse" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏮</button>
     <button id="fast-forward" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏭</button>
 </p>
+
+<input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
+
+<div id="board" style="overflow: scroll; border-style:none; margin-left: 20px;" >
+    <div id="caption" class="caption"></div>
+</div>
 </body>
 </html>

@@ -104,6 +104,7 @@ export class Speech extends TextWidget {
 
                     Speech.attentionId = found[3];
                     Speech.attentionIdx = parseInt(found[4]);
+                    console.log(`attention ${Speech.attentionIdx}`);
                     if(isNaN(Speech.attentionIdx)){
                         throw new Error();
                     }
@@ -117,7 +118,7 @@ export class Speech extends TextWidget {
             Speech.nextPos = this.Text.length;
         }
 
-        text = text.replace(/ sin /g, "`sin|サイン`").replace(/ cos /g, "`cos|コサイン`")
+        text = text.replace(/ sin /g, "`sin|サイン`").replace(/ cos /g, "`cos|コサイン`").replace(/ #- /g, "`-|マイナス`").replace(/ 項 /g, "`項|こう`");
 
         // `漢字|読み`をcaptionとspeechに分ける。
         let caption = "";

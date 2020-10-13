@@ -91,6 +91,12 @@ export function setEventListener(){
         openViewPointDlg();
     });
 
+    if(glb.btnDocId != null){
+        glb.btnDocId.addEventListener("click", (ev: MouseEvent)=>{
+            window.open(`play.html?id=${glb.btnDocId.textContent}`, '_blank');            
+        });    
+    }
+
     // 新規ボタン
     document.getElementById("new-doc")!.addEventListener("click", (ev: MouseEvent)=>{
         putDoc(true);
@@ -363,6 +369,9 @@ function popQue(){
                 if(typesetQue.length != 0){
                     popQue();
                 }
+
+                console.log("scroll");
+                glb.board.scrollTop = glb.board.scrollHeight;
             })
             .catch((err: any) => {
                 console.log(err.message);
