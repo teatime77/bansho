@@ -118,7 +118,17 @@ export class Speech extends TextWidget {
             Speech.nextPos = this.Text.length;
         }
 
-        text = text.replace(/ sin /g, "`sin|サイン`").replace(/ cos /g, "`cos|コサイン`").replace(/ #- /g, "`-|マイナス`").replace(/ 項 /g, "`項|こう`");
+        let yomi = [
+            [ /\ssin\s/g, "`sin|サイン`" ],
+            [ /\scos\s/g, "`cos|コサイン`" ],
+            [ /\s-\s/g, "`-|マイナス`" ],
+            [ /\s項\s/g, "`項|こう`" ],
+            [ /\s角\s/g, "`角|カク`" ],
+        ]
+
+        for(let [r, s] of yomi){
+            text = text.replace(r, s as string);
+        }
 
         // `漢字|読み`をcaptionとspeechに分ける。
         let caption = "";

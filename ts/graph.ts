@@ -73,9 +73,6 @@ function setMapSvgEvent(){
         }
 
         box.addEventListener("click", function(ev:MouseEvent){
-            if(! Glb.edit){
-                return;
-            }
 
             let doc_id = parseInt(this.id)
             let doc1 = mapDocs.find(x => x.id == doc_id);
@@ -83,6 +80,12 @@ function setMapSvgEvent(){
                 throw new Error();
             }
             console.log(`click ${doc1.id} ${doc1.title}`);
+
+            if(!Glb.edit){
+
+                window.open(`play.html?id=${doc1.id}`, '_blank');
+                return;
+            }
 
             let ellipse = getChildNode(this as unknown as SVGGElement, "ellipse");
 
@@ -207,6 +210,8 @@ function makeDot(){
 }
 
 function setMapDocs(){
+    mapEdges = mapEdges.filter(edge => indexFile.docs.some(doc => doc.id == edge.srcId) && indexFile.docs.some(doc => doc.id == edge.dstId));
+
     let src_ids = mapEdges.map(x => x.srcId);
     let dst_ids = mapEdges.map(x => x.dstId);
 
