@@ -1140,6 +1140,96 @@ void main(void) {
     } as unknown as PackageInfo;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//--------------------------------------------------
+// 扇型
+//--------------------------------------------------
+
+export function CircularSectorPkg(sim: Simulation, info: PackageInfo, cnt: number){
+    let map = getParamsMap([ sim.params, info.params ]);
+    if(map == null){
+        throw new Error();
+    }
+
+    let numDiv = map.numDiv;
+    if(numDiv == undefined || isNaN(numDiv)){
+        throw new Error();
+    }
+
+    return {
+    params          : "",
+    numInputFormula : `${cnt} * ${1 + numDiv + 1}`,
+    numGroup        : `${1 + numDiv + 1}`,
+    mode            : "TRIANGLE_FAN",
+    fragmentShader  : gpgputs.GPGPU.planeFragmentShader,
+    vertexShader    : `
+
+    ${bansho.headShader}
+    
+uniform sampler2D inPos;
+uniform sampler2D inRA;
+uniform sampler2D inNrm;
+uniform sampler2D inColor;
+
+void main(void) {
+    int idx = int(gl_VertexID);
+
+    // 経線方向の番号
+    int col = idx % ${1 + numDiv + 1};
+    idx    /= ${1 + numDiv + 1};
+
+    // 中心
+    vec3  pos     = texelFetch(inPos  , ivec2(idx, 0), 0).xyz;
+
+    vec3  ra      = texelFetch(inRA   , ivec2(idx, 0), 0).xyz;
+
+    // 半径
+    float r = ra.x;
+
+    // 開始 / 終了角
+    float th1 = ra.y;
+    float th2 = ra.z;
+
+    // 法線
+    vec3 outNrm   = normalize(texelFetch(inNrm  , ivec2(idx, 0), 0).xyz);
+
+    // 色
+    vec4 outColor = texelFetch(inColor, ivec2(idx, 0), 0);
+
+    // 三角形の頂点の座標
+    vec3 outPos;
+
+    if(col == 0){
+        outPos = pos;
+    }
+    else{
+
+        // 経度
+        float v = th1 +  (th2 - th1) * float(col - 1) / float(${numDiv});
+
+        outPos = pos + r * vec3(cos(v), sin(v), 0.0);
+    }
+
+    ${bansho.tailShader2}
+}`
+
+    } as unknown as PackageInfo;
+}
+
+
 //--------------------------------------------------
 // 三角形
 //--------------------------------------------------

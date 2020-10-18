@@ -282,7 +282,15 @@ export function showProperty(act: Widget){
 }
 
 export function deselectShape(){
-    glb.widgets.filter(x => x instanceof ShapeSelection).forEach(x => x.setEnable(false));
+    let sels = glb.widgets.filter(x => x instanceof WidgetSelection) as WidgetSelection[];
+
+    sels.forEach(sel => {
+        sel.selections.forEach(x => {
+            if(!(x instanceof TextSelection && x.type == SelectionType.temporary)){
+                x.select(false);
+            }
+        })
+    });
 }
 
 export function initDraw(){
@@ -380,6 +388,7 @@ export class View extends Widget {
     ViewBox    : string = "";
     ShowXAxis  : boolean = true;
     ShowYAxis  : boolean = true;
+    BackgroundColor : string = "";
 
     xyAxis : (LineSegment|null)[] = [ null, null];
 
@@ -399,8 +408,8 @@ export class View extends Widget {
         this.canvas.style.left = "0px";
         this.canvas.style.top = "0px";
         this.canvas.style.zIndex = "2";
-        this.canvas.width  = 512;
-        this.canvas.height = 512;
+        this.canvas.width  = 1024;
+        this.canvas.height = 1024;
 
         this.div.appendChild(this.canvas);
 
@@ -422,7 +431,6 @@ export class View extends Widget {
         this.div2.style.position = "absolute";
         this.div2.style.left = "0px";
         this.div2.style.top = "0px";
-        this.div2.style.backgroundColor = "transparent";
         this.div2.style.pointerEvents = "none";
 
         this.div.appendChild(this.div2);
@@ -450,6 +458,7 @@ export class View extends Widget {
             this.calcHeight();
         }
 
+        this.updateBackgroundColor();
         this.updateWidth();
         this.updateHeight();
 
@@ -482,11 +491,11 @@ export class View extends Widget {
     }
 
     propertyNames() : string[] {
-        return [ "Width", "Height", "AutoHeight", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY", "ShowXAxis", "ShowYAxis" ];
+        return [ "Width", "Height", "AutoHeight", "ViewBox", "ShowGrid", "GridWidth", "GridHeight", "SnapToGrid", "FlipY", "ShowXAxis", "ShowYAxis", "BackgroundColor" ];
     }
 
     makeObj() : any {
-        return Object.assign(super.makeObj(), {
+        let obj = Object.assign(super.makeObj(), {
             "Width"     : this.Width,
             "Height"    : this.Height,
             "AutoHeight": this.AutoHeight,
@@ -496,6 +505,12 @@ export class View extends Widget {
             "ShowYAxis" : this.ShowYAxis,
             "xyAxis"    : this.xyAxis.map(x => (x == null ? null : x.toObj()))
         });
+
+        if(this.BackgroundColor != ""){
+            obj.BackgroundColor = this.BackgroundColor;
+        }
+
+        return obj;
     }
 
     summary() : string {
@@ -569,6 +584,15 @@ export class View extends Widget {
         this.canvas.style.height  = `${this.Height}px`;        
         this.svg.style.height  = `${this.Height}px`;
         this.div2.style.height = `${this.Height}px`;
+    }
+
+    setBackgroundColor(value: string){
+        this.BackgroundColor = value.trim();
+        this.updateBackgroundColor();
+    }
+
+    updateBackgroundColor(){
+        this.div2.style.backgroundColor = (this.BackgroundColor != "" ? this.BackgroundColor : "transparent");
     }
 
     parseViewBox(){
@@ -697,6 +721,8 @@ export class View extends Widget {
 
                 this.xyAxis[idx]!.setColor("black")
             }    
+
+            this.xyAxis[idx]!.line.setAttribute("visibility", "visible");
         }
         else{
             // 軸を表示しない場合
@@ -704,7 +730,7 @@ export class View extends Widget {
             if(this.xyAxis[idx] != null){
                 // 軸の線分がある場合
 
-                this.xyAxis[idx]!.setColor("transparent")
+                this.xyAxis[idx]!.line.setAttribute("visibility", "hidden");
             }
         }
     }
@@ -865,15 +891,15 @@ export class View extends Widget {
                 if(clicked_shape instanceof Point || clicked_shape instanceof LineSegment || clicked_shape instanceof Angle){
     
                     let act1 = glb.currentWidget();
-                    if(act1 instanceof ShapeSelection){
+                    if(act1 instanceof WidgetSelection){
 
-                        act1.shapes.push(clicked_shape);
+                        act1.selections.push(clicked_shape);
                         act1.enable();
                     }
                     else{
 
-                        let act2 = new ShapeSelection();
-                        act2.shapes.push(clicked_shape);
+                        let act2 = new WidgetSelection();
+                        act2.selections.push(clicked_shape);
                 
                         glb.addWidget(act2);
                     }

@@ -492,6 +492,14 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
                 break;
             }
 
+            case "CircularSector":{                
+                let info2 = Object.assign(PackageInfo.newObj(), CircularSectorPkg(sim, info1, pkg1.numInput!));
+
+                this.makeBindVars(packages, info1, pkg1, info2, [ "Pos", "RA", "Nrm", "Color" ]);
+                break;
+            }
+
+
             case "Sphere":{                
                 let info2 = Object.assign(PackageInfo.newObj(), SpherePkg(sim, info1, pkg1.numInput!));
 
@@ -853,6 +861,7 @@ function displayTitle(display: string){
     case ""             : return "なし";
     case "Circle"       : return "円";
     case "Disk"         : return "円板";
+    case "CircularSector" : return "扇型"
     case "Sphere"       : return "球";
     case "Tube"         : return "管";
     case "Line"         : return "直線";

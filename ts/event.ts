@@ -1,7 +1,5 @@
 namespace bansho {
 
-export let TemporarySelections: TextSelection[] = [];
-
 export function setEventListener(){
     // 再生 / 停止ボタン
     glb.btnPlayPause.addEventListener("click", (ev: MouseEvent)=>{
@@ -69,7 +67,7 @@ export function setEventListener(){
 
     // Viewの追加
     document.getElementById("add-shape")!.addEventListener("click", (ev: MouseEvent)=>{
-        const view1 = new View().make({ Width: 500, Height: 500, ViewBox: "-2 -2 4 4" });
+        const view1 = new View().make({ Width: 1300, Height: 675, ViewBox: "-5.2 -2.7 10.4 5.4" });
         glb.addWidget(view1);
     });
 
@@ -89,6 +87,16 @@ export function setEventListener(){
     // 視点のダイアログの表示
     document.getElementById("show-view-point")!.addEventListener("click", (ev: MouseEvent)=>{
         openViewPointDlg();
+    });
+
+    // ⬆️
+    document.getElementById("move-up")!.addEventListener("click", (ev: MouseEvent)=>{
+        glb.moveUpDown(-1);
+    });
+
+    // ⬇️
+    document.getElementById("move-down")!.addEventListener("click", (ev: MouseEvent)=>{
+        glb.moveUpDown(1);
     });
 
     if(glb.btnDocId != null){

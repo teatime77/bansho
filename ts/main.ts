@@ -174,14 +174,14 @@ export class Glb {
 
             // 点, 線分, 角度の選択も削除する。
             let ref_acts = glb.widgets
-                .filter(x => x instanceof ShapeSelection && x.shapes.includes(act as (Point|LineSegment|Angle))) as ShapeSelection[];
+                .filter(x => x instanceof WidgetSelection && x.selections.includes(act as (Point|LineSegment|Angle))) as WidgetSelection[];
 
             for(let act2 of ref_acts){
-                let i = act2.shapes.indexOf(act);
+                let i = act2.selections.indexOf(act);
                 console.assert(i != -1);
-                act2.shapes.splice(i, 1);
+                act2.selections.splice(i, 1);
 
-                if(act2.shapes.length == 0){
+                if(act2.selections.length == 0){
                     glb.removeWidget(act2);
                 }
             }
@@ -196,6 +196,23 @@ export class Glb {
         }
 
         this.updateTimePos( Math.min(act_idx, glb.widgets.length - 1), false );
+    }
+
+    moveUpDown(up_down : number){
+        let pos1 = getTimelinePos();
+        let pos2 = pos1 + up_down;
+        if(!(0 <= Math.min(pos1, pos2) && Math.max(pos1, pos2) < glb.widgets.length)){
+            return;
+        }
+
+        let act = glb.widgets[pos1];
+        glb.widgets[pos1] = glb.widgets[pos2];
+        glb.widgets[pos2] = act;
+
+        glb.selSummary.options[pos1+1].innerHTML = glb.widgets[pos1].summary();
+        glb.selSummary.options[pos2+1].innerHTML = glb.widgets[pos2].summary();
+        
+        glb.updateTimePos(pos2, false);
     }
     
     /**
@@ -338,6 +355,8 @@ export class Glb {
 
     
     initDoc(doc: any){
+        doc.widgets = doc.widgets.filter((x : any) => x.typeName != "TextSelection");
+
         glb.widgets.forEach(x => x.delete());
         glb.widgets = [];
         glb.refMap = new Map<number, Widget>();
@@ -526,8 +545,9 @@ export function parseObject(obj: any) : any {
     case Image.name:
         return new Image(obj);
 
-    case ShapeSelection.name:
-        return new ShapeSelection().make(obj);
+    case WidgetSelection.name:
+    case "ShapeSelection":
+            return new WidgetSelection().make(obj);
 
     case TextSelection.name:
         return new TextSelection().make(obj);
@@ -685,7 +705,7 @@ export function initPlay(){
 }
 
 export function onClickPointerMove(act:TextBlock, ev: PointerEvent | MouseEvent, is_click: boolean){
-    for(let ele = ev.srcElement as HTMLElement; ele; ele = ele.parentElement!){
+    for(let ele = ev.target as HTMLElement; ele; ele = ele.parentElement!){
         if([ "MJX-MI", "MJX-MN", "MJX-MO" ].includes(ele.tagName)){
 
             let v = Array.from(act.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
@@ -714,11 +734,18 @@ export function onClickPointerMove(act:TextBlock, ev: PointerEvent | MouseEvent,
                     txtSel.textAct  = act;
                     txtSel.startIdx = idx;
                     txtSel.endIdx   = idx + 1;
-                    txtSel.type     = type;
-                    
-                    txtSel.enable();
+                    txtSel.type     = type;                    
 
-                    glb.addWidget(txtSel);
+                    let act1 = glb.currentWidget() as WidgetSelection;
+                    if(! (act1 instanceof WidgetSelection)){
+
+                        act1 = new WidgetSelection();
+                
+                        glb.addWidget(act1);
+                    }
+
+                    act1.selections.push(txtSel);
+                    act1.enable();
 
                     glb.textSel = txtSel;
                 }

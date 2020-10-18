@@ -103,17 +103,24 @@ export class Widget{
 /*
     図形の選択
 */
-export class ShapeSelection extends Widget {
-    shapes: (Point|LineSegment|Angle)[] = [];
+export class WidgetSelection extends Widget {
+    static one(act: Point|LineSegment|Angle|TextSelection){
+        let sel = new WidgetSelection();
+        sel.selections.push(act);
+
+        return sel;
+    }
+
+    selections: (Point|LineSegment|Angle|TextSelection)[] = [];
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            shapes: this.shapes.map(x => x.toObj())
+            selections: this.selections.map(x => x.toObj())
         });
     }
 
     setEnable(enable: boolean){
-        for(let shape of this.shapes){
+        for(let shape of this.selections){
             shape.select(enable);
         }
     }
@@ -127,6 +134,7 @@ export class TextSelection extends Widget {
     startIdx: number = -1;
     endIdx: number = -1;
     type!: number;
+
     border: HTMLDivElement | null = null;
 
     makeObj() : any {
@@ -140,7 +148,7 @@ export class TextSelection extends Widget {
 
     moveBorder(){
         let selectedDoms = this.setSelectedDoms();
-        let rc0 = this.textAct.div.getBoundingClientRect();
+        const rc0 = this.textAct.div.getBoundingClientRect();
 
         let minX = Number.MAX_VALUE, minY = Number.MAX_VALUE;
         let maxX = 0, maxY = 0;
@@ -153,64 +161,56 @@ export class TextSelection extends Widget {
             maxY = Math.max(maxY, rc.bottom);    
         }
 
-        let bw = 2;
-
         let colors = [ "orange", "red", "blue", "green" ];
 
-        let border = this.border;
-        if(border == null){
+        if(this.border == null){
 
-            border = document.createElement("div");
-
-            border.style.display = "none";
-            border.style.position = "absolute";
-            border.style.zIndex = "-1";
-            border.style.margin = "0px";
-            border.style.backgroundColor = "transparent";
-            border.style.borderStyle = "solid";
-    
-            this.textAct.div.appendChild(border);
-        }
-
-        border.style.borderColor = colors[this.type];
-        border.style.display = "inline-block";
-
-        border.style.left   = `${minX - bw - rc0.left}px`;
-        border.style.top    = `${minY - bw - rc0.top}px`;
-        border.style.width  = `${maxX - minX + 2*bw}px`;
-        border.style.height = `${maxY - minY + 2*bw}px`;
-        border.style.borderWidth = `${bw}px`;
-
-        this.border = border;
-    }
-    
-    enable(){
-        this.moveBorder();
-        if(this.type == SelectionType.temporary){
-            TemporarySelections.push(this);
-        }
-    }
-
-    disable(){
-        TemporarySelections = TemporarySelections.filter(x => x != this);
-
-        let selectedDoms = this.setSelectedDoms();
-        for(let dom of selectedDoms){
-            dom.style.color = "unset";
-            dom.style.backgroundColor = "unset";
-        }    
-
-        if(this.border != null){
+            this.border = document.createElement("div");
 
             this.border.style.display = "none";
+            this.border.style.position = "absolute";
+            this.border.style.zIndex = "-1";
+            this.border.style.margin = "0px";
+            this.border.style.backgroundColor = "transparent";
+            this.border.style.borderStyle = "none";
+    
+            this.textAct.div.appendChild(this.border);
+        }
+
+        this.border.style.backgroundColor = colors[this.type];
+        this.border.style.display = "inline-block";
+
+        let bw = 5;
+
+        this.border.style.left   = `${minX - rc0.left}px`;
+        this.border.style.top    = `${maxY - rc0.top}px`;
+        this.border.style.width  = `${maxX - minX}px`;
+        this.border.style.height = `${bw}px`;
+
+        this.border = this.border;
+    }
+
+    select(selected: boolean){
+        if(selected){
+
+            this.moveBorder();
+        }
+        else{
+
+            let selectedDoms = this.setSelectedDoms();
+            for(let dom of selectedDoms){
+                dom.style.color = "unset";
+                dom.style.backgroundColor = "unset";
+            }    
+
+            if(this.border != null){
+
+                this.border.style.display = "none";
+            }
         }
     }
 
-    summary() : string {
-        return "選択";
-    }
-
-    setSelectedDoms() : HTMLElement[]{
+    private setSelectedDoms() : HTMLElement[]{
         let v = Array.from(this.textAct.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
 
         return v.slice(this.startIdx, this.endIdx);

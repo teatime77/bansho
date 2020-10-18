@@ -41,16 +41,15 @@ export function initSpeech(){
 }
 
 export class Speech extends TextWidget {
-    static pendigShapeSelection : ShapeSelection | null = null;
     static span : number = 0;
     static nextPos : number = 0;
-    static timelinePos : number;
-    static subPos : number = 0;
     static duration : number;
     static startTime : number;
     static speechIdx : number;
     static attentionId : string;
     static attentionIdx : number;
+    static lookahead : Widget[] = [];
+    static temporaries : Widget[] = [];
 
     prevCharIndex = 0;
 
@@ -157,9 +156,21 @@ export class Speech extends TextWidget {
         if(start){
 
             Speech.nextPos = 0;
-            Speech.timelinePos = getTimelinePos();
 
-            Speech.pendigShapeSelection = null;
+            Speech.lookahead = [];
+            Speech.temporaries = [];
+            for(let pos = getTimelinePos() + 1; pos < glb.widgets.length; pos++){
+                let act = glb.widgets[pos];
+                if(act instanceof Speech){
+                    break;
+                }
+                else if(act instanceof WidgetSelection){
+                    Speech.lookahead.push(... act.selections.map(x => WidgetSelection.one(x)))
+                }
+                else{
+                    Speech.lookahead.push(act);
+                }
+            }
 
             Speech.speechIdx = 10 * glb.widgets.filter(x => x instanceof Speech).indexOf(this);
         }
@@ -181,86 +192,20 @@ export class Speech extends TextWidget {
         if(Speech.span == 0 && Speech.nextPos == this.Text.length){
             // スピーチが分割されないか、最後のフレーズの場合
 
-            if(start){
-                // スピーチの最初の場合
-
-                // 次のスピーチの手前まで実行する。
-                for(let pos = Speech.timelinePos + 1; pos < glb.widgets.length; pos++){
-                    let act = glb.widgets[pos];
-                    if(act instanceof Speech){    
-                        return;
-                    }
-    
-                    Speech.timelinePos = pos;
-                    act.enable();    
-                }    
-            }
-            else{
-                // 2番目以降のフレーズの場合
-
-                if(Speech.pendigShapeSelection != null){
-                    // 処理の途中の図形選択がある場合
-
-                    let act = Speech.pendigShapeSelection;
-                    while(Speech.subPos < act.shapes.length){
-                        act.shapes[Speech.subPos].select(true);
-                        Speech.subPos++;
-                    }
-                    Speech.pendigShapeSelection = null;
-                }
-            }
+            Speech.span = Speech.lookahead.length;
         }
         else{
-            // スピーチが分割され、最後のフレーズでない場合
 
-            for(let idx = 0; idx < Speech.span; idx++){
+            Speech.span = Math.min(Speech.span, Speech.lookahead.length);
+        }
 
-                let act : Widget
-                if(Speech.pendigShapeSelection == null){
-                    // 処理の途中の図形選択がない場合
+        for(let idx = 0; idx < Speech.span; idx++){
+            let act = Speech.lookahead.shift()!;
+            act.enable();
 
-                    // 次の処理を得る。
-                    Speech.timelinePos++;
-                    if(Speech.timelinePos < glb.widgets.length){
-
-                        act = glb.widgets[Speech.timelinePos];
-                        Speech.subPos = 0;
-                    }
-                    else{
-                        throw new Error();
-                    }
-                }
-                else{
-                    // 処理の途中の図形選択がある場合
-
-                    act = Speech.pendigShapeSelection;
-                }
-
-                if(act instanceof ShapeSelection){
-                    // 図形選択の場合
-
-                    // 図形選択をする。
-                    act.shapes[Speech.subPos].select(true);
-                    console.log(`select ${Speech.subPos}`);
-
-                    if(Speech.subPos + 1 < act.shapes.length){
-                        // 続きがある場合
-
-                        Speech.subPos++;
-                        Speech.pendigShapeSelection = act;
-                    }
-                    else{
-                        // 続きがない場合
-                        
-                        Speech.pendigShapeSelection = null;
-                    }
-                }
-                else{
-                    // 図形選択でない場合
-
-                    // 処理を有効にする。
-                    act.enable();
-                }
+            if(act instanceof WidgetSelection && ! (act.selections[0] instanceof TextSelection && act.selections[0].type != SelectionType.temporary)){
+                
+                Speech.temporaries.push(act);
             }
         }
     }
@@ -298,12 +243,10 @@ export class Speech extends TextWidget {
         glb.isSpeaking = false;
         msg(`speech end: idx:${ev.charIndex} name:${ev.name} type:${ev.type} text:${ev.utterance.text.substring(this.prevCharIndex, ev.charIndex)}`);
 
-        // テキストの選択を無効にする。
-        Array.from(TemporarySelections).forEach(x => x.disable());
-        console.assert(TemporarySelections.length == 0);
-
         // 図形の選択を無効にする。
-        deselectShape();
+        console.log(`一次選択 ${Speech.temporaries.length}`);
+        Speech.temporaries.forEach(x => x.disable());
+        Speech.temporaries = [];
 
         if(glb.pauseFlag){
     
@@ -319,11 +262,22 @@ export class Speech extends TextWidget {
                     this.startSpeak(false);
                 }
                 else{
-                    setTimePos(Speech.timelinePos);
-                    glb.playNextWidgets();
+                    // 次のSpeechの位置
+                    
+                    for(let pos = getTimelinePos() + 1; pos < glb.widgets.length; pos++){
+                        let act = glb.widgets[pos]
+
+                        if(act instanceof Speech){
+
+                            setTimePos(pos);
+                            act.startSpeak(true);
+                            return;
+                        }
+                    }
+
+                    glb.onPlayComplete();
                 }
             }, Math.max(0, waitTime));
-
         }
     }
 }
