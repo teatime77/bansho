@@ -123,6 +123,7 @@ export class Speech extends TextWidget {
             [ /\s-\s/g, "`-|マイナス`" ],
             [ /\s項\s/g, "`項|こう`" ],
             [ /\s角\s/g, "`角|カク`" ],
+            [ /\s辺\s/g, "`辺|ヘン`" ],
         ]
 
         for(let [r, s] of yomi){
@@ -269,7 +270,7 @@ export class Speech extends TextWidget {
 
                         if(act instanceof Speech){
 
-                            setTimePos(pos);
+                            glb.updateTimePos(pos, true, false);
                             act.startSpeak(true);
                             return;
                         }

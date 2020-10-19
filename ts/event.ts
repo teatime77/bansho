@@ -12,7 +12,7 @@ export function setEventListener(){
 
             glb.selSummary.selectedIndex = -1;
         }
-        glb.updateTimePos(-1, false);
+        glb.updateTimePos(-1);
     });
 
     // ⏭
@@ -21,7 +21,7 @@ export function setEventListener(){
 
             glb.selSummary.selectedIndex = glb.selSummary.options.length - 1;
         }
-        glb.updateTimePos(glb.widgets.length - 1, false);
+        glb.updateTimePos(glb.widgets.length - 1);
     });
 
     // タイムライン
@@ -43,7 +43,7 @@ export function setEventListener(){
     // 要約一覧
     glb.selSummary.addEventListener("change", (ev: Event)=>{
         msg("要約一覧 change");
-        setTimePos(glb.selSummary.selectedIndex - 1);
+        glb.updateTimePos(glb.selSummary.selectedIndex - 1);
         glb.rngTimelineChange();
     });
 

@@ -72,7 +72,19 @@ export class Glb {
 
             Glb.startPlayTime = (new Date()).getTime();
             this.btnPlayPause.innerHTML = "⏸";
-            this.playNextWidgets();
+
+            let sp = glb.widgets.slice(getTimelinePos() + 1).find(x => x instanceof Speech);
+            if(sp instanceof Speech){
+
+                let pos = glb.widgets.indexOf(sp);
+                glb.updateTimePos(pos, true);
+                sp.startSpeak(true);
+            }
+            else{
+
+                glb.updateTimePos(glb.widgets.length - 1, true);
+                glb.onPlayComplete();
+            }
         }
         else{
 
@@ -97,7 +109,7 @@ export class Glb {
 
     rngTimelineChange(){   
         setTimePosMax( glb.widgets.length - 1 );
-        this.updateTimePos(getTimelinePos(), false);
+        this.updateTimePos(getTimelinePos());
     }
 
     currentWidget() : Widget | undefined {
@@ -107,22 +119,6 @@ export class Glb {
         else{
             return undefined;
         }
-    }
-    
-    playNextWidgets(){
-        for(let pos = getTimelinePos() + 1; pos < glb.widgets.length; pos++){
-            let act = glb.widgets[pos];
-            act.enable();
-            glb.updateTimePos(pos, true);
-
-            if(act instanceof Speech){
-
-                act.startSpeak(true);
-                return;
-            }
-        }
-        
-        glb.onPlayComplete();
     }
 
     addWidget(act: Widget){
@@ -136,7 +132,7 @@ export class Glb {
         glb.selSummary.add(opt, 1 + selIdx + 1);
     
         setTimePosMax( glb.widgets.length - 1 );
-        this.updateTimePos(selIdx + 1, false);
+        this.updateTimePos(selIdx + 1);
     
         this.textArea.focus();
     }
@@ -195,7 +191,7 @@ export class Glb {
             glb.widgets[act_idx].enable();
         }
 
-        this.updateTimePos( Math.min(act_idx, glb.widgets.length - 1), false );
+        this.updateTimePos( Math.min(act_idx, glb.widgets.length - 1));
     }
 
     moveUpDown(up_down : number){
@@ -212,75 +208,86 @@ export class Glb {
         glb.selSummary.options[pos1+1].innerHTML = glb.widgets[pos1].summary();
         glb.selSummary.options[pos2+1].innerHTML = glb.widgets[pos2].summary();
         
-        glb.updateTimePos(pos2, false);
+        glb.updateTimePos(pos2);
     }
     
     /**
      * ⏮, rngTimelineChange, playWidgets, addWidget, deleteWidget, deserializeDoc
      * @param pos 
      */
-    updateTimePos(pos: number, playing: boolean){
-        if(this.prevTimePos < pos){
-            // 現在位置が右に動いた場合
+    updateTimePos(pos: number, playing: boolean = false, setEnable: boolean = true){
+        if(setEnable){
 
-            for(let i = this.prevTimePos + 1; i <= pos; i++){
-                glb.widgets[i].enable();
+            if(this.prevTimePos < pos){
+                // 現在位置が右に動いた場合
+
+                for(let i = this.prevTimePos + 1; i <= pos; i++){
+                    glb.widgets[i].enable();
+                }
             }
-        }
-        else if(pos < this.prevTimePos){
-            // 現在位置が左に動いた場合
+            else if(pos < this.prevTimePos){
+                // 現在位置が左に動いた場合
 
-            for(let i = Math.min(this.prevTimePos, glb.widgets.length - 1); pos < i; i--){
-                glb.widgets[i].disable();
-            }
+                for(let i = Math.min(this.prevTimePos, glb.widgets.length - 1); pos < i; i--){
+                    glb.widgets[i].disable();
+                }
 
-            if(pos != -1){
-                glb.widgets[pos].enable();
+                if(pos != -1){
+                    glb.widgets[pos].enable();
+                }
             }
         }
     
-        setTimePos(pos);
+        if(glb.timeline != null){
+            glb.timeline.valueAsNumber = pos;
+        }
+    
+        if(glb.selSummary != null){
+            glb.selSummary.selectedIndex = pos + 1;
+        }
+    
         glb.prevTimePos = pos;
-        
-        let act = this.currentWidget();
-
+            
+        let act = glb.currentWidget();
+    
         if(act instanceof Speech){
             
             Speech.nextPos = 0;
             let [caption, speech] = act.splitCaptionSpeech(false);
             glb.caption.textContent = caption;
             reprocessMathJax(act, glb.caption, caption);
-
+    
             if(!playing){
-
+    
                 deselectShape();
             }
         }
         else{
-
+    
             glb.caption.textContent = "";
         }
-
+    
         if(Glb.edit){
-
+    
             if(act instanceof TextWidget){
-
+    
                 glb.textArea.style.backgroundColor = act instanceof Speech     ? "aliceblue"   : "whitesmoke";
                 glb.textArea.value = act.Text;
                 glb.textArea.disabled = false;
             }
             else{
-
+    
                 glb.textArea.style.backgroundColor = "white"
                 glb.textArea.value = "";
                 glb.textArea.disabled = true;
             }
-
+    
             if(act != undefined){
                 
                 showProperty(act);
             }
         }
+
     }
 
     updateTextMath(){
@@ -371,7 +378,7 @@ export class Glb {
         glb.widgets = [];
         glb.refMap = new Map<number, Widget>();
         setTimePosMax(-1);
-        setTimePos(-1);
+        glb.updateTimePos(-1);
 
         if(Glb.edit){
 
@@ -419,10 +426,10 @@ export class Glb {
                 x.listeners = parseObject(x.listeners);
                 for(let shape of x.listeners){
                     if(!(shape instanceof Shape)){
-                        msg(`ERR this:${x.id} ${x.summary()} shape:${(shape as any).id} ${(shape as any).summary()}`)
+                        msg(`ERR this:${x.id} ${x.summary()} shape:${shape}`)
                     }
                 }
-        
+                // x.listeners = x.listeners.filter(x => x instanceof Shape);
             }
             if(x instanceof Point && x.bindTo != undefined){
                 x.bindTo = parseObject(x.bindTo);
@@ -438,7 +445,7 @@ export class Glb {
         setTimePosMax( glb.widgets.length - 1 );
         glb.prevTimePos = glb.widgets.length - 1;
 
-        this.updateTimePos(-1, false);
+        this.updateTimePos(-1);
         this.showPlayButton();
     }
 
@@ -454,16 +461,6 @@ export function getTimelinePos(){
     else{
         console.assert(false);
         return 0;
-    }
-}
-
-export function setTimePos(pos: number){
-    if(glb.timeline != null){
-        glb.timeline.valueAsNumber = pos;
-    }
-
-    if(glb.selSummary != null){
-        glb.selSummary.selectedIndex = pos + 1;
     }
 }
 
