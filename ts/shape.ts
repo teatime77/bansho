@@ -7,6 +7,7 @@ const angleStrokeWidth = 2;
 const angleRadius = 40;
 const rightAngleLength = 20;
 const gridLineWidth = 1;
+const fgColor = "white";
 
 declare let MathJax:any;
 
@@ -386,8 +387,8 @@ export class View extends Widget {
     Width      : number = 0;
     Height     : number = 0;
     ViewBox    : string = "";
-    ShowXAxis  : boolean = true;
-    ShowYAxis  : boolean = true;
+    ShowXAxis  : boolean = false;
+    ShowYAxis  : boolean = false;
     BackgroundColor : string = "";
 
     xyAxis : (LineSegment|null)[] = [ null, null];
@@ -402,6 +403,7 @@ export class View extends Widget {
         this.div.style.padding = "0px";
         this.div.style.zIndex = "1";
         this.div.style.cssFloat = "right";
+        this.div.style.backgroundColor = "black";
 
         this.canvas = document.createElement("canvas");
         this.canvas.style.position = "absolute";
@@ -715,11 +717,13 @@ export class View extends Widget {
 
                     this.xyAxis[idx] = new LineSegment().makeByPos(0, -big_value, 0, big_value);
                 }
+
+                this.xyAxis[idx]!.setColor(fgColor)
             }
             else{
                 // 軸の線分がある場合
 
-                this.xyAxis[idx]!.setColor("black")
+                this.xyAxis[idx]!.setColor(fgColor)
             }    
 
             this.xyAxis[idx]!.line.setAttribute("visibility", "visible");
@@ -737,7 +741,7 @@ export class View extends Widget {
 
     makeLine(x1: number, y1: number, x2: number, y2: number){
         const line = document.createElementNS("http://www.w3.org/2000/svg","line");
-        line.setAttribute("stroke", "navy");
+        line.setAttribute("stroke", fgColor);
         line.setAttribute("stroke-width", `${this.toSvg2(strokeWidth)}`);
         line.setAttribute("x1", `${x1}`);
         line.setAttribute("y1", `${y1}`);
@@ -783,7 +787,7 @@ export class View extends Widget {
         rect.setAttribute("width", `${this.GridWidth}`);
         rect.setAttribute("height", `${this.GridHeight}`);
         rect.setAttribute("fill", "transparent");
-        rect.setAttribute("stroke", "black");
+        rect.setAttribute("stroke", fgColor);
         rect.setAttribute("stroke-width", `${this.toSvg2(gridLineWidth)}`);
     
         pattern.appendChild(rect);
@@ -1157,7 +1161,7 @@ export abstract class Shape extends Widget {
     updateRatio(){
         if(this.svgName != null){
             const p = this.parentView.toSvgRatio();
-            this.svgName.setAttribute("font-size", `${16 * p.y}`);
+            this.svgName.setAttribute("font-size", `${24 * p.y}`);
             this.svgName.setAttribute("stroke-width", `${0.2 * p.y}`);
         }
     }
@@ -1193,14 +1197,8 @@ export abstract class Shape extends Widget {
             if(this.svgName == null){
 
                 this.svgName = document.createElementNS("http://www.w3.org/2000/svg","text");
-                if(glb.widgets.some(x => x instanceof Simulation)){
-
-                    this.svgName.setAttribute("stroke", "white");
-                }
-                else{
-
-                    this.svgName.setAttribute("stroke", "navy");
-                }
+                this.svgName.setAttribute("stroke", fgColor);
+                this.svgName.setAttribute("fill", fgColor);
                 this.svgName.style.cursor = "pointer";
                 this.parentView.G0.appendChild(this.svgName);
 
@@ -1241,15 +1239,7 @@ export abstract class Shape extends Widget {
                 this.divCaption.style.cursor = "move";
                 this.divCaption.style.pointerEvents = "all";
                 this.divCaption.style.zIndex = "4";
-
-                if(glb.widgets.some(x => x instanceof Simulation)){
-
-                    this.divCaption.style.color = "white";
-                }
-                else{
-
-                    this.divCaption.style.color = "black";
-                }
+                this.divCaption.style.color = fgColor;
         
                 this.parentView.div2.appendChild(this.divCaption);
 
@@ -1468,7 +1458,7 @@ export abstract class CompositeShape extends Shape {
 export class Point extends Shape {
     pos : Vec2 = new Vec2(NaN, NaN);
     pos3D : string | undefined = undefined;
-    Visible : boolean = true;
+    Visible : boolean = false;
     EndTime: number | undefined = undefined;
     bindTo: Shape|undefined;    //!!! リネーム注意 !!!
 
@@ -1478,7 +1468,7 @@ export class Point extends Shape {
         super();
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        this.circle.setAttribute("fill", "blue");        
+        this.circle.setAttribute("fill", fgColor);        
         this.circle.style.cursor = "pointer";
 
         console.assert(obj.pos != undefined);
@@ -1502,7 +1492,7 @@ export class Point extends Shape {
     setEnable(enable: boolean){
         super.setEnable(enable);
 
-        let visible = (enable && (this.Visible != false || !glb.isPlaying));
+        let visible = (enable && (this.Visible == true || !glb.isPlaying));
         this.circle.setAttribute("visibility", (visible ? "visible" : "hidden"));
     }
 
@@ -1528,8 +1518,8 @@ export class Point extends Shape {
             obj.bindTo = { ref: this.bindTo.id };
         }
 
-        if(this.Visible == false){
-            obj.Visible = false;
+        if(this.Visible == true){
+            obj.Visible = true;
         }
 
         if(this.validEndTime()){
@@ -1653,7 +1643,7 @@ export class Point extends Shape {
                 this.circle.setAttribute("fill", "orange");
             }
             else{
-                this.circle.setAttribute("fill", "blue");
+                this.circle.setAttribute("fill", fgColor);
             }
         }
     }
@@ -1747,7 +1737,7 @@ export class LineSegment extends CompositeShape {
     p12: Vec2 = new Vec2(0,0);
     e: Vec2 = new Vec2(0,0);
     len: number = 0;
-    Color: string = "navy";
+    Color: string | undefined = fgColor;
 
     Arrow = 0;
     svgArrow : SVGPathElement | null = null;
@@ -1756,16 +1746,18 @@ export class LineSegment extends CompositeShape {
         super();
         //---------- 
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
-        this.line.setAttribute("stroke", this.Color);
+        this.line.setAttribute("stroke", this.color());
         this.updateRatio();
 
         this.parentView.G0.appendChild(this.line);
     }
 
     makeObj() : any {
-        let obj = Object.assign(super.makeObj(), {
-            "Color"    : this.Color
-        });
+        let obj = super.makeObj();
+
+        if(this.Color != undefined && this.Color != fgColor){
+            obj.Color = this.Color;
+        }
 
         if(this.Arrow != 0){
             obj.Arrow = this.Arrow;
@@ -1791,7 +1783,10 @@ export class LineSegment extends CompositeShape {
     make(obj: any) : Widget {
         super.make(obj);
 
-        this.line.setAttribute("stroke", this.Color);
+        if(this.Color == "navy"){
+            delete this.Color;
+        }
+        this.line.setAttribute("stroke", this.color());
 
         for(let p of this.handles){
             console.assert(!isNaN(p.pos.x))
@@ -1860,7 +1855,7 @@ export class LineSegment extends CompositeShape {
 
             if(this.svgArrow == null){
                 this.svgArrow = document.createElementNS("http://www.w3.org/2000/svg","path");
-                this.svgArrow.setAttribute("fill", this.Color);
+                this.svgArrow.setAttribute("fill", this.color());
 
                 this.parentView.G0.appendChild(this.svgArrow);
 
@@ -1895,7 +1890,7 @@ export class LineSegment extends CompositeShape {
                 this.line.setAttribute("stroke", "orange");
             }
             else{
-                this.line.setAttribute("stroke", "navy");
+                this.line.setAttribute("stroke", fgColor);
             }
         }
     }
@@ -2012,6 +2007,10 @@ export class LineSegment extends CompositeShape {
         super.delete();
         this.line.parentElement!.removeChild(this.line);
     }
+
+    color(){
+        return this.Color == undefined ? fgColor : this.Color;
+    }
 }
 
 export class BSpline extends CompositeShape {  
@@ -2039,7 +2038,7 @@ export class BSpline extends CompositeShape {
         }
 
         this.paths = [];
-        const colors = [ "green", "red", "blue"]
+        const colors = [ "green", "red", fgColor]
         for(let idx of range(3)){
 
             let path = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -2390,7 +2389,7 @@ export class Rect extends Polygon {
 }
 
 class CircleArc extends CompositeShape {
-    Color: string = "navy";
+    Color: string = fgColor;
 
     getRadius(){
         return NaN;
@@ -2584,7 +2583,7 @@ export class DimensionLine extends CompositeShape {
             const arc = document.createElementNS("http://www.w3.org/2000/svg","path");
 
             arc.setAttribute("fill", "none");
-            arc.setAttribute("stroke", "navy");
+            arc.setAttribute("stroke", fgColor);
             arc.style.cursor = "pointer";
             arc.style.zIndex = "-2";
 
@@ -2593,7 +2592,7 @@ export class DimensionLine extends CompositeShape {
             this.arcs.push(arc);
 
             const line = document.createElementNS("http://www.w3.org/2000/svg","line");
-            line.setAttribute("stroke", "navy");
+            line.setAttribute("stroke", fgColor);
     
             this.parentView.G0.appendChild(line);
     
@@ -3260,7 +3259,7 @@ export class Angle extends Shape {
     downPos: Vec2[] = [];
     arcs   : SVGPathElement[] = [];
     primes : SVGLineElement[] = [];
-    Color : string = "black";
+    Color : string = fgColor;
 
     constructor(){
         super();
@@ -3663,7 +3662,7 @@ export class Image extends CompositeShape {
 
 export class FuncLine extends Shape {  
     path: SVGPathElement;
-    Color: string = "navy";
+    Color: string = fgColor;
     points: Vec2[] = [];
     Script: string = `    
     in  float idx;

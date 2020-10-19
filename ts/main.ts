@@ -263,8 +263,18 @@ export class Glb {
 
         if(Glb.edit){
 
-            glb.textArea.style.borderColor = act instanceof Speech     ? "blue"   : "grey";
-            glb.textArea.value             = act instanceof TextWidget ? act.Text : "";
+            if(act instanceof TextWidget){
+
+                glb.textArea.style.backgroundColor = act instanceof Speech     ? "aliceblue"   : "whitesmoke";
+                glb.textArea.value = act.Text;
+                glb.textArea.disabled = false;
+            }
+            else{
+
+                glb.textArea.style.backgroundColor = "white"
+                glb.textArea.value = "";
+                glb.textArea.disabled = true;
+            }
 
             if(act != undefined){
                 
