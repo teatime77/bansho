@@ -393,9 +393,9 @@ export class Glb {
         glb.board.innerHTML = "";
         glb.board.appendChild(glb.caption);
     
-        const h1 = document.createElement("h1");
-        h1.innerHTML = doc.title;
-        glb.board.insertBefore(h1, glb.caption);
+        // const h1 = document.createElement("h1");
+        // h1.innerHTML = doc.title;
+        // glb.board.insertBefore(h1, glb.caption);
     
         for(let obj of doc.widgets){
             if(obj.typeName == "TextBox"){
