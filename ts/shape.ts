@@ -1252,7 +1252,7 @@ export abstract class Shape extends Widget {
                 this.divCaption.style.fontSize = this.FontSize;
             }
             else{
-                this.divCaption.style.fontSize = "x-large";
+                this.divCaption.style.fontSize = "12pt";
             }
 
             this.divCaption.textContent = "$$\n" + this.Caption + "\$$";
