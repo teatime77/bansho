@@ -8,6 +8,7 @@ const angleRadius = 40;
 const rightAngleLength = 20;
 const gridLineWidth = 1;
 const fgColor = "white";
+const selColor = "orange";
 
 declare let MathJax:any;
 
@@ -287,7 +288,7 @@ export function deselectShape(){
 
     sels.forEach(sel => {
         sel.selections.forEach(x => {
-            if(!(x instanceof TextSelection && x.type == SelectionType.temporary)){
+            if(!(x instanceof TextSelection && x.type != SelectionType.temporary)){
                 x.select(false);
             }
         })
@@ -1036,6 +1037,18 @@ export abstract class Shape extends Widget {
 
     select(selected: boolean){
         this.selected = selected;
+
+        let color = selected ? selColor : fgColor;
+        if(this.svgName != null){
+
+            this.svgName.setAttribute("stroke", color);
+            this.svgName.setAttribute("fill", color);
+        }
+
+        if(this.divCaption != null){
+            
+            this.divCaption.style.color = color;
+        }
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {}
@@ -1321,14 +1334,30 @@ export abstract class Shape extends Widget {
         this.setCaptionPos(ev);
     }
 
+    getCenterXY() : Vec2{
+        throw new Error();
+    }
+
     getNameXY(){
-        console.assert(false);
-        return [0, 0];
+        const p = this.getCenterXY();
+
+        let x = p.x + this.namePos.x;
+        let y = p.y + this.namePos.y;
+
+        if(this.parentView.FlipY){
+            return [x, - y];
+        }
+        else{
+
+            return [x, y];
+        }
     }
 
     getCaptionXY(){
-        console.assert(false);
-        return [0, 0];
+        const pos = this.getCenterXY();
+        let p = this.parentView.SvgToDomPos(pos);
+
+        return [p.x + this.captionPos.x, p.y + this.captionPos.y];
     }
 
     setNamePos(ev: MouseEvent | PointerEvent){
@@ -1615,32 +1644,16 @@ export class Point extends Shape {
         this.updateCaptionPos();
     }
 
-    getNameXY(){
-        let x = this.pos.x + this.namePos.x;
-        let y = this.pos.y + this.namePos.y;
-
-        if(this.parentView.FlipY){
-            return [x, - y];
-        }
-        else{
-
-            return [x, y];
-        }
-    }
-
-
-    getCaptionXY(){
-        let p = this.parentView.SvgToDomPos(this.pos);
-
-        return [p.x + this.captionPos.x, p.y + this.captionPos.y];
+    getCenterXY() : Vec2{
+        return this.pos;
     }
 
     select(selected: boolean){
         if(this.selected != selected){
-            this.selected = selected;
+            super.select(selected);
 
             if(this.selected){
-                this.circle.setAttribute("fill", "orange");
+                this.circle.setAttribute("fill", selColor);
             }
             else{
                 this.circle.setAttribute("fill", fgColor);
@@ -1802,22 +1815,11 @@ export class LineSegment extends CompositeShape {
         return this;
     }
 
-    getNameXY(){
+    getCenterXY() : Vec2 {
         const p1 = this.handles[0].pos;
         const p2 = this.handles[1].pos;
 
-        const p = new Vec2((p1.x + p2.x)/2, (p1.y + p2.y)/2);
-
-        let x = p.x + this.namePos.x;
-        let y = p.y + this.namePos.y;
-
-        if(this.parentView.FlipY){
-            return [x, - y];
-        }
-        else{
-
-            return [x, y];
-        }
+        return new Vec2((p1.x + p2.x)/2, (p1.y + p2.y)/2);
     }
 
     makeByPos(x1: number, y1: number, x2: number, y2: number){
@@ -1830,7 +1832,7 @@ export class LineSegment extends CompositeShape {
     }
 
     propertyNames() : string[] {
-        return [ "Color", "Name", "Arrow" ];
+        return [ "Color", "Name", "Arrow", "Caption", "FontSize" ];
     }
 
     setColor(c:string){
@@ -1884,10 +1886,10 @@ export class LineSegment extends CompositeShape {
     
     select(selected: boolean){
         if(this.selected != selected){
-            this.selected = selected;
+            super.select(selected);
 
             if(this.selected){
-                this.line.setAttribute("stroke", "orange");
+                this.line.setAttribute("stroke", selColor);
             }
             else{
                 this.line.setAttribute("stroke", fgColor);
@@ -2462,10 +2464,10 @@ export class Circle extends CircleArc {
 
     select(selected: boolean){
         if(this.selected != selected){
-            this.selected = selected;
+            super.select(selected);
 
             if(this.selected){
-                this.circle.setAttribute("stroke", "orange");
+                this.circle.setAttribute("stroke", selColor);
             }
             else{
                 this.circle.setAttribute("stroke", this.Color);
@@ -3148,10 +3150,10 @@ export class Arc extends CircleArc {
 
     select(selected: boolean){
         if(this.selected != selected){
-            this.selected = selected;
+            super.select(selected);
 
             if(this.selected){
-                this.arc.setAttribute("stroke", "orange");
+                this.arc.setAttribute("stroke", selColor);
             }
             else{
                 this.arc.setAttribute("stroke", this.Color);
@@ -3287,7 +3289,7 @@ export class Angle extends Shape {
     }
 
     propertyNames() : string[] {
-        return [ "Mark", "Color", "Name" ];
+        return [ "Mark", "Color", "Name", "Caption", "FontSize" ];
     }
 
     summary() : string {
@@ -3321,9 +3323,9 @@ export class Angle extends Shape {
 
     select(selected: boolean){
         if(this.selected != selected){
-            this.selected = selected;
+            super.select(selected);
 
-            let color = (this.selected ? "orange" : this.Color);
+            let color = (this.selected ? selColor : this.Color);
             this.svgElements().forEach(x => x.setAttribute("stroke", color));
         }
     }
@@ -3338,20 +3340,9 @@ export class Angle extends Shape {
         }
     }
 
-    getNameXY(){
+    getCenterXY() : Vec2{
         // 交点
-        const p = linesIntersection(this.lines[0], this.lines[1]);
-
-        let x = p.x + this.namePos.x;
-        let y = p.y + this.namePos.y;
-
-        if(this.parentView.FlipY){
-            return [x, - y];
-        }
-        else{
-
-            return [x, y];
-        }
+        return linesIntersection(this.lines[0], this.lines[1]);
     }
 
     matchArcs(){

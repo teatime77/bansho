@@ -257,6 +257,7 @@ export class Speech extends TextWidget {
         else{
 
             let waitTime = 1000 * Speech.duration - ((new Date()).getTime() - Speech.startTime);
+            let pause = (this.Text.length <= Speech.nextPos && this.Text.endsWith("。") ? 5000 : 0);
             setTimeout(()=>{
                 if(Speech.nextPos < this.Text.length){
 
@@ -278,7 +279,7 @@ export class Speech extends TextWidget {
 
                     glb.onPlayComplete();
                 }
-            }, Math.max(0, waitTime));
+            }, Math.max(pause, waitTime));
         }
     }
 }
