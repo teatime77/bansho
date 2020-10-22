@@ -257,7 +257,7 @@ export class Speech extends TextWidget {
         else{
 
             let waitTime = 1000 * Speech.duration - ((new Date()).getTime() - Speech.startTime);
-            let pause = (this.Text.length <= Speech.nextPos && this.Text.endsWith("。") ? 5000 : 0);
+            let pause = Glb.edit ? 0 : (this.Text.length <= Speech.nextPos && this.Text.endsWith("。") ? 5000 : 0);
             setTimeout(()=>{
                 if(Speech.nextPos < this.Text.length){
 

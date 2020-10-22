@@ -124,6 +124,11 @@ export class WidgetSelection extends Widget {
             shape.select(enable);
         }
     }
+
+    all(v: Widget[]){
+        super.all(v);
+        this.selections.forEach(x => x.all(v));
+    }
 }
 
 /*

@@ -28,6 +28,7 @@ export class Glb {
     textArea : HTMLTextAreaElement;
     btnDocId : HTMLButtonElement;
     txtTitle: HTMLInputElement;
+    docScale : HTMLInputElement;
 
     toolType = "";
     view: View | null = null;
@@ -55,6 +56,7 @@ export class Glb {
         this.btnDocId  = document.getElementById("txt-doc-id") as HTMLButtonElement;
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
+        this.docScale = document.getElementById("doc-scale") as HTMLInputElement;
         
         docsDlg = getElement("docs-dlg") as HTMLDialogElement;
         docsTbl = getElement("docs-tbl") as HTMLTableElement;    
@@ -369,9 +371,19 @@ export class Glb {
         // fetchText(`json/${path}.json`, (text: string)=>{
         // });
     }
-
     
     initDoc(doc: any){
+        // MathJaxのスケール
+        if(doc.scale == undefined){
+
+            doc.scale = 1.2;
+        }
+        if(glb.docScale != null){
+
+            glb.docScale.value = `${doc.scale}`;
+        }
+        MathJax.startup.output.options.scale = doc.scale;
+
         doc.widgets = doc.widgets.filter((x : any) => x.typeName != "TextSelection");
 
         glb.widgets.forEach(x => x.delete());
@@ -596,6 +608,7 @@ export function putDoc(is_new: boolean){
     let title = glb.txtTitle.value.trim();
     glb.widgetMap = [];
     let obj = {
+        scale : parseFloat(glb.docScale.value),
         title: title,
         widgets : glb.widgets.map(x => x.toObj())
     }
