@@ -129,6 +129,10 @@ export class WidgetSelection extends Widget {
         super.all(v);
         this.selections.forEach(x => x.all(v));
     }
+
+    delete(){
+        this.selections.forEach(x => x.select(false));
+    }
 }
 
 /*
@@ -142,14 +146,21 @@ export class TextSelection extends Widget {
     endIdx: number = -1;
     type!: number;
 
+    left : number = 0;
+    top  : number = 0;
+    width : number = 0;
+
     border: HTMLDivElement | null = null;
 
     makeObj() : any {
         return Object.assign(super.makeObj(), {
-            textAct: this.textAct.toObj(),
+            textAct : this.textAct.toObj(),
             startIdx: this.startIdx,
-            endIdx: this.endIdx,
-            type: this.type
+            endIdx  : this.endIdx,
+            type    : this.type,
+            left    : this.left,
+            top     : this.top,
+            width   : this.width
         });
     }
 
@@ -187,9 +198,16 @@ export class TextSelection extends Widget {
 
         let bw = 5;
 
-        this.border.style.left   = `${minX - rc0.left}px`;
-        this.border.style.top    = `${maxY - rc0.top}px`;
-        this.border.style.width  = `${maxX - minX}px`;
+        if(Glb.edit || this.width == 0){
+
+            this.left  = minX - rc0.left;
+            this.top   = maxY - rc0.top;
+            this.width = maxX - minX;
+        }
+
+        this.border.style.left   = `${this.left}px`;
+        this.border.style.top    = `${this.top}px`;
+        this.border.style.width  = `${this.width}px`;
         this.border.style.height = `${bw}px`;
 
         this.border = this.border;
@@ -225,6 +243,10 @@ export class TextSelection extends Widget {
         let v = Array.from(this.textAct.div.querySelectorAll('MJX-MI, MJX-MN, MJX-MO')) as HTMLElement[];
 
         return v.slice(this.startIdx, this.endIdx);
+    }
+
+    delete(){
+        this.select(false);
     }
 }
 
