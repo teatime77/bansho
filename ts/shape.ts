@@ -1786,6 +1786,10 @@ export class LineSegment extends CompositeShape {
     setEnable(enable: boolean){
         super.setEnable(enable);
         this.line.setAttribute("visibility", (enable ? "visible" : "hidden"));
+
+        if(this.svgArrow != null){
+            this.svgArrow.setAttribute("visibility", (enable ? "visible" : "hidden"));
+        }
     }
 
     updateRatio(){
@@ -1838,6 +1842,10 @@ export class LineSegment extends CompositeShape {
     setColor(c:string){
         this.Color = c;
         this.line.setAttribute("stroke", c);
+
+        if(this.svgArrow != null){
+            this.svgArrow.setAttribute("fill", this.color());
+        }
     }
 
     setArrow(n: number){
@@ -1888,12 +1896,13 @@ export class LineSegment extends CompositeShape {
         if(this.selected != selected){
             super.select(selected);
 
-            if(this.selected){
-                this.line.setAttribute("stroke", selColor);
-            }
-            else{
-                this.line.setAttribute("stroke", fgColor);
-            }
+            let color = this.selected ? selColor : fgColor;
+
+            this.line.setAttribute("stroke", color);
+
+            if(this.svgArrow != null){
+                this.svgArrow.setAttribute("fill", color);
+            }    
         }
     }
 

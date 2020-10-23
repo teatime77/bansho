@@ -135,6 +135,8 @@ export class WidgetSelection extends Widget {
     テキストの選択
 */
 export class TextSelection extends Widget {
+    static colors = [ "orange", "red", "blue", "green" ];
+
     textAct!: TextBlock;
     startIdx: number = -1;
     endIdx: number = -1;
@@ -166,8 +168,6 @@ export class TextSelection extends Widget {
             maxY = Math.max(maxY, rc.bottom);    
         }
 
-        let colors = [ "orange", "red", "blue", "green" ];
-
         if(this.border == null){
 
             this.border = document.createElement("div");
@@ -182,7 +182,7 @@ export class TextSelection extends Widget {
             this.textAct.div.appendChild(this.border);
         }
 
-        this.border.style.backgroundColor = colors[this.type];
+        this.border.style.backgroundColor = TextSelection.colors[SelectionType.temporary];
         this.border.style.display = "inline-block";
 
         let bw = 5;
@@ -193,6 +193,12 @@ export class TextSelection extends Widget {
         this.border.style.height = `${bw}px`;
 
         this.border = this.border;
+
+        setTimeout(this.colorTimer.bind(this), 200);
+    }
+
+    colorTimer(){
+        this.border!.style.backgroundColor = TextSelection.colors[this.type];
     }
 
     select(selected: boolean){
