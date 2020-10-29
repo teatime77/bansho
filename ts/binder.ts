@@ -365,6 +365,8 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             this.prevTime  = currentTime;
         }
 
+        let progress = Math.min(1.0,  ((new Date()).getTime() - Speech.startTime) / (1000 * Speech.duration));
+
         for(let pkg of this.view.gpgpu!.drawables as gpgputs.Package[]){
             if(pkg.args["time"] != undefined){
                 pkg.args["time"] = currentTime - this.startTime;
@@ -392,7 +394,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             if(pkg.args["progress"] != undefined){
                 if(Speech.duration != 0){
 
-                    pkg.args["progress"] = Math.min(1.0,  ((new Date()).getTime() - Speech.startTime) / (1000 * Speech.duration));
+                    pkg.args["progress"] = progress;
                 }
                 else{
 
@@ -401,17 +403,14 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
             }           
         }
 
+        if(Speech.viewPoint != null){
+            Speech.viewPoint.setDrawParam(progress);
+        }
+
         this.prevTime = currentTime;
     }
 
     afterDraw(projViewMat: Float32Array)  : void {
-        if(getTimelinePos() != -1){
-            let vp = currentViewPoint();
-            if(vp != undefined){
-                vp.setDrawParam();
-            }
-        }
-
         for(let pt of this.points){
 
             let nums = parseCalcMath({}, pt.pos3D!) as number[];
@@ -555,15 +554,16 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 }
 
 export class ViewPoint extends Widget {
-    static lastViewPoint : ViewPoint | null = null;
-    static lastProgress  : number = 0;
-
     Rotaion     : string = "0, 0, 0";
     Translation : string = "0, 0, -5";
-    Duration    : number = 3;
 
     view!       : View;
-    startTime   : number = 0;
+
+    static getViewPoint(offset : number){
+        let pos = getTimelinePos() + offset;
+
+        return glb.widgets.slice(0, pos).reverse().find(x => x instanceof ViewPoint) as ViewPoint;
+    }
     
     constructor(){
         super();
@@ -578,8 +578,7 @@ export class ViewPoint extends Widget {
     makeObj() : any {        
         return Object.assign(super.makeObj(), {
             Rotaion     : this.Rotaion,
-            Translation : this.Translation,
-            Duration    : this.Duration
+            Translation : this.Translation
         });
     }
 
@@ -588,24 +587,24 @@ export class ViewPoint extends Widget {
     }
     
     enable(){
-        ViewPoint.lastViewPoint = null;
-        ViewPoint.lastProgress  = 0;
-
-        this.startTime = (new Date()).getTime();
+        if(this == Speech.viewPoint){
+            this.setDrawParam(0);
+        }
+        else{
+            this.setDrawParam(1);
+        }
         console.log(`視点 有効 (${this.Rotaion}) (${this.Translation})`);
     }
 
     disable(){
-        this.startTime = 0;
+        let prevViewPoint = ViewPoint.getViewPoint(0);
+        if(prevViewPoint != undefined){
+            prevViewPoint.setDrawParam(1);
+        }
     }
 
-    progress(){
-        let t = ((new Date()).getTime() - this.startTime) /  (1000 * this.Duration);
-        return Math.min(1.0, t);
-    }
-
-    calcValues(){
-        let map = { t:this.progress() };
+    calcValues(progress : number){
+        let map = { t:progress };
 
         let rot = parseMath(this.Rotaion).calc(map) as number[];
         let trn = parseMath(this.Translation).calc(map) as number[];
@@ -618,28 +617,20 @@ export class ViewPoint extends Widget {
         return [rot, trn];
     }
 
-    setDrawParam(){
-        if(ViewPoint.lastViewPoint == this && ViewPoint.lastProgress == this.progress()){
-            // 前回と同じ場合
-
-            return;
-        }
-        ViewPoint.lastViewPoint = this;
-        ViewPoint.lastProgress  = this.progress();
-
+    setDrawParam(progress: number){
         this.view = getPrevView();
 
         if(this.view.gpgpu!.drawables.length == 0){
             return;
         }
 
-        let [rot, trn] = this.calcValues();
+        let [rot, trn] = this.calcValues(progress);
 
         this.view.gpgpu!.drawParam = new gpgputs.DrawParam(rot[0], rot[1], rot[2], trn[0], trn[1], trn[2]);
     }
 
     propertyNames() : string[] {
-        return [ "Rotaion", "Translation", "Duration" ];
+        return [ "Rotaion", "Translation" ];
     }
 
     setRotaion(value:any){
@@ -651,11 +642,6 @@ export class ViewPoint extends Widget {
         let trm = parseMath(value);
         this.Translation = value;
     }
-
-    setDuration(value:any){
-        this.Duration = value;
-    }
-
 }
 
 export function getPrevView(){
@@ -1230,11 +1216,11 @@ function setViewPointByDlg(dlg: HTMLDialogElement, vp: ViewPoint){
     vp.Rotaion     = `${ g(rngs[0]) }, ${ g(rngs[1]) }, ${ g(rngs[2]) }`;
     vp.Translation = `${ f(rngs[3]) }, ${ f(rngs[4]) }, ${ f(rngs[5]) }`;
 
-    ViewPoint.lastViewPoint = null;
+    vp.setDrawParam(1);
 }
 
 export function openViewPointDlg(){
-    let vp = currentViewPoint()!;
+    let vp = ViewPoint.getViewPoint(1)!;
     if(vp == undefined){
         return;
     }
@@ -1247,7 +1233,7 @@ export function openViewPointDlg(){
     btns[0].onclick = ()=>{ dlg.close(); };
 
 
-    let [rot, trn] = vp.calcValues();
+    let [rot, trn] = vp.calcValues(1.0);
 
     for(let [i, rng] of ranges.entries()){
         let num  = numbers[i];

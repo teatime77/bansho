@@ -9,7 +9,10 @@
         tex: {
             inlineMath: [['$', '$'], ['\\(', '\\)']],
             macros: {
-                v : ["{\\mathrm #1}", 1]
+                v : ["{\\boldsymbol #1}", 1],
+                jp : ["\\small{#1}", 1],
+                pa : ["\\left( #1 \\right)", 1],
+                Bra : ["\\left[ #1 \\right]", 1]
             }
         },
         options: {
@@ -121,15 +124,12 @@ mjx-container[display="true"] {
 <p class="p1">
 <span style="color: red; font-size:16pt;">Chromeの音声合成を使っていますのでChromeをお使いください。</span> <br/>
 </p>
-<p style="text-align: center;">
-</p>
+<input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
 <p style="text-align: center;">
     <button id="play-pause" style="font-family: 'Segoe UI Emoji'; font-size: 28pt;" >▶️</button>
     <button id="fast-reverse" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏮</button>
     <button id="fast-forward" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏭</button>
 </p>
-
-<input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
 
 <div id="board" style="overflow: scroll; border-style:none; margin-left: 20px; height: 770px;" >
     <div id="caption" class="caption"></div>

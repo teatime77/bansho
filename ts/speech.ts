@@ -50,6 +50,7 @@ export class Speech extends TextWidget {
     static attentionIdx : number;
     static lookahead : Widget[] = [];
     static temporaries : Widget[] = [];
+    static viewPoint : ViewPoint | null = null;
 
     prevCharIndex = 0;
 
@@ -200,8 +201,15 @@ export class Speech extends TextWidget {
             Speech.span = Math.min(Speech.span, Speech.lookahead.length);
         }
 
+        Speech.viewPoint = null;
         for(let idx = 0; idx < Speech.span; idx++){
             let act = Speech.lookahead.shift()!;
+
+            if(act instanceof ViewPoint){
+
+                Speech.viewPoint = act;
+            }
+
             act.enable();
 
             if(act instanceof WidgetSelection && ! (act.selections[0] instanceof TextSelection && act.selections[0].type != SelectionType.temporary)){
@@ -248,6 +256,8 @@ export class Speech extends TextWidget {
         console.log(`一次選択 ${Speech.temporaries.length}`);
         Speech.temporaries.forEach(x => x.disable());
         Speech.temporaries = [];
+
+        Speech.viewPoint = null;
 
         if(glb.pauseFlag){
     

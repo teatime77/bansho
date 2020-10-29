@@ -158,6 +158,8 @@ export class Glb {
             return;
         }
 
+        renumId();
+
         if(act instanceof TextBlock){
             // TextBlockの場合
 
@@ -599,11 +601,15 @@ export function getAll() : Widget[] {
     return v;
 }
 
-export function putDoc(is_new: boolean){
+export function renumId(){
     let v = getAll();
     for(let [i, x] of v.entries()){
         x.id = i;
     }
+}
+
+export function putDoc(is_new: boolean){
+    renumId();
 
     let title = glb.txtTitle.value.trim();
     glb.widgetMap = [];

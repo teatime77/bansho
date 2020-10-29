@@ -8,7 +8,10 @@ window.MathJax = {
     tex: {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
         macros: {
-            v : ["{\\mathrm #1}", 1]
+            v : ["{\\boldsymbol #1}", 1],
+            jp : ["\\small{#1}", 1],
+            pa : ["\\left( #1 \\right)", 1],
+            Bra : ["\\left[ #1 \\right]", 1]
         }
     },
     options: {

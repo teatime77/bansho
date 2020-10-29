@@ -44,7 +44,7 @@ let ReservedWords = [
     "if", "else", "return", "for", "while", "break", "continue", "switch", "case", "default",
     "in", "out", "uniform", "const", "precision", "highp", 
     "tick", "time", "timeDiff", "speech", "attention", "progress", "gl_Position", "gl_PointSize",
-    "texelFetch", "sin", "cos", "sign", "abs", "cross", "length",
+    "texelFetch", "sin", "cos", "sign", "abs", "cross", "length", "normalize"
 ];
 
 let TypeNames = [ "bool", "int", "float", "vec2", "vec3", "vec4", "void", "sampler2D", "sampler3D", "mat3", "mat4" ];
@@ -588,6 +588,15 @@ class App extends Term{
                         case "-": val -= n; break;
                         case "*": val *= n; break;
                         case "/": val /= n; break;
+                    }
+                }
+                else if(typeof val == "number" && Array.isArray(n)){
+
+                    switch(this.opr){
+                        case "+": val = n.map(x => val + x); break;
+                        case "-": val = n.map(x => val - x); break;
+                        case "*": val = n.map(x => val * x); break;
+                        case "/": val = n.map(x => val / x); break;
                     }
                 }
                 else if(Array.isArray(val) && Array.isArray(n) && val.length == (n as any).length){

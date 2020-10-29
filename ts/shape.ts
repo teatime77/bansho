@@ -1421,9 +1421,7 @@ export abstract class CompositeShape extends Shape {
 
     delete(){
         super.delete();
-        for(let x of this.handles){
-            x.delete();
-        }
+        this.handles.filter(x => this.id < x.id).forEach(x => x.delete());
     }
 
     summary() : string {
@@ -1740,6 +1738,9 @@ export class Point extends Shape {
             this.circle.parentElement!.removeChild(this.circle);
             this.circle = null!;
         }
+
+        (glb.widgets.filter(x => x instanceof Simulation) as Simulation[])
+            .forEach(sim => sim.points = sim.points.filter(p => p != this));
     }
 }
 
