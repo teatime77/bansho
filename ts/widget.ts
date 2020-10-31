@@ -354,7 +354,7 @@ export class TextBlock extends TextWidget {
                 // 改行する場合
 
                 let  br = document.createElement("br");
-                br.className = "line-feed"
+                br.className = "line-feed";
                 this.div.parentNode!.insertBefore(br, this.div.nextSibling);
             }    
         }

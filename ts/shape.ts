@@ -1268,7 +1268,7 @@ export abstract class Shape extends Widget {
                 this.divCaption.style.fontSize = "12pt";
             }
 
-            this.divCaption.textContent = "$$\n" + this.Caption + "\$$";
+            this.divCaption.textContent = "$$\n" + this.Caption + "\n$$";
 
             MathJax.typesetPromise([this.divCaption]);
         }

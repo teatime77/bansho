@@ -378,8 +378,8 @@ function popQue(){
                     popQue();
                 }
 
-                console.log("scroll");
-                glb.board.scrollTop = glb.board.scrollHeight;
+                // console.log("scroll");
+                // glb.board.scrollTop = glb.board.scrollHeight;
             })
             .catch((err: any) => {
                 console.log(err.message);
