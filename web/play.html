@@ -85,6 +85,7 @@ body {
     width: 100%;
     height: 100%;
     margin: 0;
+    background-color: black;
 }      
 
 li {
@@ -95,6 +96,12 @@ li {
 .p1 {
     text-align:center;
     font-size: 16pt;
+}
+
+.player {
+    font-family: 'Segoe UI Emoji'; 
+    font-size  : 28pt;
+    background-color: black;
 }
 
 .caption {
@@ -122,17 +129,20 @@ mjx-container[display="true"] {
 
 <body onload="bansho.initPlay()">
 <p class="p1">
-<span style="color: red; font-size:16pt;">Chromeの音声合成を使っていますのでChromeをお使いください。</span> <br/>
+<span style="color: white; font-size:16pt;">Chromeの音声合成を使っていますのでChromeをお使いください。</span> <br/>
 </p>
 <input id="timeline" type="range" min="-1" max="-1" value="-1" step="1" style="width: 100%;" />
 <p style="text-align: center;">
-    <button id="play-pause" style="font-family: 'Segoe UI Emoji'; font-size: 28pt;" >▶️</button>
-    <button id="fast-reverse" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏮</button>
-    <button id="fast-forward" style="font-family: Segoe UI Emoji; font-size: 28pt;" >⏭</button>
+    <button id="play-pause"   class="player" >▶️</button>
+    <button id="fast-reverse" class="player" >⏮</button>
+    <button id="fast-forward" class="player" >⏭</button>
 </p>
 
-<div id="board" style="overflow: scroll; border-style:none; margin-left: 20px; height: 770px;" >
+<div style="background-color: white;">
+<div id="board" style="overflow: scroll; border-style:none; margin-left: 20px; height: 770px; background-color: white;" >
     <div id="caption" class="caption"></div>
 </div>
+</div>
+
 </body>
 </html>

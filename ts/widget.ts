@@ -182,10 +182,11 @@ export class TextSelection extends Widget {
         if(this.border == null){
 
             this.border = document.createElement("div");
+            // this.border.textContent = `txtsel-${this.id}`;
 
             this.border.style.display = "none";
             this.border.style.position = "absolute";
-            this.border.style.zIndex = "-1";
+            this.border.style.zIndex = "5";
             this.border.style.margin = "0px";
             this.border.style.backgroundColor = "transparent";
             this.border.style.borderStyle = "none";

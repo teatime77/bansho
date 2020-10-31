@@ -51,6 +51,7 @@ export class Speech extends TextWidget {
     static lookahead : Widget[] = [];
     static temporaries : Widget[] = [];
     static viewPoint : ViewPoint | null = null;
+    static timer : number | null = null;
 
     prevCharIndex = 0;
 
@@ -268,7 +269,9 @@ export class Speech extends TextWidget {
 
             let waitTime = 1000 * Speech.duration - ((new Date()).getTime() - Speech.startTime);
             let pause = Glb.edit ? 0 : (this.Text.length <= Speech.nextPos && this.Text.endsWith("。") ? 3000 : 0);
-            setTimeout(()=>{
+            Speech.timer = setTimeout(()=>{
+                Speech.timer = null;
+                
                 if(Speech.nextPos < this.Text.length){
 
                     this.startSpeak(false);

@@ -91,6 +91,11 @@ export class Glb {
         else{
 
             Glb.startPlayTime = 0;
+
+            if(Speech.timer != null){
+                clearTimeout(Speech.timer);
+                Speech.timer = null;
+            }
     
             if(glb.isSpeaking){
                 glb.pauseFlag = true;
