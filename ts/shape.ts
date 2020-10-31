@@ -1519,7 +1519,7 @@ export class Point extends Shape {
     setEnable(enable: boolean){
         super.setEnable(enable);
 
-        let visible = (enable && (this.Visible == true || !glb.isPlaying));
+        let visible = (enable && (this.Visible == true || Glb.edit && !glb.isPlaying));
         this.circle.setAttribute("visibility", (visible ? "visible" : "hidden"));
     }
 
