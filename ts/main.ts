@@ -305,7 +305,7 @@ export class Glb {
             return;
         }
         
-        let text = this.textArea.value.trim();
+        let text = this.textArea.value.trimRight();
         let changed = (act.Text != text);
         act.Text = text;
 
