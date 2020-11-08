@@ -120,17 +120,19 @@ export class Speech extends TextWidget {
         }
 
         let yomi = [
-            [ /\ssin\s/g, "`sin|サイン`" ],
-            [ /\scos\s/g, "`cos|コサイン`" ],
-            [ /\s-\s/g, "`-|マイナス`" ],
-            [ /\sg\s/g, "`g|ジー`" ],
-            [ /\sm\s/g, "`m|エム`" ],
-            [ /\s1\s/g, "`1|一`" ],
-            [ /\s項\s/g, "`項|こう`" ],
-            [ /\s角\s/g, "`角|カク`" ],
-            [ /\s辺\s/g, "`辺|ヘン`" ],
+            [ /\ssin\s/g, " `sin|サイン` " ],
+            [ /\scos\s/g, " `cos|コサイン` " ],
+            [ /\s-\s/g, " `-|マイナス` " ],
+            [ /\sg\s/g, " `g|ジー` " ],
+            [ /\sm\s/g, " `m|エム` " ],
+            [ /\s1\s/g, " `1|一` " ],
+            [ /\s2\s/g, " `2|二` " ],
+            [ /\s項\s/g, " `項|こう` " ],
+            [ /\s角\s/g, " `角|カク` " ],
+            [ /\s辺\s/g, " `辺|ヘン` " ],
         ]
 
+        text = " " + text + " ";
         for(let [r, s] of yomi){
             text = text.replace(r, s as string);
         }
@@ -193,7 +195,7 @@ export class Speech extends TextWidget {
             glb.playTime.innerText = `${Math.floor(t / 60)}:${t % 60}`;
         }
 
-        glb.widgets.forEach(x => { if(x instanceof Point) x.checkEndTime(); });
+        glb.widgets.forEach(x => { if(x instanceof Shape) x.checkEndTime(); });
 
         if(Speech.span == 0 && Speech.nextPos == this.Text.length){
             // スピーチが分割されないか、最後のフレーズの場合
@@ -205,7 +207,11 @@ export class Speech extends TextWidget {
             Speech.span = Math.min(Speech.span, Speech.lookahead.length);
         }
 
-        Speech.viewPoint = null;
+        if(Speech.viewPoint != null && Speech.viewPoint.Duration == 0){
+
+            Speech.viewPoint = null;
+        }
+
         for(let idx = 0; idx < Speech.span; idx++){
             let act = Speech.lookahead.shift()!;
 
@@ -261,7 +267,10 @@ export class Speech extends TextWidget {
         Speech.temporaries.forEach(x => x.disable());
         Speech.temporaries = [];
 
-        Speech.viewPoint = null;
+        if(Speech.viewPoint != null && Speech.viewPoint.Duration == 0){
+
+            Speech.viewPoint = null;
+        }
 
         if(glb.pauseFlag){
     

@@ -67,7 +67,7 @@ export function setEventListener(){
 
     // Viewの追加
     document.getElementById("add-shape")!.addEventListener("click", (ev: MouseEvent)=>{
-        const view1 = new View().make({ Width: 1300, Height: 675, ViewBox: "-5.2 -2.7 10.4 5.4" });
+        const view1 = new View().make({ Width: 1290, Height: 675, ViewBox: "-3.8 -2 7.6 4" });
         glb.addWidget(view1);
     });
 

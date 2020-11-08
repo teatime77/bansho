@@ -1007,7 +1007,7 @@ export function CirclePkg(sim: Simulation, info: PackageInfo, cnt: number){
 
     let numPnt = map.numPnt;
     if(numPnt == undefined || isNaN(numPnt)){
-        throw new Error();
+        numPnt = 16;
     }
 
     let sizePnt = map.sizePnt;
@@ -1083,7 +1083,7 @@ export function DiskPkg(sim: Simulation, info: PackageInfo, cnt: number){
 
     let numDiv = map.numDiv;
     if(numDiv == undefined || isNaN(numDiv)){
-        throw new Error();
+        numDiv = 16;
     }
 
     return {
@@ -1569,10 +1569,18 @@ vec3 PseudoColor(float min_val, float max_val, float val){
 //--------------------------------------------------
 
 export let userShader = `
-uniform int   tick;
 
-uniform sampler2D inPos;
-out vec3 outPos;
+#define PI 3.14159265359
+
+uniform int   tick;
+uniform int   attention;
+uniform int   speech;
+uniform float progress;
+
+out vec3  outPos;
+out vec3  outVec;
+out vec4  outColor;
+out float outR;
 
 int rnd_cnt = 0;
 float rnd(){
@@ -1581,13 +1589,22 @@ float rnd(){
 
 void main(void) {
     int idx = int(gl_VertexID);
-    
-    if(tick == 0){
 
-    }
-    else{
+    vec3 pos, vec;
 
+    outPos = vec3(0.0, 0.0, -100.0);
+
+    outColor = vec4(1.0, 1.0, 1.0, 1.0);
+
+    switch(idx){
+    case 0:
+        pos = vec3(0.0, 0.0, 0.0);
+        vec = vec3(0.0, 0.0, 0.0);
+        break;
     }
+
+    outPos = pos;
+    outVec = vec;
 }`;
 
 

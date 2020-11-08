@@ -378,7 +378,7 @@ export class View extends Widget {
     tool : Shape | null = null;
     eventQueue : EventQueue = new EventQueue();
     capture: Shape|null = null;
-    AutoHeight: boolean = true;
+    AutoHeight: boolean = false;
     ShowGrid : boolean = false;
     GridWidth : number = 1;
     GridHeight : number = 1;
@@ -1021,6 +1021,7 @@ export class View extends Widget {
 export abstract class Shape extends Widget {
     parentView : View;
     selected: boolean = false;
+    EndTime: number | undefined = undefined;
 
     Name: string = "";
     namePos = new Vec2(0,0);
@@ -1082,6 +1083,10 @@ export abstract class Shape extends Widget {
 
         if(this.listeners.length != 0){
             obj.listeners = this.listeners.map(x => ({ ref: x.id }) );
+        }
+
+        if(this.validEndTime()){
+            obj.EndTime = this.EndTime;
         }
 
         return obj;
@@ -1394,6 +1399,24 @@ export abstract class Shape extends Widget {
             this.divCaption.style.top   = `${y}px`;
         }
     }
+
+    getEndTime(){
+        return this.validEndTime() ? this.EndTime : 0;
+    }
+
+    setEndTime(value: any){
+        this.EndTime = value;
+    }
+
+    validEndTime(){
+        return this.EndTime != undefined && 0 < this.EndTime;
+    }
+
+    checkEndTime(){
+        if(this.validEndTime() && this.EndTime! <= Speech.speechIdx){
+            this.disable();
+        }
+    }
 }
 
 export abstract class CompositeShape extends Shape {
@@ -1486,7 +1509,6 @@ export class Point extends Shape {
     pos : Vec2 = new Vec2(NaN, NaN);
     pos3D : string | undefined = undefined;
     Visible : boolean = false;
-    EndTime: number | undefined = undefined;
     bindTo: Shape|undefined;    //!!! リネーム注意 !!!
 
     circle : SVGCircleElement;
@@ -1549,10 +1571,6 @@ export class Point extends Shape {
             obj.Visible = true;
         }
 
-        if(this.validEndTime()){
-            obj.EndTime = this.EndTime;
-        }
-
         return obj;
     }
 
@@ -1596,24 +1614,6 @@ export class Point extends Shape {
 
     setVisible(value: any){
         this.Visible = value;
-    }
-
-    validEndTime(){
-        return this.EndTime != undefined && 0 < this.EndTime;
-    }
-
-    getEndTime(){
-        return this.validEndTime() ? this.EndTime : 0;
-    }
-
-    setEndTime(value: any){
-        this.EndTime = value;
-    }
-
-    checkEndTime(){
-        if(this.validEndTime() && this.EndTime! <= Speech.speechIdx){
-            this.disable();
-        }
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -1837,7 +1837,7 @@ export class LineSegment extends CompositeShape {
     }
 
     propertyNames() : string[] {
-        return [ "Color", "Name", "Arrow", "Caption", "FontSize" ];
+        return [ "Color", "Name", "Arrow", "Caption", "FontSize", "EndTime" ];
     }
 
     setColor(c:string){
@@ -3155,7 +3155,7 @@ export class Arc extends CircleArc {
     }
 
     propertyNames() : string[] {
-        return [ "Color" ];
+        return [ "Color", "EndTime" ];
     }
 
     select(selected: boolean){
@@ -3230,6 +3230,7 @@ export class Arc extends CircleArc {
         const d = `M${p1.x} ${p1.y} A ${r} ${r} 0 ${largeArcSweepFlag} 1 ${x} ${y}`;
 
         this.arc.setAttribute("d", d);
+        this.arc.setAttribute("stroke", this.Color);
 
         if(this.handles.length == 3){
 

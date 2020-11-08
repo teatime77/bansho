@@ -27,7 +27,6 @@ class Edge {
 }
 
 function setPathIds(){
-    let oldPathIds = pathIds;
     pathIds = [];
     let pendings : number[] = goalIds.slice();
 
@@ -39,7 +38,9 @@ function setPathIds(){
         let srcIds = mapEdges.filter(x => x.dstId == id && ! pathIds.includes(x.srcId)).map(x => x.srcId);
         pendings.push(... Array.from(new Set(srcIds)));
     }
+}
 
+function setPathColor(oldPathIds : number[]){
     for(let id of new Set(oldPathIds.concat(pathIds))){
         let box = getElement(`${id}`);
         let ellipse = getChildNode(box as unknown as SVGGElement, "ellipse");
@@ -60,6 +61,35 @@ function getChildNode(g : SVGGElement, nodeName: string){
         }
     }
     throw new Error();
+}
+
+function openUrl(inf: FileInfo){
+    const fnc = (text: string)=>{
+        let doc = JSON.parse(text);
+
+        if(doc.youtube != undefined){
+
+            window.open(`https://youtu.be/${doc.youtube}`, '_blank');
+        }
+        else{
+
+            window.open(`play.html?id=${inf.id}`, '_blank');
+        }
+    };
+
+    if(Glb.getJsonFile){
+
+        fetchText(`json/${inf.id}.json`, (text: string)=>{
+            let data = JSON.parse(text);
+            fnc(data.text);
+        });
+    }
+    else{
+
+        fetchDB(`${inf.id}`, (id: string | null, data: any)=>{
+            fnc(data.text);
+        });    
+    }
 }
 
 function setMapSvgEvent(){
@@ -83,7 +113,14 @@ function setMapSvgEvent(){
 
             if(!Glb.edit){
 
-                window.open(`play.html?id=${doc1.id}`, '_blank');
+                if(ev.ctrlKey){
+
+                    window.open(`edit.html?id=${doc1.id}`, '_blank');
+                }
+                else{
+
+                    openUrl(doc1);
+                }
                 return;
             }
 
@@ -118,7 +155,9 @@ function setMapSvgEvent(){
                     goalIds.push(doc1.id);
                 }
 
+                let oldPathIds = pathIds;
                 setPathIds();
+                setPathColor(oldPathIds);
             }
             else{
 
@@ -172,7 +211,7 @@ function makeDot(){
     let edgeLines : string[] = [];
 
     for(let doc of mapDocs){
-        docLines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}" ];` );
+        docLines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}", class="doc" ];` );
     }
 
     for(let edge of mapEdges){
@@ -183,7 +222,8 @@ function makeDot(){
     let dot = `
     digraph graph_name {
         graph [
-          charset = "UTF-8";
+            rankdir = BT;
+            charset = "UTF-8";
         ];
         ${docLines.join('\n')}
         ${edgeLines.join('\n')}
@@ -192,7 +232,6 @@ function makeDot(){
 
     var viz = new Viz();
 
-    // dot = 'digraph { a -> b }';
     viz.renderSVGElement(dot)
     .then(function(element: any) {
         mapDiv.innerHTML = "";
@@ -218,6 +257,41 @@ function setMapDocs(){
     let ids = new Set(src_ids.concat(dst_ids));
     
     mapDocs = indexFile.docs.filter(doc => ids.has(doc.id));
+
+    let k = window.location.href.indexOf("?ids=");
+    if(!Glb.edit && k != -1){
+        // ゴールの文書IDが指定されている場合
+
+        goalIds = window.location.href.substring(k + 5).split(",").map(x => parseInt(x));
+        setPathIds();
+
+        mapDocs = mapDocs.filter(x => pathIds.includes(x.id));
+
+        mapEdges = mapEdges.filter(edge => mapDocs.some(doc => doc.id == edge.srcId) && mapDocs.some(doc => doc.id == edge.dstId));
+
+        let infs : FileInfo[] = mapDocs.slice();
+        let fnc = ()=>{
+
+            if(infs.length == 0){
+
+                console.log(`未 : 終了`);
+                return;
+            }
+            let inf = infs.pop()!;
+
+            fetchDB(`${inf.id}`, (id: string | null, data: any)=>{
+                let doc = JSON.parse(data.text);
+
+                if(doc.youtube == undefined){
+        
+                    console.log(`未 : ${inf.title}`);
+                }        
+                fnc();
+            });    
+                
+        }
+        fnc();
+    }
 }
 
 export function getMap(map_id: number){

@@ -29,6 +29,7 @@ export class Glb {
     btnDocId : HTMLButtonElement;
     txtTitle: HTMLInputElement;
     docScale : HTMLInputElement;
+    youtube  : HTMLInputElement;
 
     toolType = "";
     view: View | null = null;
@@ -57,6 +58,7 @@ export class Glb {
         this.txtTitle = document.getElementById("txt-title") as HTMLInputElement;
         this.textArea = document.getElementById("txt-math") as HTMLTextAreaElement;
         this.docScale = document.getElementById("doc-scale") as HTMLInputElement;
+        this.youtube  = document.getElementById("youtube") as HTMLInputElement;
         
         docsDlg = getElement("docs-dlg") as HTMLDialogElement;
         docsTbl = getElement("docs-tbl") as HTMLTableElement;    
@@ -391,6 +393,11 @@ export class Glb {
         }
         MathJax.startup.output.options.scale = doc.scale;
 
+        if(glb.youtube != null){
+
+            glb.youtube.value = doc.youtube != undefined ? doc.youtube : "";
+        }
+
         doc.widgets = doc.widgets.filter((x : any) => x.typeName != "TextSelection");
 
         glb.widgets.forEach(x => x.delete());
@@ -622,6 +629,10 @@ export function putDoc(is_new: boolean){
         scale : parseFloat(glb.docScale.value),
         title: title,
         widgets : glb.widgets.map(x => x.toObj())
+    } as any;
+
+    if(glb.youtube.value.startsWith("https://youtu.be/")){
+        obj.youtube = glb.youtube.value.substring("https://youtu.be/".length).trim();
     }
 
     const text = JSON.stringify(obj, null, 4);

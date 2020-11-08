@@ -404,7 +404,14 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
         }
 
         if(Speech.viewPoint != null){
-            Speech.viewPoint.setDrawParam(progress);
+
+            let prg = progress;
+            if(Speech.viewPoint.Duration != 0){
+
+                prg = Math.min(1.0,  ((new Date()).getTime() - ViewPoint.startTime) / (1000 * Speech.viewPoint.Duration));
+            }
+
+            Speech.viewPoint.setDrawParam(prg);
         }
 
         this.prevTime = currentTime;
@@ -554,8 +561,11 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 }
 
 export class ViewPoint extends Widget {
+    static startTime : number;
     Rotaion     : string = "0, 0, 0";
     Translation : string = "0, 0, -5";
+    FovY        : string = "45";
+    Duration    : number = 0;
 
     view!       : View;
 
@@ -578,7 +588,9 @@ export class ViewPoint extends Widget {
     makeObj() : any {        
         return Object.assign(super.makeObj(), {
             Rotaion     : this.Rotaion,
-            Translation : this.Translation
+            Translation : this.Translation,
+            FovY        : this.FovY,
+            Duration    : this.Duration
         });
     }
 
@@ -587,6 +599,7 @@ export class ViewPoint extends Widget {
     }
     
     enable(){
+        ViewPoint.startTime = (new Date()).getTime();
         if(this == Speech.viewPoint){
             this.setDrawParam(0);
         }
@@ -603,7 +616,7 @@ export class ViewPoint extends Widget {
         }
     }
 
-    calcValues(progress : number){
+    calcValues(progress : number) : [ number[], number[], number ]{
         let map = { t:progress };
 
         let rot = parseMath(this.Rotaion).calc(map) as number[];
@@ -614,7 +627,9 @@ export class ViewPoint extends Widget {
             }
         }
 
-        return [rot, trn];
+        let fovy = parseMath(this.FovY).calc(map) as number;
+
+        return [rot, trn, fovy];
     }
 
     setDrawParam(progress: number){
@@ -624,23 +639,29 @@ export class ViewPoint extends Widget {
             return;
         }
 
-        let [rot, trn] = this.calcValues(progress);
+        let [rot, trn, fovy] = this.calcValues(progress);
 
-        this.view.gpgpu!.drawParam = new gpgputs.DrawParam(rot[0], rot[1], rot[2], trn[0], trn[1], trn[2]);
+        this.view.gpgpu!.drawParam = new gpgputs.DrawParam(rot[0], rot[1], rot[2], trn[0], trn[1], trn[2], fovy);
     }
 
     propertyNames() : string[] {
-        return [ "Rotaion", "Translation" ];
+        return [ "Rotaion", "Translation", "FovY", "Duration" ];
     }
 
     setRotaion(value:any){
-        let trm = parseMath(value);
         this.Rotaion = value;
     }
 
     setTranslation(value:any){
-        let trm = parseMath(value);
         this.Translation = value;
+    }
+
+    setFovY(value:any){
+        this.FovY = value;
+    }
+
+    setDuration(value: any){
+        this.Duration = value;
     }
 }
 
@@ -1215,6 +1236,7 @@ function setViewPointByDlg(dlg: HTMLDialogElement, vp: ViewPoint){
 
     vp.Rotaion     = `${ g(rngs[0]) }, ${ g(rngs[1]) }, ${ g(rngs[2]) }`;
     vp.Translation = `${ f(rngs[3]) }, ${ f(rngs[4]) }, ${ f(rngs[5]) }`;
+    vp.FovY        = `${ f(rngs[6]) }`;
 
     vp.setDrawParam(1);
 }
@@ -1233,7 +1255,7 @@ export function openViewPointDlg(){
     btns[0].onclick = ()=>{ dlg.close(); };
 
 
-    let [rot, trn] = vp.calcValues(1.0);
+    let [rot, trn, fovy] = vp.calcValues(1.0);
 
     for(let [i, rng] of ranges.entries()){
         let num  = numbers[i];
@@ -1245,10 +1267,15 @@ export function openViewPointDlg(){
             rng.value = val;
             num.value = val;
         }
-        else{
+        else if(i < 6){
 
             rng.value = `${trn[i - 3]}`;
             num.value = `${trn[i - 3]}`;
+        }
+        else{
+
+            rng.value = `${fovy}`;
+            num.value = `${fovy}`;
         }
 
         rng.oninput = ()=> { num.value = rng.value; setViewPointByDlg(dlg, vp); };
@@ -1256,9 +1283,7 @@ export function openViewPointDlg(){
         zero.onclick = ()=> { rng.value = "0"; num.value = "0"; setViewPointByDlg(dlg, vp); };
     }
 
-
     dlg.show();
-
 }
 
 export function Factorize(cnt: number){
