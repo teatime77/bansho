@@ -120,16 +120,17 @@ export class Speech extends TextWidget {
         }
 
         let yomi = [
-            [ /\ssin\s/g, " `sin|サイン` " ],
-            [ /\scos\s/g, " `cos|コサイン` " ],
-            [ /\s-\s/g, " `-|マイナス` " ],
-            [ /\sg\s/g, " `g|ジー` " ],
-            [ /\sm\s/g, " `m|エム` " ],
-            [ /\s1\s/g, " `1|一` " ],
-            [ /\s2\s/g, " `2|二` " ],
-            [ /\s項\s/g, " `項|こう` " ],
-            [ /\s角\s/g, " `角|カク` " ],
-            [ /\s辺\s/g, " `辺|ヘン` " ],
+            [ /\ssin\s/g, "`sin|サイン`" ],
+            [ /\scos\s/g, "`cos|コサイン`" ],
+            [ /\s-\s/g, "`-|マイナス`" ],
+            [ /\sa\s/g, "`a|エー`" ],
+            [ /\sg\s/g, "`g|ジー`" ],
+            [ /\sm\s/g, "`m|エム`" ],
+            [ /\s1\s/g, "`1|一`" ],
+            [ /\s2\s/g, "`2|二`" ],
+            [ /\s項\s/g, "`項|こう`" ],
+            [ /\s角\s/g, "`角|カク`" ],
+            [ /\s辺\s/g, "`辺|ヘン`" ],
         ]
 
         text = " " + text + " ";
@@ -280,7 +281,7 @@ export class Speech extends TextWidget {
         else{
 
             let waitTime = 1000 * Speech.duration - ((new Date()).getTime() - Speech.startTime);
-            let pause = Glb.edit ? 0 : (this.Text.length <= Speech.nextPos && this.Text.endsWith("。") ? 3000 : 0);
+            let pause = Glb.edit ? 0 : (this.Text.length <= Speech.nextPos && this.Text.endsWith("。") ? 2000 : 0);
             Speech.timer = setTimeout(()=>{
                 Speech.timer = null;
                 
