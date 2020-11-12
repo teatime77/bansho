@@ -72,10 +72,21 @@ window.MathJax = {
 </head>
 
 <body onload="bansho.initGraph()">
+<div id="div-app" style="display: none;">
 <h1 style="text-align:center">数学・物理・AIの依存関係のグラフ</h1>
 
 <h2 style="color: red; text-align:center;">何も表示されない場合は、画面をスクロールしてみてください。</h2>
 <h3 style="text-align:center;"> <span style="color: blue;">青色の項目</span>はクリックすると教材を再生できます。 </h3>
+</div>
+
+<div id="div-video" style="display: none;">
+    <h1 style="text-align:center">小学生の算数からケプラーの法則まで</h1>
+
+    <h2 style="text-align:center; font-family: Segoe UI Emoji;">地球🌎が太陽🌞のまわりの楕円の上を動いてるのはなぜ❓</h2>
+    <h2 style="color: red; text-align:center; display: none;">何も表示されない場合は、画面をスクロールしてみてください。</h2>
+    <h3 style="text-align:center;"> クリックするとYouTubeで動画📺を見れます。 </h3>    
+</div>
+
 <span ></span>
 
 <div id="map-edit" style="display: none;">
@@ -89,7 +100,9 @@ window.MathJax = {
     <button id="show-map-dlg" >文書一覧</button>
 </div>
 <br/>
-<div id="map-div"></div>
+<div id="map-div">
+    <h3 style="text-align:center; ">グラフを作っています．．．</h3>
+</div>
 
 <dialog id="docs-dlg">
 <table id="docs-tbl" ></table>

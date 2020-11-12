@@ -258,11 +258,9 @@ function setMapDocs(){
     
     mapDocs = indexFile.docs.filter(doc => ids.has(doc.id));
 
-    let k = window.location.href.indexOf("?ids=");
-    if(!Glb.edit && k != -1){
+    if(!Glb.edit && goalIds.length != 0){
         // ゴールの文書IDが指定されている場合
 
-        goalIds = window.location.href.substring(k + 5).split(",").map(x => parseInt(x));
         setPathIds();
 
         mapDocs = mapDocs.filter(x => pathIds.includes(x.id));
@@ -434,7 +432,35 @@ export function docsDlgOk(){
 export function initGraph(){
     console.log("body load");
 
-    initBansho(window.location.href.includes("?edit=true"));
+    let args = [] as string[];
+    let k1 = window.location.href.indexOf("graph.html?");
+    if(k1 != -1){
+        args = window.location.href.substring(k1 + "graph.html?".length).split("&");
+    }
+
+    let edit = args.includes("edit");
+
+    if(edit || args.includes("app")){
+
+        getElement("div-app").style.display = "block";
+        document.title = "数学・物理・AIの依存関係のグラフ";
+    }
+    else{
+
+        getElement("div-video").style.display = "block";
+
+        goalIds = [ 44 ];
+    }
+
+    if(!edit){
+
+        let ids = args.find(x => x.startsWith("ids="));
+        if(ids != undefined){
+            goalIds = ids.substring(4).split(",").map(x => parseInt(x));
+        }
+    }
+
+    initBansho(edit);
 
     mapSel = getElement("map-sel") as HTMLSelectElement;
     mapDiv = getElement("map-div") as HTMLDivElement;
