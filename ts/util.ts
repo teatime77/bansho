@@ -148,7 +148,7 @@ export function fetchText(path:string, fnc:(text: string)=>void){
     }
     const url2 = encodeURI(url);
     msg(`fetch-json:${url} ${url2}`);
-    fetch(url2)
+    fetch(url2, { cache : "no-store" })
     .then((res: Response) => {
         if(res.status == 404){
 

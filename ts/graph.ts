@@ -15,10 +15,11 @@ let mapDocsTmp : FileInfo[];
 let mapEdges   : Edge[] = [];
 let goalIds  : number[] = [];
 let pathIds  : number[] = [];
+let args     : string[] = [];
+let URLs     : { [id: number]: string; } = {};
 
 let srcDoc : FileInfo | null = null;
 let srcG   : SVGElement;
-
 
 class Edge {
     srcId!: number;
@@ -95,12 +96,6 @@ function openUrl(inf: FileInfo){
 function setMapSvgEvent(){
     for(let doc of mapDocs){
         let box = getElement(`${doc.id}`);
-
-        if(doc.len != 0){
-
-            let text = getChildNode(box as unknown as SVGGElement, "text");
-            text.setAttribute("fill", "blue");
-        }
 
         box.addEventListener("click", function(ev:MouseEvent){
 
@@ -211,7 +206,12 @@ function makeDot(){
     let edgeLines : string[] = [];
 
     for(let doc of mapDocs){
-        docLines.push(`b${doc.id} [ label="${doc.title}", id="${doc.id}", class="doc" ];` );
+        let url = URLs[doc.id];
+
+        let id = (url != undefined ? `be/${url}` : `${doc.id}`);
+        let color = (doc.len != 0 ? `, fontcolor="blue"` : "");
+
+        docLines.push(`b${doc.id} [ label="${doc.title}", id="${id}", class="doc", tooltip="　" ${color} ];` );
     }
 
     for(let edge of mapEdges){
@@ -229,6 +229,10 @@ function makeDot(){
         ${edgeLines.join('\n')}
     }
     `;
+
+    if(args.includes("dot")){
+        console.log(dot);
+    }
 
     var viz = new Viz();
 
@@ -267,29 +271,39 @@ function setMapDocs(){
 
         mapEdges = mapEdges.filter(edge => mapDocs.some(doc => doc.id == edge.srcId) && mapDocs.some(doc => doc.id == edge.dstId));
 
-        let infs : FileInfo[] = mapDocs.slice();
-        let fnc = ()=>{
+        if(args.includes("dot")){
+            let infs : FileInfo[] = mapDocs.slice();
+            let fnc = ()=>{
 
-            if(infs.length == 0){
+                if(infs.length == 0){
 
-                console.log(`未 : 終了`);
-                return;
+                    console.log(`未 : 終了`);
+                    makeDot();
+                    return;
+                }
+                let inf = infs.pop()!;
+
+                fetchDB(`${inf.id}`, (id: string | null, data: any)=>{
+                    let doc = JSON.parse(data.text);
+
+                    if(doc.youtube == undefined){
+            
+                        console.log(`未 : ${inf.title}`);
+                    }
+                    else{
+
+                        URLs[inf.id] = doc.youtube;
+                    }
+                    fnc();
+                });    
+                    
             }
-            let inf = infs.pop()!;
-
-            fetchDB(`${inf.id}`, (id: string | null, data: any)=>{
-                let doc = JSON.parse(data.text);
-
-                if(doc.youtube == undefined){
-        
-                    console.log(`未 : ${inf.title}`);
-                }        
-                fnc();
-            });    
-                
+            fnc();
+            return;
         }
-        fnc();
     }
+        
+    makeDot();
 }
 
 export function getMap(map_id: number){
@@ -299,7 +313,6 @@ export function getMap(map_id: number){
             let obj = JSON.parse(text);
             mapEdges = JSON.parse(obj.text).edges;
             setMapDocs();
-            makeDot();
         });
     }
     else{
@@ -312,8 +325,6 @@ export function getMap(map_id: number){
             let obj = JSON.parse(data.text);
             mapEdges = obj.edges;
             setMapDocs();
-            makeDot();
-            // initEdges(obj.edges);
         });
     }
 
@@ -432,7 +443,6 @@ export function docsDlgOk(){
 export function initGraph(){
     console.log("body load");
 
-    let args = [] as string[];
     let k1 = window.location.href.indexOf("graph.html?");
     if(k1 != -1){
         args = window.location.href.substring(k1 + "graph.html?".length).split("&");

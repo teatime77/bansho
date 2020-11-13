@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8" />
+<title>小学生の算数からケプラーの法則まで</title>
+<link rel="icon" type="image/png" href="img/mdu.png">
+
+<script>
+function bodyOnLoad(){
+    let doc = document.getElementById("map-iframe").contentWindow.document;
+
+    doc.addEventListener("click", (ev)=>{
+        for(let dom = ev.target; dom != null; dom = dom.parentElement){
+            if(dom.tagName == "g" && dom.id.startsWith("be/")){
+
+                console.log(dom.id);
+                window.open(`https://youtu.${dom.id}`, '_blank');
+                break;
+            }
+        }
+    });
+
+    doc.addEventListener("pointermove", (ev)=>{
+        let dom = ev.target;
+        if(dom.tagName == "text"){
+            dom.style.cursor = "pointer";
+        }
+
+    })
+}
+</script>
+<style type="text/css">
+text {
+    color: blue;
+}
+
+iframe {
+    width: 100%;
+    height: 2000px;
+    border-style: none;
+}
+</style>
+</head>
+<body onload="bodyOnLoad()" >
+
+<h1 style="text-align:center">小学生の算数からケプラーの法則まで</h1>
+
+<h2 style="text-align:center; font-family: Segoe UI Emoji;">地球🌎が太陽🌞のまわりの楕円の上を動いてるのはなぜ❓</h2>
+<h3 style="text-align:center;"> クリックするとYouTubeで動画📺を見れます。 </h3>    
+
+<iframe id="map-iframe" src="./map.svg" ></iframe>
+
+</body>
+</html>
