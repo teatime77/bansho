@@ -3,6 +3,9 @@ namespace bansho {
 export const padding = 10;
 export let textMsg : HTMLDivElement;
 
+export let mnistImage : Float32Array;
+export let mnistLabel : Float32Array;
+
 export function msg(text: string){
     console.log(text);
 }
@@ -198,4 +201,63 @@ export function msgBox(text: string, fnc:()=>void){
 
     Glb.msgBoxDlg.showModal();
 }
+
+function BytesToInt(data : Uint8Array, offset : number) {
+    return data[offset] * 0x1000000 + data[offset + 1] * 0x10000 + data[offset + 2] * 0x100 + data[offset + 3];
+}
+
+function getMnistImage(data: Uint8Array){
+    let type = BytesToInt(data, 0);
+
+    // データ数
+    let cnt  = BytesToInt(data, 4);
+
+    // 画像の高さ
+    let h    = BytesToInt(data, 8);
+
+    // 画像の幅
+    let w    = BytesToInt(data, 12);
+
+    console.assert(16 + cnt * h * w == data.length);
+    mnistImage = new Float32Array(data.slice(16, 16 + 100 * w * h)).map(x => x / 255.0);
+    console.log(`MNIST image cnt:${cnt} w:${w} h:${h}`)
+}
+
+function getMnistLabel(data: Uint8Array){
+    let type = BytesToInt(data, 0);
+
+    // データ数
+    let cnt  = BytesToInt(data, 4);
+
+    console.assert(8 + cnt == data.length);
+    mnistLabel = new Float32Array(data.slice(8, 8 + 100));
+    console.log(`MNIST label cnt:${cnt}`)
+}
+
+function fetchBin(url: string, fnc:(data:Uint8Array)=>void){
+    fetch(url)
+    .then((res: Response) => {
+        if(res.status == 404){
+
+            throw new Error("ファイルがありません。");
+        }
+        else{
+
+            return res.arrayBuffer();
+        }
+    })
+    .then(data => {
+        fnc(new Uint8Array(data));
+    })
+    .catch(error => {
+        msg(`fetch error ${error}`);
+    });
+
+}
+
+export function getMNIST(){
+    fetchBin("mnist/t10k-images.idx3-ubyte", getMnistImage);
+    fetchBin("mnist/t10k-labels.idx1-ubyte", getMnistLabel);
+}
+
 }

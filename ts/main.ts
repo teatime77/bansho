@@ -694,6 +694,7 @@ function getIndexFile(open_doc_from_url: boolean){
 
 export function initEdit(){
     console.log("body load");
+    getMNIST();
 
     initBansho(true);
     Glb.edit     = true;

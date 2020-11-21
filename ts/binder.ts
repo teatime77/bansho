@@ -400,7 +400,7 @@ export class Simulation extends Widget implements gpgputs.DrawScenelistener {
 
                     pkg.args["progress"] = 0;
                 }
-            }           
+            }
         }
 
         if(Speech.viewPoint != null){
@@ -702,7 +702,15 @@ function setIOVarsValue(pkgInfo: PackageInfo, pkg: gpgputs.Package){
                     shape = Factorize(shape[1]);
                 }
 
-                pkg.args[va1.name] = new gpgputs.TextureInfo(va1.texelType, shape);
+                let tex = new gpgputs.TextureInfo(va1.texelType, shape);
+                pkg.args[va1.name] = tex;
+
+                if(va1.name == "MnistImage"){
+                    if((tex.value as Float32Array).length != mnistImage.length ){
+                        throw new Error();
+                    }
+                    tex.value = mnistImage;
+                }
             }
             else{
                 // 配列の場合

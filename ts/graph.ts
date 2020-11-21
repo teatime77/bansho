@@ -54,14 +54,23 @@ function setPathColor(oldPathIds : number[]){
     }
 }
 
-function getChildNode(g : SVGGElement, nodeName: string){
+function getChildNode(g : SVGGElement | ChildNode, nodeName: string) : SVGElement | null {
     for(let nd of g.childNodes){
         if(nd.nodeName == nodeName){
 
             return nd as SVGElement;
-        }
+        }        
+
+        if(nd.childNodes.length != 0){
+
+            let nd2 = getChildNode(nd, nodeName);
+            if(nd2 != null){
+                return nd2 as SVGElement;
+            }
+        }        
     }
-    throw new Error();
+
+    return null;
 }
 
 function openUrl(inf: FileInfo){
@@ -120,13 +129,17 @@ function setMapSvgEvent(){
             }
 
             let ellipse = getChildNode(this as unknown as SVGGElement, "ellipse");
+            if(ellipse == null){
+                throw new Error();
+            }
+            
 
             if(ev.ctrlKey){
 
                 if(srcDoc == null){
 
                     srcDoc = doc1;
-                    srcG   = ellipse!;
+                    srcG   = ellipse;
                     ellipse!.setAttribute("fill", "aqua");
                 }
                 else{
@@ -171,6 +184,9 @@ function setMapSvgEvent(){
         if(Glb.edit){
 
             let path = getChildNode(dom as unknown as SVGGElement, "path");
+            if(path == null){
+                throw new Error();
+            }
             path.setAttribute("stroke-width", "3");
             path.style.cursor = "pointer";
         }
