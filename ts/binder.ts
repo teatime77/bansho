@@ -26,6 +26,7 @@ let pkgParamsInp          : HTMLInputElement;
 let pkgNumInputFormulaInp : HTMLInputElement;
 let pkgFragmentShaderSel  : HTMLSelectElement;
 let pkgDisplaySel         : HTMLSelectElement;
+let pkgOrderSel           : HTMLSelectElement;
 let pkgSpeech             : HTMLDivElement;
 export let pkgVertexShaderDiv: HTMLDivElement;
 
@@ -842,7 +843,7 @@ function showTextureEditDlg(tex: Variable){
 
 //-------------------------------------------------- パッケージ編集画面
 
-function showPackageEditDlg(pkg: PackageInfo){
+function showPackageEditDlg(idx: number, pkg: PackageInfo){
     currentPkg = pkg;
 
     pkgParamsInp.value   = pkg.params;
@@ -860,6 +861,9 @@ function showPackageEditDlg(pkg: PackageInfo){
     }
 
     pkgDisplaySel.value = currentPkg.display;
+
+    pkgOrderSel.innerHTML = range(sim.packageInfos.length).map(i => `<option>${i}</option>`).join("");
+    pkgOrderSel.selectedIndex = idx;
 
     setCode(pkg.vertexShader);
 
@@ -977,6 +981,7 @@ export function initBinder(){
     pkgNumInputFormulaInp = getElement("pkg-numInput") as HTMLInputElement;
     pkgFragmentShaderSel  = getElement("pkg-fragment-shader") as HTMLSelectElement;
     pkgDisplaySel         = getElement("pkg-display") as HTMLSelectElement;
+    pkgOrderSel           = getElement("pkg-order") as HTMLSelectElement;
     pkgVertexShaderDiv    = getElement("pkg-vertex-shader") as HTMLDivElement;
     pkgSpeech             = getElement("pkg-speech") as HTMLDivElement;
     
@@ -1138,6 +1143,24 @@ function setBinderEvent(){
                 }
             }
 
+            // パッケージの順序変更
+            let pkg_cnt = sim.packageInfos.length;
+            let idx = sim.packageInfos.indexOf(currentPkg);
+            if(pkgOrderSel.selectedIndex != idx){
+                // 順番が変わった場合
+
+                sim.packageInfos.splice(idx, 1);
+                sim.packageInfos.splice(pkgOrderSel.selectedIndex, 0, currentPkg);
+
+                // IDの再設定
+                for(let [i, info] of sim.packageInfos.entries()){
+                    info.id = alphabet[i];
+                }
+        
+                console.log(`パッケージの順序変更 ${idx} => ${pkgOrderSel.selectedIndex}`);
+                console.assert(pkg_cnt == sim.packageInfos.length && sim.packageInfos.includes(currentPkg));
+            }
+
             pkgEditDlg.close();
 
             makeGraph();
@@ -1145,17 +1168,20 @@ function setBinderEvent(){
     });
 
     getElement("pkg-edit-del").addEventListener("click", (ev: MouseEvent)=>{
-        pkgEditDlg.close();
 
-        // パッケージを削除する。
-        removeArrayElement(sim.packageInfos, currentPkg);
+        msgBox(`削除しますか?`, ()=>{
+            pkgEditDlg.close();
 
-        // パッケージ内の変数へのバインドを削除する。
-        sim.varsAll().forEach(x => {
-            x.dstVars = x.dstVars.filter(y => y.package != currentPkg);
+            // パッケージを削除する。
+            removeArrayElement(sim.packageInfos, currentPkg);
+
+            // パッケージ内の変数へのバインドを削除する。
+            sim.varsAll().forEach(x => {
+                x.dstVars = x.dstVars.filter(y => y.package != currentPkg);
+            });
+
+            makeGraph();
         });
-
-        makeGraph();
     });
 
     //-------------------------------------------------- テクスチャ編集画面
@@ -1200,10 +1226,10 @@ function setGraphEvent(){
         let dom = getElement(`${pkg.id}_vertex`);
         dom.addEventListener("click", function(ev: MouseEvent){
 
-            let pkg1 = sim.packageInfos.find(x => this.id == `${x.id}_vertex`);
-            if(pkg1 == undefined) throw new Error();
+            let idx = sim.packageInfos.findIndex(x => this.id == `${x.id}_vertex`);
+            if(idx == -1) throw new Error();
 
-            showPackageEditDlg(pkg1);
+            showPackageEditDlg(idx, sim.packageInfos[idx]);
         });
     }
 

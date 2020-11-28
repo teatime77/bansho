@@ -203,7 +203,7 @@ mjx-container[display="true"] {
 GPGPUのパッケージの編集
 -------------------------------------------------- -->
 <dialog id="sim-edit-dlg" style="width: 90%; height: 90%;">
-    サイズ <input id="sim-params" type="text" style="width: 50em;" spellcheck="false" />
+    パラメータ <input id="sim-params" type="text" style="width: 100em;" spellcheck="false" />
     <br/>
     <select id="sel-shape-pkg">
         <option value="point">点</option>
@@ -250,6 +250,9 @@ GPGPUのパッケージの編集
         <option value="Parallelogram">平行四辺形</option>
         <option value="Cuboid">直方体</option>
     </select>
+
+    順番
+    <select id="pkg-order"></select>
 
     <table><tr>
         <td>

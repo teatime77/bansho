@@ -1022,6 +1022,7 @@ export abstract class Shape extends Widget {
     parentView : View;
     selected: boolean = false;
     EndTime: number | undefined = undefined;
+    Color: string = fgColor;
 
     Name: string = "";
     namePos = new Vec2(0,0);
@@ -1039,7 +1040,7 @@ export abstract class Shape extends Widget {
     select(selected: boolean){
         this.selected = selected;
 
-        let color = selected ? selColor : fgColor;
+        let color = selected ? selColor : this.Color;
         if(this.svgName != null){
 
             this.svgName.setAttribute("stroke", color);
@@ -1049,6 +1050,24 @@ export abstract class Shape extends Widget {
         if(this.divCaption != null){
             
             this.divCaption.style.color = color;
+        }
+    }
+
+    setColor(c:string){
+        this.Color = c;
+        this.updateColor();
+    }
+
+    updateColor(){
+        if(this.svgName != null){
+
+            this.svgName.setAttribute("stroke", this.Color);
+            this.svgName.setAttribute("fill", this.Color);
+        }
+
+        if(this.divCaption != null){
+            
+            this.divCaption.style.color = this.Color;
         }
     }
 
@@ -1066,6 +1085,10 @@ export abstract class Shape extends Widget {
         let obj = Object.assign(super.makeObj(), {
             parentView : this.parentView.toObj()
         });
+
+        if(this.Color != undefined && this.Color != fgColor){
+            obj.Color = this.Color;
+        }
 
         if(this.Name != ""){
             obj.Name    = this.Name;
@@ -1215,8 +1238,8 @@ export abstract class Shape extends Widget {
             if(this.svgName == null){
 
                 this.svgName = document.createElementNS("http://www.w3.org/2000/svg","text");
-                this.svgName.setAttribute("stroke", fgColor);
-                this.svgName.setAttribute("fill", fgColor);
+                this.svgName.setAttribute("stroke", this.Color);
+                this.svgName.setAttribute("fill", this.Color);
                 this.svgName.style.cursor = "pointer";
                 this.parentView.G0.appendChild(this.svgName);
 
@@ -1517,7 +1540,7 @@ export class Point extends Shape {
         super();
 
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        this.circle.setAttribute("fill", fgColor);        
+        this.circle.setAttribute("fill", this.Color);        
         this.circle.style.cursor = "pointer";
 
         console.assert(obj.pos != undefined);
@@ -1528,6 +1551,7 @@ export class Point extends Shape {
 
         this.updateName();
         this.updateCaption();
+        this.updateColor();
 
         this.updateRatio();
 
@@ -1551,7 +1575,7 @@ export class Point extends Shape {
     }
 
     propertyNames() : string[] {
-        return [ "X", "Y", "Name", "Caption", "Pos3D", "Visible", "FontSize", "EndTime" ];
+        return [ "X", "Y", "Color", "Name", "Caption", "Pos3D", "Visible", "FontSize", "EndTime" ];
     }
 
     makeObj() : any {
@@ -1594,6 +1618,11 @@ export class Point extends Shape {
     setY(value:any){
         this.pos.y =  parseFloat(value);
         this.updatePos();
+    }
+
+    updateColor(){
+        super.updateColor();
+        this.circle.setAttribute("fill", this.Color);
     }
 
     getPos3D(){
@@ -1654,7 +1683,7 @@ export class Point extends Shape {
                 this.circle.setAttribute("fill", selColor);
             }
             else{
-                this.circle.setAttribute("fill", fgColor);
+                this.circle.setAttribute("fill", this.Color);
             }
         }
     }
@@ -1751,7 +1780,6 @@ export class LineSegment extends CompositeShape {
     p12: Vec2 = new Vec2(0,0);
     e: Vec2 = new Vec2(0,0);
     len: number = 0;
-    Color: string | undefined = fgColor;
 
     Arrow = 0;
     svgArrow : SVGPathElement | null = null;
@@ -1768,10 +1796,6 @@ export class LineSegment extends CompositeShape {
 
     makeObj() : any {
         let obj = super.makeObj();
-
-        if(this.Color != undefined && this.Color != fgColor){
-            obj.Color = this.Color;
-        }
 
         if(this.Arrow != 0){
             obj.Arrow = this.Arrow;
@@ -1801,9 +1825,6 @@ export class LineSegment extends CompositeShape {
     make(obj: any) : Widget {
         super.make(obj);
 
-        if(this.Color == "navy"){
-            delete this.Color;
-        }
         this.line.setAttribute("stroke", this.color());
 
         for(let p of this.handles){
@@ -2401,7 +2422,6 @@ export class Rect extends Polygon {
 }
 
 class CircleArc extends CompositeShape {
-    Color: string = fgColor;
 
     getRadius(){
         return NaN;
@@ -2454,7 +2474,6 @@ export class Circle extends CircleArc {
             byDiameter: this.byDiameter,
             center: this.center,
             radius: this.radius,
-            Color : this.Color
         });
     }
 
@@ -2641,6 +2660,10 @@ export class DimensionLine extends CompositeShape {
         this.drawPath(this.handles[2].pos);
 
         return this;
+    }
+
+    propertyNames() : string[] {
+        return [ "EndTime" ];
     }
 
     processEvent =(sources: Shape[])=>{
@@ -3137,12 +3160,6 @@ export class Arc extends CircleArc {
         this.parentView.G0.appendChild(this.arc);
     }
 
-    makeObj() : any {
-        return Object.assign(super.makeObj(), {
-            Color : this.Color
-        });
-    }
-
     make(obj: any) : Widget {
         super.make(obj);
         this.drawArc(null);
@@ -3272,7 +3289,6 @@ export class Angle extends Shape {
     downPos: Vec2[] = [];
     arcs   : SVGPathElement[] = [];
     primes : SVGLineElement[] = [];
-    Color : string = fgColor;
 
     constructor(){
         super();
@@ -3664,7 +3680,6 @@ export class Image extends CompositeShape {
 
 export class FuncLine extends Shape {  
     path: SVGPathElement;
-    Color: string = fgColor;
     points: Vec2[] = [];
     Script: string = `    
     in  float idx;
